@@ -43,4 +43,5 @@ v2는 Sora 2 기준 세로형 9:16, 12초 단일 영상 프롬프트와
 - `templates/`: HTML/CSS 템플릿
 - `data/`: 입력 및 중간 데이터
 - `outputs/`: 생성 결과물
+- `outputs/videos/`: 생성된 블로그 숏츠 영상
 - `logs/`: 실행 및 변경 기록
