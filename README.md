@@ -27,6 +27,14 @@ Sora 숏츠 구성, HTML 및 SEO 결과물을 생성하는 자동화 프로젝�
 핵심 관점을 자동 추출하고 제목, 썸네일, 대표 이미지, Sora 숏츠, 내레이션,
 자막, HTML 본문, SEO 메타 설명과 해시태그를 한 번에 생성합니다.
 
+## AI 뉴스 콘텐츠 패키지 프롬프트
+
+- 최신 버전: `prompts/prompt_ai_news_content_package_v2.md`
+- 이전 버전: `prompts/prompt_ai_news_content_package_v1.md`
+
+v2는 Sora 2 기준 세로형 9:16, 12초 단일 영상 프롬프트와
+12초 내레이션, 자막 3~4개를 생성합니다.
+
 ## 디렉터리
 
 - `docs/`: 기준 및 운영 문서
