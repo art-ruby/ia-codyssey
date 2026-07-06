@@ -6,6 +6,7 @@ Sora 숏츠 구성, HTML 및 SEO 결과물을 생성하는 자동화 프로젝�
 ## 실행 결과 보기
 
 - [Hermes Agent LLM 비교 평가 사이트](https://art-ruby.github.io/ia-codyssey/)
+- [과제 평가 설명서](https://art-ruby.github.io/ia-codyssey/evaluation/reports/evaluator_guide.html)
 - [미션 완료 보고서](https://art-ruby.github.io/ia-codyssey/evaluation/reports/mission_completion_report.html)
 - [모델 평가표](https://art-ruby.github.io/ia-codyssey/evaluation/scores/hermes_agent/05_model_evaluation_table.html)
 
