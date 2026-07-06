@@ -3,6 +3,15 @@
 뉴스기사 원문 또는 요약 1개를 기반으로 AI 테크 뉴스 블로그, 이미지 프롬프트,
 Sora 숏츠 구성, HTML 및 SEO 결과물을 생성하는 자동화 프로젝트입니다.
 
+## 실행 결과 보기
+
+- [Hermes Agent LLM 비교 평가 사이트](https://art-ruby.github.io/ia-codyssey/)
+- [미션 완료 보고서](https://art-ruby.github.io/ia-codyssey/evaluation/reports/mission_completion_report.html)
+- [모델 평가표](https://art-ruby.github.io/ia-codyssey/evaluation/scores/hermes_agent/05_model_evaluation_table.html)
+
+평가 사이트에서는 ChatGPT·Claude·Gemini의 실제 블로그 HTML 결과와 최종
+보고서를 로그인 없이 확인할 수 있습니다.
+
 ## 주요 문서
 
 - `PROJECT_RULES_v1.md`: 최상위 운영 기준
