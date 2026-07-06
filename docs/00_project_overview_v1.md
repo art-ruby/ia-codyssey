@@ -206,7 +206,13 @@ ai-tech-news-blog-automation/
 ├─ PROJECT_RULES_v1.md
 ├─ docs/
 ├─ prompts/
-├─ benchmarks/
+├─ evaluation/
+│  ├─ benchmarks/
+│  ├─ test_inputs/
+│  ├─ model_outputs/
+│  ├─ scores/
+│  ├─ reports/
+│  └─ logs/
 ├─ templates/
 ├─ outputs/
 ├─ data/
@@ -219,7 +225,7 @@ ai-tech-news-blog-automation/
 |------|------|
 | `docs/` | 프로젝트 기준 문서와 설계 문서 저장 |
 | `prompts/` | 단계별 프롬프트 저장 |
-| `benchmarks/` | 벤치마킹 분석 자료 저장 |
+| `evaluation/` | 벤치마크, 공통 입력, 모델별 출력, 평가표와 보고서 저장 |
 | `templates/` | HTML/CSS 템플릿 저장 |
 | `outputs/` | 생성 결과물 저장 |
 | `data/` | 뉴스 소스, 정리 데이터, 테스트 입력 저장 |

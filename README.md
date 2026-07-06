@@ -18,6 +18,9 @@ Sora 숏츠 구성, HTML 및 SEO 결과물을 생성하는 자동화 프로젝�
 - `docs/12_manual_review_guide_v1.md`: 수동 검수 가이드
 - `docs/13_posting_ready_criteria_v1.md`: 게시 승인 기준
 - `docs/14_prompt_tuning_log_v1.md`: 프롬프트 튜닝 로그
+- `docs/15_public_mission_summary_v1.md`: 공개용 맞춤 미션
+- `docs/16_common_prompt_strategy_v1.md`: 공통 프롬프트 통합 전략
+- `docs/17_mission_execution_plan_v1.md`: 미션 실행 계획
 
 ## 최종 통합 프롬프트
 
@@ -29,17 +32,21 @@ Sora 숏츠 구성, HTML 및 SEO 결과물을 생성하는 자동화 프로젝�
 
 ## AI 뉴스 콘텐츠 패키지 프롬프트
 
-- 최신 버전: `prompts/prompt_ai_news_content_package_v3.md`
+- ChatGPT: `prompts/prompt_ai_news_content_package_chatgpt_v3.md`
+- Gemini: `prompts/prompt_ai_news_content_package_gemini_v4.md`
+- Claude: `prompts/prompt_ai_news_content_package_claude_v5.md`
 - 이전 버전: `prompts/prompt_ai_news_content_package_v1.md`, `prompts/prompt_ai_news_content_package_v2.md`
 
-v3는 Sora 2 기준 세로형 9:16, 12초 단일 영상 프롬프트와
-12초 내레이션, 자막 3~4개를 생성합니다.
+세 모델별 프롬프트는 발전 과정과 모델별 출력 차이를 보존합니다. 공정한 모델
+평가에는 별도의 공통 프롬프트를 사용하고, 모델별 프롬프트 결과와 구분합니다.
+
+- 공통 비교 프롬프트: `prompts/comparison/prompt_ai_news_content_package_common_v6_final.md`
 
 ## 디렉터리
 
 - `docs/`: 기준 및 운영 문서
 - `prompts/`: 단계별 프롬프트
-- `benchmarks/`: 벤치마크 자료
+- `evaluation/`: 벤치마크, 공통 입력, 모델별 출력, 평가표, 보고서
 - `templates/`: HTML/CSS 템플릿
 - `data/`: 입력 및 중간 데이터
 - `outputs/`: 생성 결과물
