@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes Agent LLM 비교 평가 미션 완료 보고서</title>
+  <style>
+    :root { --navy:#17324d; --blue:#2463a7; --line:#d9e2ec; --soft:#f5f8fb; --green:#16794b; --amber:#9a6400; --red:#a33a3a; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#eef3f7; color:#243443; font-family:Arial,"Noto Sans KR",sans-serif; line-height:1.75; }
+    main { max-width:1080px; margin:32px auto; padding:44px; background:#fff; box-shadow:0 8px 30px rgba(23,50,77,.08); }
+    h1,h2,h3 { color:var(--navy); line-height:1.35; }
+    h1 { margin:0 0 10px; font-size:34px; }
+    h2 { margin:42px 0 16px; padding-bottom:8px; border-bottom:2px solid var(--line); font-size:25px; }
+    h3 { margin:24px 0 8px; font-size:19px; }
+    p { margin:8px 0 14px; }
+    .subtitle { margin:0 0 28px; color:#607286; }
+    .summary { padding:20px 22px; background:#edf5ff; border-left:6px solid var(--blue); border-radius:8px; }
+    .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:22px 0; }
+    .metric { padding:18px; background:var(--soft); border:1px solid var(--line); border-radius:8px; text-align:center; }
+    .metric strong { display:block; color:var(--navy); font-size:26px; }
+    .metric span { color:#647587; font-size:14px; }
+    table { width:100%; border-collapse:collapse; margin:14px 0 22px; font-size:15px; }
+    th,td { padding:11px 12px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#eaf0f6; color:var(--navy); }
+    .done { color:var(--green); font-weight:700; }
+    .partial { color:var(--amber); font-weight:700; }
+    .todo { color:var(--red); font-weight:700; }
+    .callout { padding:18px 20px; background:#fff8e8; border-left:6px solid #e5a21a; border-radius:8px; }
+    code { padding:2px 5px; background:#eef2f6; border-radius:4px; font-family:Consolas,monospace; font-size:.92em; }
+    ul,ol { padding-left:24px; }
+    .footer { margin-top:42px; padding-top:16px; border-top:1px solid var(--line); color:#6b7b8c; font-size:14px; }
+    @media (max-width:760px) {
+      main { margin:0; padding:24px 18px; }
+      .metrics { grid-template-columns:repeat(2,1fr); }
+      table { display:block; overflow-x:auto; white-space:nowrap; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Hermes Agent LLM 비교 평가 미션 완료 보고서</h1>
+  <p class="subtitle">기준 문서: evaluation/mission_execution_plan.md · 점검일: 2026-07-06</p>
+
+  <section class="summary">
+    <strong>종합 판단: 미션의 필수 실험·보고서·증빙 구성이 완료됐다.</strong>
+    <p>세 모델 결과, 공통 프롬프트, 평가표, Few-shot 예시, 프롬프트 개선 비교, 환각 검증, 11턴 대화 로그, 최종 보고서 3종과 제출용 증빙 문서를 확보했다. 미측정 실행 시각과 응답 시간은 한계로 명시했다.</p>
+  </section>
+
+  <div class="metrics">
+    <div class="metric"><strong>3</strong><span>비교 모델</span></div>
+    <div class="metric"><strong>86.5</strong><span>최고 평가 점수</span></div>
+    <div class="metric"><strong>11</strong><span>기록된 대화 턴</span></div>
+    <div class="metric"><strong>0</strong><span>미작성 최종 보고서</span></div>
+  </div>
+
+  <h2>1. 미션 개요</h2>
+  <p>본 미션의 목적은 Hermes Agent 관련 원문과 벤치마크를 기반으로 한국어 AI 뉴스 블로그 콘텐츠 패키지를 생성하고, ChatGPT·Claude·Gemini의 결과를 동일한 기준으로 비교 평가하는 것이다.</p>
+  <p>평가 범위에는 콘텐츠 기획, 게시용 HTML, 이미지 및 영상 프롬프트, 사실 검증, 형식 준수, 프롬프트 개선 효과와 대화형 수정 과정이 포함된다.</p>
+
+  <h2>2. 산출물 완료 현황</h2>
+  <table>
+    <thead>
+      <tr><th>과업</th><th>확인된 산출물</th><th>판정</th><th>비고</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>고정 입력 패키지</td><td><code>evaluation/test_inputs/hermes_agent/</code></td><td class="done">완료</td><td>기사, 출처 목록, 기대 사실, 테스트 케이스 존재</td></tr>
+      <tr><td>공통 프롬프트</td><td><code>evaluation/model_outputs/prompt_ai_news_content_package_common_v6_final.md</code></td><td class="done">완료</td><td>세 모델 비교 기준 통일</td></tr>
+      <tr><td>모델별 결과</td><td><code>evaluation/model_outputs/{chatgpt,claude,gemini}/</code></td><td class="done">완료</td><td>각 모델의 본문·HTML·이미지·메타데이터 존재</td></tr>
+      <tr><td>자동·수동 평가</td><td><code>evaluation/scores/hermes_agent/05_model_evaluation_table.md</code> 및 HTML</td><td class="done">완료</td><td>가중 평가 결과 기록</td></tr>
+      <tr><td>Few-shot 3종</td><td><code>evaluation/few_shot/</code></td><td class="done">완료</td><td>충분한 입력, 혼합 정보, 불충분 입력 예시 존재</td></tr>
+      <tr><td>v1→v2 개선 비교</td><td><code>evaluation/prompt_iterations/hermes_agent/</code></td><td class="done">완료</td><td>각 버전 매니페스트가 실제 원본 결과 파일을 연결하고 제출용 비교 증빙을 제공</td></tr>
+      <tr><td>환각 검증</td><td><code>evaluation/reports/evidence/hallucination_test_results.md</code></td><td class="done">완료</td><td>공식 자료 및 모델 결과 기반 Pass/Fail 기록</td></tr>
+      <tr><td>10턴 이상 대화 로그</td><td><code>evaluation/logs/hermes_agent_chatgpt_conversation.md</code></td><td class="done">완료</td><td>11턴, 이전 조건 유지 검증, 문제·수정 요약 포함</td></tr>
+      <tr><td>최종 제출 보고서 3종</td><td><code>evaluation/reports/01~03</code></td><td class="done">완료</td><td>모델 비교·프롬프트 설계·대화 실행 보고서 작성</td></tr>
+      <tr><td>부속 증빙 문서</td><td><code>evaluation/reports/evidence/</code></td><td class="done">완료</td><td>공통 프롬프트, 평가표, 환각 검증, v1→v2, 실행 메타데이터 구성</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. 모델 비교 결과</h2>
+  <table>
+    <thead><tr><th>순위</th><th>모델</th><th>점수</th><th>해석</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>ChatGPT 5.5 중간</td><td>86.5</td><td>최종 선정 모델. 사실성, 형식 준수, 콘텐츠 구성의 종합 균형이 가장 우수한 것으로 평가됨</td></tr>
+      <tr><td>2</td><td>Claude Sonnet 5 무료 시험</td><td>84.0</td><td>1위와 2.5점 차이로 근접했으나 무료 시험 및 프로젝트 기능 제한이 실행 조건에 포함됨</td></tr>
+      <tr><td>3</td><td>Gemini 3.1 Pro</td><td>75.5</td><td>다른 두 모델보다 종합 점수가 낮아 후속 수정 비용이 상대적으로 큰 결과로 해석 가능</td></tr>
+    </tbody>
+  </table>
+  <p>평가표는 사실 정확성·환각 억제에 가장 높은 25% 가중치를 부여하고, 기사 충실도·형식 준수·콘텐츠 구조를 각각 15%로 평가했다. 따라서 최종 순위는 단순한 문장 품질보다 검증 가능성과 실무 사용성을 함께 반영한 결과다.</p>
+
+  <h2>4. 주요 성과</h2>
+  <ul>
+    <li>세 모델에 동일한 입력과 출력 규칙을 적용해 비교 가능성을 확보했다.</li>
+    <li>마크다운, 게시용 HTML, 이미지 3종, Sora 2 프롬프트, SEO 요소를 하나의 평가 단위로 구성했다.</li>
+    <li>GitHub 스타 수, 설치 시간, 라이선스, VPS 비용 등 변동되거나 불확실한 정보에 대한 환각 검증 체계를 추가했다.</li>
+    <li>v2 프롬프트에 사실 추출, 불확실성 표시, 구조 설계, HTML 생성, 자체 검수 순서를 도입했다.</li>
+    <li>대화형 수정 로그를 통해 독자층, 제목, 과장 표현, 비교표, 수치, HTML, 이미지 위치가 어떻게 개선됐는지 추적할 수 있게 했다.</li>
+  </ul>
+
+  <h2>5. 후속 권장사항</h2>
+  <div class="callout">
+    <strong>현재 제출을 막지는 않지만 다음 실행에서 보강할 항목</strong>
+    <ol>
+      <li>향후 재실행부터 정확한 시작·종료 시각과 응답 생성 시간을 측정한다.</li>
+      <li>모델별 결과 파일명을 <code>package.md</code>와 <code>blog.html</code>로 완전히 통일한다.</li>
+      <li>자동 검증 명령과 실행 로그를 별도 파일로 보존한다.</li>
+    </ol>
+  </div>
+
+  <h3>실행 메타데이터 보강</h3>
+  <p>실행 날짜는 기록되어 있으나 정확한 시각과 응답 생성 시간은 측정되지 않았다. 재현성을 높이려면 모델명·버전, 요금제, 웹 검색 사용 여부, 실행 시각, 응답 시간, 온도나 추론 수준 등 사용 가능한 설정을 모델별로 동일한 형식으로 남겨야 한다.</p>
+
+  <h3>자동 검증 증빙 보강</h3>
+  <p>계획서에는 자동 검증이 완료됐다고 기록되어 있지만, 현재 파일 목록만으로는 검증 스크립트나 실행 결과 로그를 직접 확인하기 어렵다. 필수 섹션, 이미지 개수, HTML 마크다운 혼입, SEO 메타, 인라인 CSS 등을 검사한 명령과 결과를 별도 파일로 보존하는 것이 적절하다.</p>
+
+  <h3>파일명과 구조 정규화</h3>
+  <p>모델별 결과 파일명이 ChatGPT는 <code>blog.html</code>, Claude는 <code>article.md</code>와 <code>index.html</code>, Gemini는 <code>index.md</code>와 <code>index.html</code>로 다르다. 후속 자동 평가를 위해 공통 파일명 규약을 적용하거나 매핑 manifest를 두는 편이 안전하다.</p>
+
+  <h2>6. 권장 마무리 순서</h2>
+  <ol>
+    <li>계획서 상태와 실제 파일 현황을 동기화한다.</li>
+    <li>최종 제출용 보고서 3종을 기존 평가표와 증빙을 인용해 작성한다.</li>
+    <li>누락된 증빙과 실행 메타데이터를 단일 형식으로 통합한다.</li>
+    <li>링크, 파일 존재 여부, HTML 유효성, 이미지 참조를 최종 점검한다.</li>
+  </ol>
+
+  <h2>7. 최종 판정</h2>
+  <p><strong>현재 단계는 “미션 완료, 후속 재현성 보강 권장”으로 판정한다.</strong> 세 모델 비교, 프롬프트 설계, 개선 실험, 환각 검증, 11턴 대화, 최종 보고서와 부속 증빙이 모두 존재한다. 정확한 실행 시각과 생성 시간은 미측정으로 투명하게 기록했으며 완료를 막는 누락 자료는 없다.</p>
+
+  <p class="footer">본 보고서는 2026-07-06 현재 <code>evaluation/mission_execution_plan.md</code>와 <code>evaluation/</code> 아래 실제 파일 존재 여부를 대조해 작성했다.</p>
+</main>
+</body>
+</html>

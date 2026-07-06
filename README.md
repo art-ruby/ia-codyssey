@@ -3,6 +3,27 @@
 뉴스기사 원문 또는 요약 1개를 기반으로 AI 테크 뉴스 블로그, 이미지 프롬프트,
 Sora 숏츠 구성, HTML 및 SEO 결과물을 생성하는 자동화 프로젝트입니다.
 
+## 평가 제출 안내
+
+평가 시스템에서 이 저장소 `ia-codyssey`의 `main` 브랜치를 선택하면 된다.
+필수 평가 자료는 저장소 루트에 배치되어 있어 별도로 `evaluation/` 폴더에
+진입할 필요가 없다.
+
+- 제출 목록: `SUBMISSION_MANIFEST.md`
+- 평가 설명서: `evaluator_guide.html`
+- 완료 보고서: `mission_completion_report.html`
+- 최종 보고서: `reports/`
+- 모델별 결과: `model_outputs/`
+- 평가표: `scores/`
+- 공통 입력: `test_inputs/`
+- v1→v2 비교: `prompt_iterations/`
+- Few-shot 예시: `few_shot/`
+- 11턴 대화 로그: `logs/hermes_agent_chatgpt_conversation.md`
+- 프롬프트와 설계 문서: `prompts/`, `docs/`
+
+`evaluation/`은 위 자료를 하나의 독립 패키지로 보존하고 GitHub Pages에
+배포하기 위한 미러 폴더다.
+
 ## 실행 결과 보기
 
 - [Hermes Agent LLM 비교 평가 사이트](https://art-ruby.github.io/ia-codyssey/)
