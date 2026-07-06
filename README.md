@@ -225,6 +225,12 @@ OpenClaw 비교는 기사 범위만 사용하고, 과장 표현과 출처 없는
 
 이 세 영역을 분리하면 정책은 재사용하고 기사 데이터와 작업 요청만 교체할 수 있다.
 
+**실제 분리 파일:**
+
+- SYSTEM PROMPT: `prompts/comparison/system_prompt_v6.md`
+- USER PROMPT: `prompts/comparison/user_prompt_v6.md`
+- INPUT TEMPLATE: `prompts/comparison/input_template_v6.md`
+
 ### 8. v1→v2 개선 과정
 
 **v1 흐름:** 기사 입력 → 블로그 마크다운 생성 → HTML 생성
