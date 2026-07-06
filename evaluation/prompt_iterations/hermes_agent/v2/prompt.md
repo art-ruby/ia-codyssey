@@ -6,7 +6,7 @@
 
 ## 사용 프롬프트
 
-`../../../../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md`
+`../../../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md`
 
 ## 처리 흐름
 
@@ -29,4 +29,3 @@
 - Sora 필수 문구
 - 완결형 HTML 및 인라인 CSS
 - 출력 전 10개 항목 자체 검수
-

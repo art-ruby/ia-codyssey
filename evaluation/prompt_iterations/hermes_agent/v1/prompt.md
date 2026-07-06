@@ -6,7 +6,7 @@
 
 ## 사용 프롬프트
 
-`../../../../prompts/prompt_ai_news_content_package_claude_v5.md`
+`../../../prompts/prompt_ai_news_content_package_claude_v5.md`
 
 ## 처리 흐름
 
@@ -20,4 +20,3 @@
 - 출력 후 자체 검수 결과를 확인하기 어려움
 - 생성 HTML이 인라인 CSS 계약보다 모델 자체 디자인을 우선함
 - 원본 출력과 정규화 결과의 파일명이 표준화되지 않음
-

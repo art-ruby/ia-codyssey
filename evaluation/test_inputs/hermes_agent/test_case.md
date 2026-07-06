@@ -18,15 +18,15 @@
 
 ## 실험 A — 공정 비교
 
-- 공통 프롬프트: `../../../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md`
+- 공통 프롬프트: `../../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md`
 - ChatGPT, Gemini, Claude에 동일한 프롬프트와 동일한 기사 입력 사용
 - 추가 대화나 수동 수정 없이 첫 응답을 저장
 
 ## 실험 B — 실무 비교
 
-- ChatGPT: `../../../prompts/prompt_ai_news_content_package_chatgpt_v3.md`
-- Gemini: `../../../prompts/prompt_ai_news_content_package_gemini_v4.md`
-- Claude: `../../../prompts/prompt_ai_news_content_package_claude_v5.md`
+- ChatGPT: `../../prompts/prompt_ai_news_content_package_chatgpt_v3.md`
+- Gemini: `../../prompts/prompt_ai_news_content_package_gemini_v4.md`
+- Claude: `../../prompts/prompt_ai_news_content_package_claude_v5.md`
 - 모델별 최적화 프롬프트와 동일한 기사 입력 사용
 
 ## 필수 출력

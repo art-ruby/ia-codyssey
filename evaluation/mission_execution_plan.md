@@ -52,7 +52,7 @@ evaluation/test_inputs/hermes_agent/
 세 모델에 동일하게 적용한 프롬프트:
 
 ```text
-prompts/comparison/prompt_ai_news_content_package_common_v6_final.md
+evaluation/prompts/comparison/prompt_ai_news_content_package_common_v6_final.md
 ```
 
 통일한 요소:

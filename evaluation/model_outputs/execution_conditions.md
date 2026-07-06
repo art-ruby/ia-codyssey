@@ -9,9 +9,9 @@
 
 | 결과 폴더 | 사용 프롬프트 | 비교 상태 |
 |---|---|---|
-| `chatgpt/` | `../../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md` | ChatGPT 5.5, 중간, Pro, 웹 |
-| `gemini/` | `../../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md` | Gemini 3.1 Pro, Pro, 웹 |
-| `claude/` | `../../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md` | Claude Sonnet 5, 무료 시험, 웹 |
+| `chatgpt/` | `../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md` | ChatGPT 5.5, 중간, Pro, 웹 |
+| `gemini/` | `../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md` | Gemini 3.1 Pro, Pro, 웹 |
+| `claude/` | `../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md` | Claude Sonnet 5, 무료 시험, 웹 |
 
 ## 현재 판정
 

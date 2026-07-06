@@ -4,6 +4,18 @@
 
 - 전체 미션 실행 계획: `mission_execution_plan.md`
 
+## 평가 제출 패키지
+
+이 폴더는 단독으로 제출·검토할 수 있는 완결형 평가 패키지다.
+
+- 시작 페이지: `index.html`
+- 평가 설명서: `reports/evaluator_guide.html`
+- 미션 완료 보고서: `reports/mission_completion_report.html`
+- 모델 결과: `model_outputs/`
+- 평가표: `scores/hermes_agent/`
+- 프롬프트: `prompts/`
+- 미션 설계 문서: `docs/`
+
 ## 디렉터리
 
 | 경로 | 내용 |
@@ -23,15 +35,15 @@
 
 동일한 공통 프롬프트와 동일 입력을 세 모델에 사용한다.
 
-- 공통 프롬프트: `../prompts/comparison/prompt_ai_news_content_package_common_v6_final.md`
+- 공통 프롬프트: `prompts/comparison/prompt_ai_news_content_package_common_v6_final.md`
 
 ### 최적화 비교
 
 모델별 프롬프트를 사용한다.
 
-- ChatGPT: `../prompts/prompt_ai_news_content_package_chatgpt_v3.md`
-- Gemini: `../prompts/prompt_ai_news_content_package_gemini_v4.md`
-- Claude: `../prompts/prompt_ai_news_content_package_claude_v5.md`
+- ChatGPT: `prompts/prompt_ai_news_content_package_chatgpt_v3.md`
+- Gemini: `prompts/prompt_ai_news_content_package_gemini_v4.md`
+- Claude: `prompts/prompt_ai_news_content_package_claude_v5.md`
 
 두 실험의 결과와 점수를 합치지 않는다.
 
