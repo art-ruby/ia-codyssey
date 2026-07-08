@@ -1,44 +1,18 @@
-# GenAI 기초 1: LLM 기반 업무 자동화
+# AI Tech News Blog Automation
 
-## 과제 개요
+## 과제 정리
 
-Hermes Agent 관련 원문과 벤치마크를 기반으로 한국어 AI 뉴스 블로그 콘텐츠 패키지를 생성하고, ChatGPT, Claude, Gemini 결과물을 동일 기준으로 비교 평가한 과제입니다.
+AI 기술 뉴스 원문을 한국어 블로그 콘텐츠로 자동 생성하고, 여러 LLM 결과를 비교해 최종 게시용 결과물을 선정한 과제입니다.
 
-이 폴더 전체가 1번 과제 패키지입니다. 별도의 `evaluation/` 폴더는 두지 않고, 평가 자료와 산출물을 과제 폴더 바로 아래에서 확인합니다.
+## 최종 결과물
 
-## 바로 열기
+- 최종 블로그 HTML: `materials/model_outputs/chatgpt/blog.html`
+- 최종 블로그 이미지: `materials/model_outputs/chatgpt/image1.png`, `image2.png`, `image3.png`
 
-1. `index.html`
-2. `evaluator_guide.html`
-3. `mission_completion_report.html`
-4. `SUBMISSION_MANIFEST.md`
+## 함께 남긴 자료
 
-## 주요 산출물 위치
+- 모델별 생성 결과: `materials/model_outputs/`
+- 사용 프롬프트: `materials/prompts/`
+- 최소 평가 근거: `materials/reports/`, `materials/scores/`
 
-| 항목 | 위치 |
-|---|---|
-| 과제 진입 페이지 | `index.html` |
-| 평가자 안내서 | `evaluator_guide.html` |
-| 미션 완료 보고서 | `mission_completion_report.html` |
-| 실행 계획 | `mission_execution_plan.md` |
-| 제출 매니페스트 | `SUBMISSION_MANIFEST.md` |
-| 벤치마크 | `benchmarks/` |
-| 문서 | `docs/` |
-| Few-shot 예시 | `few_shot/` |
-| 실행 및 대화 로그 | `logs/` |
-| 모델별 결과 | `model_outputs/` |
-| 프롬프트 | `prompts/` |
-| 프롬프트 개선 비교 | `prompt_iterations/` |
-| 최종 보고서와 증빙 | `reports/` |
-| 평가표 | `scores/` |
-| 테스트 입력 | `test_inputs/` |
-
-## 완료 상태
-
-- 세 모델 결과물 정리 완료
-- 공통 프롬프트 정리 완료
-- 평가표 및 근거 정리 완료
-- 환각 검증 정리 완료
-- v1 to v2 프롬프트 개선 비교 정리 완료
-- 11턴 대화 로그 정리 완료
-- 최종 보고서 및 제출 문서 정리 완료
+불필요한 과제 분석 문서, 작업 로그, 벤치마크 기록, 테스트 입력 기록은 게시 범위에서 제외했습니다.
