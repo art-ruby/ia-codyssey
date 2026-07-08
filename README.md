@@ -1,23 +1,39 @@
 # IA Codyssey Assignments
 
-현재 정리 대상은 1번 과제 `AI Tech News Blog Automation`입니다.
+## Assignment 01: AI Tech News Blog Automation
 
-## 바로 보기
+이 저장소의 1번 과제는 AI 뉴스 기사 하나를 입력해 ChatGPT, Claude, Gemini 3개 모델로 블로그 콘텐츠 패키지를 만들고, 결과를 비교 평가한 자동화 실험입니다.
 
-- [과제 메인 페이지](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/index.html)
-- [ChatGPT 블로그 웹 화면](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/model_outputs/chatgpt/blog.html)
-- [Claude 블로그 웹 화면](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/model_outputs/claude/blog.html)
-- [Gemini 블로그 웹 화면](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/model_outputs/gemini/index.html)
-- [모델 비교 보고서](assignments/01-genai-basic-llm-automation/reports/01_llm_model_comparison_report.md)
-- [시스템 프롬프트 설계](assignments/01-genai-basic-llm-automation/reports/02_system_prompt_design_document.md)
+평가자가 외부 링크를 열지 않아도 핵심 기준을 확인할 수 있도록 아래 문서에 15개 평가 항목별 답변을 본문으로 정리했습니다.
 
-## 핵심 내용
+- [평가 기준 대응 정리](assignments/01-genai-basic-llm-automation/EVALUATION_RESPONSE.md)
+- [과제 01 메인 페이지](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/index.html)
+- [모델 비교 평가표](assignments/01-genai-basic-llm-automation/scores/hermes_agent/05_model_evaluation_table.md)
+- [최종 비교 보고서](assignments/01-genai-basic-llm-automation/reports/01_llm_model_comparison_report.md)
+- [시스템 프롬프트 설계 보고서](assignments/01-genai-basic-llm-automation/reports/02_system_prompt_design_document.md)
+- [10턴 이상 대화 로그 요약](assignments/01-genai-basic-llm-automation/reports/03_conversation_execution_log.md)
 
-- ChatGPT, Claude, Gemini로 같은 AI 뉴스 콘텐츠 생성 과제를 수행했다.
-- 사실 정확성, 글 구조, HTML 완성도, 운영 편의성을 기준으로 결과를 비교했다.
-- 최종 게시 결과물은 ChatGPT 결과를 기준으로 정리했다.
-- 불확실한 수치와 출처가 필요한 내용은 확정 표현으로 쓰지 않는 기준을 적용했다.
+## 제출물 핵심 요약
 
-## 정리 기준
+| 항목 | 제출 내용 |
+|---|---|
+| 업무 과업 | AI 뉴스 기사를 블로그 게시용 마크다운, HTML, 이미지 프롬프트, 영상 프롬프트, SEO 패키지로 변환 |
+| 타겟 사용자 | 1인 창업자, AI 콘텐츠 제작자, 기술 블로그 운영자 |
+| 입력 템플릿 | 기사 정보, 작성 조건, 사실 검증, 출력 요청을 분리한 복사 가능 템플릿 |
+| 사용 모델 | ChatGPT 5.5, Claude Sonnet 5, Gemini 3.1 Pro |
+| 최종 선정 | ChatGPT 5.5 |
+| 선정 이유 | 총점 86.5점으로 1위이며 사실성, 형식 준수, HTML 이식성, 누적 수정 유지가 가장 안정적 |
+| 환각 검증 | 라이선스, 스타 수, 설치 명령, 마이그레이션 명령, 모델명, 비용, 보안 주장 검증 |
+| 대화 로그 | 11턴 대화로 독자층, 제목, 문체, 수치, HTML, 이미지 위치 조건을 순차 개선 |
 
-1번 과제의 원본 산출물은 `assignments/01-genai-basic-llm-automation/`에 유지합니다.
+## 모델 비교 결과
+
+| 순위 | 모델 | 점수 | 주요 근거 |
+|---:|---|---:|---|
+| 1 | ChatGPT 5.5 | 86.5 | 위험한 수치를 보수적으로 처리하고 인라인 HTML 구조가 안정적 |
+| 2 | Claude Sonnet 5 | 84.0 | 사실 확인 섹션과 SEO 구조가 좋으나 일부 표현 강도 보완 필요 |
+| 3 | Gemini 3.1 Pro | 75.5 | 구성은 완결적이나 입력 밖 추론과 CSS 형식 위반 수정 필요 |
+
+## Assignment 02: Multimodal Content
+
+2번 과제 산출물은 `assignments/02-genai-basic-multimodal-content/`에 복구되어 있습니다.

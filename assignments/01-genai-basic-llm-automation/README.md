@@ -8,15 +8,17 @@ Hermes Agent 관련 원문과 벤치마크를 기반으로 한국어 AI 뉴스 �
 
 ## 바로 열기
 
-1. `index.html`
-2. `evaluator_guide.html`
-3. `mission_completion_report.html`
-4. `SUBMISSION_MANIFEST.md`
+1. `EVALUATION_RESPONSE.md` — 15개 평가 기준 대응 본문
+2. `index.html`
+3. `evaluator_guide.html`
+4. `mission_completion_report.html`
+5. `SUBMISSION_MANIFEST.md`
 
 ## 주요 산출물 위치
 
 | 항목 | 위치 |
 |---|---|
+| 평가 기준 대응 정리 | `EVALUATION_RESPONSE.md` |
 | 과제 진입 페이지 | `index.html` |
 | 평가자 안내서 | `evaluator_guide.html` |
 | 미션 완료 보고서 | `mission_completion_report.html` |
