@@ -4,10 +4,9 @@
 
 이 저장소의 1번 과제는 AI 뉴스 기사 하나를 입력해 ChatGPT, Claude, Gemini 3개 모델로 블로그 콘텐츠 패키지를 만들고, 결과를 비교 평가한 자동화 실험입니다.
 
-평가자가 외부 링크를 열지 않아도 핵심 기준을 확인할 수 있도록 아래 문서에 15개 평가 항목별 답변을 본문으로 정리했습니다.
+평가자가 외부 링크를 열지 않아도 핵심 기준을 확인할 수 있도록 아래 문서에 과제 제출 항목별 근거를 본문으로 정리했습니다. 심층 인터뷰 항목은 이번 과제 제출 범위가 아니므로 제외합니다.
 
 - [평가 기준 대응 정리](assignments/01-genai-basic-llm-automation/EVALUATION_RESPONSE.md)
-- [최종 제출 본문](assignments/01-genai-basic-llm-automation/ai%20%EC%82%AC%EC%A0%84%ED%8F%89%EA%B0%80.md)
 - [과제 01 메인 페이지](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/index.html)
 - [모델 비교 평가표](assignments/01-genai-basic-llm-automation/scores/hermes_agent/05_model_evaluation_table.md)
 - [최종 비교 보고서](assignments/01-genai-basic-llm-automation/reports/01_llm_model_comparison_report.md)
@@ -26,7 +25,7 @@
 | 선정 이유 | 총점 86.5점으로 1위이며 사실성, 형식 준수, HTML 이식성, 누적 수정 유지가 가장 안정적 |
 | 환각 검증 | 라이선스, 스타 수, 설치 명령, 마이그레이션 명령, 모델명, 비용, 보안 주장 검증 |
 | 대화 로그 | 11턴 대화로 독자층, 제목, 문체, 수치, HTML, 이미지 위치 조건을 순차 개선 |
-| 제출 본문 | `assignments/01-genai-basic-llm-automation/ai 사전평가.md`에 15개 평가 기준을 직접 기재 |
+| 제외 항목 | 심층 인터뷰 13~15번은 과제 제출 범위가 아니므로 제출 자료에서 제외 |
 
 ## 모델 비교 결과
 
