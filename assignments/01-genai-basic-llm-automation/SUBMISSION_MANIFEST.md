@@ -2,16 +2,16 @@
 
 ## 제출 단위
 
-`evaluation/` 폴더 전체
+저장소 루트 `ia-codyssey/` 전체
 
-이 폴더만으로 과제 설명, 입력 자료, 프롬프트, 모델 결과, 평가표, 개선 기록,
-대화 로그, 최종 보고서와 웹 열람 페이지를 확인할 수 있다.
+평가 시스템에서는 저장소와 `main` 브랜치를 선택한다. 필수 자료는 루트에
+배치되어 있으며 `evaluation/`에 별도로 진입하지 않아도 확인할 수 있다.
 
 ## 시작 위치
 
 1. 웹 열람: `index.html`
-2. 평가 설명: `reports/evaluator_guide.html`
-3. 전체 상태: `reports/mission_completion_report.html`
+2. 평가 설명: `evaluator_guide.html`
+3. 전체 상태: `mission_completion_report.html`
 4. 폴더 안내: `README.md`
 
 ## 필수 구성
@@ -41,5 +41,5 @@
 
 ## 외부 요소
 
-`.github/workflows/pages.yml`은 무료 공개 사이트 배포를 위한 저장소 자동화 설정이며
-평가 내용 자체에는 필요하지 않다. 평가 자료와 증빙은 모두 `evaluation/` 안에 있다.
+`.github/workflows/pages.yml`은 무료 공개 사이트 배포를 위한 자동화 설정이다.
+`evaluation/`은 루트 평가 자료의 독립 패키지·웹 배포용 미러로 유지한다.
