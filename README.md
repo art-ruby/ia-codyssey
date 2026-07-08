@@ -4,8 +4,10 @@
 
 ## 바로 보기
 
-- [과제 메인 페이지](assignments/01-genai-basic-llm-automation/index.html)
-- [최종 블로그 결과물](assignments/01-genai-basic-llm-automation/model_outputs/chatgpt/blog.html)
+- [과제 메인 페이지](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/index.html)
+- [ChatGPT 블로그 웹 화면](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/model_outputs/chatgpt/blog.html)
+- [Claude 블로그 웹 화면](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/model_outputs/claude/blog.html)
+- [Gemini 블로그 웹 화면](https://art-ruby.github.io/ia-codyssey/assignments/01-genai-basic-llm-automation/model_outputs/gemini/index.html)
 - [모델 비교 보고서](assignments/01-genai-basic-llm-automation/reports/01_llm_model_comparison_report.md)
 - [시스템 프롬프트 설계](assignments/01-genai-basic-llm-automation/reports/02_system_prompt_design_document.md)
 
