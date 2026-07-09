@@ -34,6 +34,21 @@
 | 2 | Claude Sonnet 5 | 84.0 | 사실 확인 섹션과 SEO 구조가 좋으나 일부 표현 강도 보완 필요 |
 | 3 | Gemini 3.1 Pro | 75.5 | 구성은 완결적이나 입력 밖 추론과 CSS 형식 위반 수정 필요 |
 
-## Assignment 02: Multimodal Content
+## Assignment 02: GenAI Basic Multimodal Content
 
-2번 과제 산출물은 `assignments/02-genai-basic-multimodal-content/`에 복구되어 있습니다.
+2번 과제는 생성형 AI를 활용해 가상의 프리미엄 향수 브랜드 `LAPIS`의 멀티모달 브랜드 광고를 기획하고 제작한 과제입니다. 브랜드 아이덴티티, 씬별 스토리보드, 프롬프트 개선 기록, 최종 세로형 숏폼 광고 영상 정보를 README와 스토리보드 문서에 정리했습니다.
+
+| 항목 | 제출 내용 |
+|---|---|
+| 브랜드 | LAPIS |
+| 제품 | 프리미엄 오 드 퍼퓸 |
+| 캠페인 | The Muse of Lapis |
+| 형식 | 9:16 세로형 숏폼 브랜드 광고 |
+| 핵심 메시지 | 말보다 먼저 공기 속에 남는 조용한 존재감 |
+| 사용 도구 | ChatGPT, Google Flow, OpenAI TTS `nova`, CapCut |
+
+### Assignment 02 제출 파일
+
+- [과제 README](assignments/02-genai-basic-multimodal-content/README.md)
+- [스토리보드 기획 문서 PDF](assignments/02-genai-basic-multimodal-content/reports/LAPIS_storyboard_plan.pdf)
+- [최종 광고 영상 MP4](assignments/02-genai-basic-multimodal-content/reports/LAPIS_brand_ad_final.mp4)
