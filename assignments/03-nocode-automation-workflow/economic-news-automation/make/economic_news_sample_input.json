@@ -1,7 +1,0 @@
-﻿[
-  {"message_id":"test-rate-001","received_at":"2026-07-20T07:30:00+09:00","newsletter_name":"뉴닉","subject":"한국은행 기준금리 동결과 대출금리 전망","body":"한국은행이 기준금리를 동결했다. 대출금리와 예금금리의 변화를 살펴본다."},
-  {"message_id":"test-rate-002","received_at":"2026-07-20T07:35:00+09:00","newsletter_name":"어피티","subject":"기준금리 동결, 가계 대출에 미치는 영향","body":"기준금리 동결 이후 대출금리와 예금금리 전망을 정리했다."},
-  {"message_id":"test-rate-003","received_at":"2026-07-20T07:40:00+09:00","newsletter_name":"순살브리핑","subject":"한국은행 금리 결정과 시장 반응","body":"한국은행의 기준금리 결정과 환율, 채권시장 반응을 분석한다."},
-  {"message_id":"test-chip-001","received_at":"2026-07-20T08:00:00+09:00","newsletter_name":"데일리바이트","subject":"반도체 업계의 신규 투자 소식","body":"반도체 기업의 투자 계획과 산업 전망을 소개한다."},
-  {"message_id":"test-rate-002","received_at":"2026-07-20T08:05:00+09:00","newsletter_name":"어피티","subject":"중복 테스트","body":"같은 message_id의 중복 입력이다."}
-]

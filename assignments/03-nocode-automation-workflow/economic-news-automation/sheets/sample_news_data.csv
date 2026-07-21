@@ -1,6 +1,0 @@
-newsletter_name,sender,subject,body,received_date,message_id,expected_main_topic,expected_source_count,expected_issue_level,expected_hot_issue
-어피티,sample1@example.com,미국 기준금리 인하 가능성이 커진 이유,연준의 통화정책과 FOMC 전망을 다룹니다.,2026-07-14,test-rate-001,금리,1,일반,FALSE
-순살브리핑,sample2@example.com,연준은 왜 금리를 내릴까,미국 물가와 FOMC 결과가 관심을 받고 있습니다.,2026-07-14,test-rate-002,금리,2,관심,TRUE
-뉴닉,sample3@example.com,수도권 주택 공급 대책이 발표됐어요,정부가 아파트와 주택 공급 방안을 발표했습니다.,2026-07-14,test-realestate-001,부동산,1,일반,FALSE
-어피티,sample1@example.com,미국 기준금리 인하 가능성이 커진 이유,연준의 통화정책과 FOMC 전망을 다룹니다.,2026-07-14,test-rate-001,duplicate,0,duplicate,FALSE
-알수없음,unknown@example.com,이번 주 문화 소식,공연과 전시 소식을 소개합니다.,2026-07-14,test-unknown-001,기타,1,일반,FALSE

@@ -1,8 +1,0 @@
-node_modules/
-.n8n-data/
-.npm-cache/
-.docker-cli/
-n8n-server.*.log
-n8n-server.pid
-.env
-~$*
