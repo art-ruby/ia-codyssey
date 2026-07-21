@@ -1,0 +1,17 @@
+﻿{
+  "name": "Economic News Deterministic Pipeline v1",
+  "description": "Make scenario contract matching the n8n deterministic validation workflow.",
+  "modules": [
+    {"id":1,"module":"builtin:BasicFeeder","label":"Sample Input - 5 Mail Records","parameters":{"source":"economic_news_sample_input.json"}},
+    {"id":2,"module":"builtin:BasicFeeder","label":"Normalize and Deduplicate","parameters":{"dedup_key":"message_id","date_field":"received_date"}},
+    {"id":3,"module":"builtin:BasicFeeder","label":"Extract Economic Issues","parameters":{"rules":{"rate":"기준금리|금리|한국은행|대출금리|예금금리","chip":"반도체|HBM|삼성전자|SK하이닉스"}}},
+    {"id":4,"module":"builtin:BasicFeeder","label":"Array Aggregator - Unique Sources","parameters":{"group_by":"issue_id","unique_by":"newsletter_name"}},
+    {"id":5,"module":"builtin:BasicFeeder","label":"Score and Select Hot Issues","parameters":{"formula":"min(100; source_count*10+60+if(issue_id='rate';14;0))","threshold":"source_count >= 2"}},
+    {"id":6,"module":"builtin:BasicFeeder","label":"Generate SEO Materials","parameters":{"outputs":["seo_title_1","seo_title_2","seo_title_3","recommended_title","10 hashtags","no blog body"]}},
+    {"id":7,"module":"google-sheets:addRow","label":"Google Sheets - 핫이슈분석","parameters":{"sheet":"핫이슈분석"}},
+    {"id":8,"module":"google-sheets:addRow","label":"Google Sheets - SEO소재","parameters":{"sheet":"SEO소재"}},
+    {"id":9,"module":"google-sheets:addRow","label":"Google Sheets - 처리로그","parameters":{"sheet":"처리로그"}}
+  ],
+  "routes":[[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9]],
+  "metadata":{"version":"1.0.0","source_of_truth":"n8n/economic_news_deterministic_pipeline_v1.json"}
+}

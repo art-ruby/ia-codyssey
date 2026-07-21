@@ -1,109 +1,26 @@
-﻿# GenAI 기초 2: 멀티모달 브랜드 광고 제작
+﻿# 노코드 자동화 기초: 워크플로우 설계
 
-## 1. 프로젝트 개요
+이 저장소를 열면 03번 과제 제출물을 바로 확인할 수 있도록 정리했습니다.
 
-- 브랜드: LAPIS
-- 제품: 프리미엄 오 드 퍼퓸
-- 캠페인명: The Muse of Lapis
-- 광고 형식: 9:16 세로형 숏폼 브랜드 광고
-- 광고 목적: 브랜드 인지도 형성
-- 공개 스토리보드 PDF: [assignments/02-genai-basic-multimodal-content/reports/LAPIS_storyboard_plan.pdf](assignments/02-genai-basic-multimodal-content/reports/LAPIS_storyboard_plan.pdf)
+## 03번 과제 바로가기
 
-이 저장소의 공개본은 과제 평가에 필요한 제작 과정과 결과 요약만 남기고, 영상 파일과 원본 이미지 자산은 제외했다. 직접적인 모방을 줄이기 위해 세부 생성 프롬프트, 원본 파일명, 특정 의상 및 공간 지시어는 공개하지 않는다.
+- 과제 폴더: [assignments/03-nocode-automation-workflow](assignments/03-nocode-automation-workflow)
+- 최종 제출 보고서: [final_submission_report.md](assignments/03-nocode-automation-workflow/economic-news-automation/reports/final_submission_report.md)
+- Make vs n8n 비교 보고서: [make_vs_n8n_comparison.md](assignments/03-nocode-automation-workflow/economic-news-automation/reports/make_vs_n8n_comparison.md)
+- 프로젝트 2 설계 보고서: [project2_design_report.md](assignments/03-nocode-automation-workflow/economic-news-automation/reports/project2_design_report.md)
 
-## 2. 브랜드 아이덴티티
+## 제출 확인용 핵심 파일
 
-- 브랜드명: LAPIS
-- 제품군: 프리미엄 오 드 퍼퓸
-- 타겟: 절제된 고급감과 조용한 존재감을 선호하는 20대 후반-30대 초반 여성
-- 톤앤매너: Quiet Luxury, 미드나잇 블루, 웜 골드, 시네마틱 미니멀리즘
-- USP: 사파이어 블루 비주얼 아이덴티티와 차분하고 지적인 존재감을 결합한 향수
-- 핵심 메시지: LAPIS는 단순한 향기가 아니라, 말보다 먼저 공기 속에 남는 조용한 존재감이다.
+- Make 구현 가이드 및 Blueprint: `assignments/03-nocode-automation-workflow/economic-news-automation/make/`
+- n8n 워크플로우 JSON: `assignments/03-nocode-automation-workflow/economic-news-automation/n8n/`
+- Google Sheets 구조: `assignments/03-nocode-automation-workflow/economic-news-automation/sheets/`
+- 테스트 요청 및 예상 결과: `assignments/03-nocode-automation-workflow/economic-news-automation/tests/`
 
-## 3. 공개용 비주얼 및 사운드 방향
+## 이전 과제
 
-- 메인 팔레트: 미드나잇 블루, 사파이어 블루, 웜 골드, 블랙 리플렉션
-- 제품 이미지 방향: 사파이어 블루 계열의 프리미엄 향수병과 절제된 조명
-- 인물 이미지 방향: 조용한 자신감과 고급스러운 분위기를 가진 브랜드 뮤즈
-- 스타일링 방향: 특정 의상이나 문화 모티프를 복제하기 어렵도록 공개본에서는 추상화
-- 공간 방향: 어두운 반사 표면, 격자감, 로우키 조명 등 분위기 중심으로 요약
-- 음성 방향: 차분하고 세련된 여성 내레이션
-- 사운드 방향: 미니멀 앰비언트, 부드러운 공기감, 짧은 사운드 로고
+- 01번 과제: [assignments/01-genai-basic-llm-automation](assignments/01-genai-basic-llm-automation)
+- 02번 과제: [assignments/02-genai-basic-multimodal-content](assignments/02-genai-basic-multimodal-content)
 
-## 4. 사용 도구 및 제작 목적
+## 공개 범위
 
-- ChatGPT: 브랜드 콘셉트, 장면 목적, 키비주얼 방향 정리
-- Google Flow: 이미지 기반 모션 컷과 장면 움직임 제작
-- OpenAI TTS: 한국어 내레이션 생성
-- CapCut: 컷 편집, 오디오 레벨 조정, 자막/화면 카피 정리, 최종 내보내기
-
-## 5. 제작 파이프라인
-
-1. 브랜드 및 캠페인 콘셉트 기획
-2. 브랜드 톤앤매너와 컬러 팔레트 확정
-3. 제품, 인물, 공간 키비주얼 방향 설정
-4. 이미지 기반 모션 컷 제작
-5. 내레이션 음성 생성
-6. 컷 편집, 오디오 레벨 조정, 자막 및 화면 카피 정리
-7. 10초 이내 세로형 숏폼 광고로 최종 편집
-
-## 6. 공개용 스토리보드 요약
-
-### 씬 1 - 제품의 첫인상
-
-- 씬 길이: 약 2초
-- 목표 메시지: LAPIS를 고급스럽고 신비로운 프리미엄 향수로 소개한다.
-- 공개 화면 설명: 블루와 골드 대비를 활용한 제품 중심 히어로 컷
-- 보호 처리: 실제 생성 프롬프트와 원본 파일명은 공개하지 않음
-
-### 씬 2 - LAPIS의 뮤즈
-
-- 씬 길이: 약 2초
-- 목표 메시지: 브랜드의 타겟 감성과 조용한 고급감을 보여준다.
-- 공개 화면 설명: 절제된 스타일과 차분한 존재감을 가진 인물 장면
-- 보호 처리: 구체 의상명, 문화 모티프명, 세부 스타일 지시어는 공개하지 않음
-
-### 씬 3 - 향이 번지는 순간
-
-- 씬 길이: 약 2초
-- 목표 메시지: 향이 공간의 분위기를 바꾸는 순간을 감각적으로 표현한다.
-- 공개 화면 설명: 빛, 입자, 근접 프레이밍을 활용한 향의 확산 표현
-- 보호 처리: 직접 재현 가능한 촬영/생성 문구는 공개하지 않음
-
-### 씬 4 - 존재감의 변화
-
-- 씬 길이: 약 2초
-- 목표 메시지: 향을 입은 뒤 조용한 자신감으로 분위기가 바뀌는 흐름을 보여준다.
-- 공개 화면 설명: 어두운 실내 동선과 반사광을 활용한 분위기 전환 장면
-- 보호 처리: 특정 장소 구성과 원본 자산명은 공개하지 않음
-
-### 씬 5 - 브랜드 각인
-
-- 씬 길이: 약 1.9초
-- 목표 메시지: 마지막 구간에서 브랜드명과 제품을 명확하게 기억시킨다.
-- 공개 화면 설명: 제품과 브랜드명이 중심에 남는 엔딩 컷
-- 보호 처리: 최종 영상 파일은 GitHub 공개 범위에서 제외
-
-## 7. 프롬프트 수정 전/후 기록 - 공개 요약
-
-초기 인물 장면은 일반적인 럭셔리 광고 이미지에 가까웠고, LAPIS만의 절제된 고급감과 미드나잇 블루 정체성이 충분히 드러나지 않았다. 이후 타겟 연령대, 차분한 분위기, 컬러 방향, 유명인 닮은꼴 배제 조건 등을 보강해 브랜드 톤과 더 일관된 결과로 개선했다.
-
-단, 직접 복제를 막기 위해 실제 문장형 프롬프트와 세부 스타일 토큰은 공개본에서 제외했다.
-
-## 8. 공개본 보호 처리
-
-- 최종 영상 파일은 GitHub에서 제거
-- 원본 이미지와 영상 생성 자산은 공개 저장소에 포함하지 않음
-- 실제 생성 프롬프트와 세부 파일명 제거
-- 구체 의상·공간·문화 모티프 지시어를 추상화
-- 과제 평가에 필요한 제작 흐름, 도구 사용, 장면 목적만 유지
-
-## 9. 최종 영상 파일 정보
-
-- 길이: 9.939초
-- 해상도: 1080x1920
-- 프레임레이트: 30fps
-- 비디오 코덱: H.264/AVC
-- 오디오 코덱: MP4A
-- 영상 형식: 세로형 숏폼 MP4
-- 공개 상태: 복제 방지를 위해 GitHub 공개 파일에서는 제외
+평가에 필요한 보고서, 워크플로우 JSON, 테스트 문서만 업로드했습니다. `node_modules`, n8n 실행 데이터, 로그, `.env`, 중복 ZIP 파일은 제외했습니다.
