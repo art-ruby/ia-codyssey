@@ -362,7 +362,7 @@ git commit -m "feat(a1-3): replace LUNA placeholder panel with crystal bottle im
   - 상수: `SEASONS`, `TIMES`, `MOODS`, `MOMENT_MAX`, `NOTE_LAYERS`, `MAX_ATTEMPTS`
   - Task 4의 `curate()` 가 이 넷을 모두 호출한다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `assignments/a1-3/tests/conftest.py`:
 
@@ -507,12 +507,12 @@ def test_non_dict_payload_is_rejected():
     assert curate.validate_response("just a string") is not None
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'curate'`
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 `assignments/a1-3/api/curate.py`:
 
@@ -614,12 +614,12 @@ def validate_response(data):
     return None
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
-Expected: PASS — 22개 테스트 전부 통과
+Expected: PASS — 29개 통과 (parametrize 전개 포함. 테스트 함수는 19개)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add assignments/a1-3/api assignments/a1-3/tests
@@ -858,7 +858,7 @@ def curate(body, call_model, now=time.monotonic, sleep=time.sleep):
 - [ ] **Step 4: 테스트 통과 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
-Expected: PASS — 32개 테스트 전부 통과
+Expected: PASS — 39개 통과 (Task 3의 29개 + 오케스트레이터 10개)
 
 - [ ] **Step 5: 커밋**
 
@@ -1081,7 +1081,7 @@ class handler(BaseHTTPRequestHandler):
 - [ ] **Step 5: 기존 테스트가 여전히 통과하는지 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
-Expected: PASS — 32개 전부. 모듈 최상단에서 `google.genai` 를 import하지 않았으므로(함수 안에서 import) 패키지 없이도 테스트가 돈다.
+Expected: PASS — 39개 전부. 모듈 최상단에서 `google.genai` 를 import하지 않았으므로(함수 안에서 import) 패키지 없이도 테스트가 돈다.
 
 - [ ] **Step 6: 실제 Gemini 호출 1회 확인**
 
@@ -2158,7 +2158,7 @@ git push
 cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/ -v
 ```
 
-Expected: PASS — 32개 전부
+Expected: PASS — 39개 전부
 
 제출 패키지 점검:
 
