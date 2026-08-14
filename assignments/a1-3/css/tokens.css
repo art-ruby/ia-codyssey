@@ -1,0 +1,100 @@
+/*
+  LAPIS Design Tokens — CSS Custom Properties
+  Source of truth: LAPIS_Design_System.md
+  Use these variables instead of hardcoded hex/px values anywhere in the codebase.
+*/
+
+:root {
+  /* ---------- Color: Core ---------- */
+  --lapis-deep:   #0A1A3C;
+  --lapis-mid:    #1E3A6E;
+  --black:        #050508;
+  --off-white:    #F5F3EE;
+  --gold:         #C9A24B;
+  --gold-light:   #E8D4A0;
+  --gold-deep:    #8A6A1F;
+
+  /* ---------- Color: Semantic ---------- */
+  --bg-primary:      var(--black);
+  --bg-secondary:    var(--lapis-deep);
+  --bg-tertiary:     var(--lapis-mid);
+  --bg-inverse:      var(--off-white);
+
+  --text-primary:    var(--off-white);
+  --text-secondary:  rgba(245, 243, 238, 0.72);
+  --text-inverse:    var(--lapis-deep);
+  --text-accent:     var(--gold-light);
+
+  --border-hairline: rgba(201, 162, 75, 0.25);
+  --border-active:   var(--gold);
+
+  --state-hover:      rgba(201, 162, 75, 0.10);
+  --state-focus-ring: var(--gold-light);
+  --state-error:      #B5654F;
+  --state-success:    #6F8F73;
+
+  /* ---------- Typography ---------- */
+  --font-serif-en:  'Playfair Display', serif;
+  --font-script-en: 'Cormorant Garamond', serif;
+  --font-serif-kr:  'Noto Serif KR', serif;
+  --font-sans-kr:   'Pretendard Variable', -apple-system, sans-serif;
+
+  --text-display:  clamp(52px, 10vw, 120px);
+  --text-h1:       clamp(28px, 3.4vw, 42px);
+  --text-h2:       clamp(22px, 2.2vw, 28px);
+  --text-eyebrow:  clamp(15px, 1.4vw, 18px);
+  --text-body:     15.5px;
+  --text-caption:  12.5px;
+  --text-button:   13px;
+
+  --tracking-tight: 0.02em;
+  --tracking-base:  0.08em;
+  --tracking-wide:  0.18em;
+  --tracking-button: 0.18em;
+
+  /* ---------- Spacing (8px scale) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+  --space-11: 160px;
+
+  /* ---------- Grid ---------- */
+  --container-max: 1280px;
+  --gutter-desktop: 24px;
+  --gutter-mobile: 16px;
+  --margin-desktop: 6vw;
+  --margin-tablet: 40px;
+  --margin-mobile: 24px;
+
+  /* ---------- Motion ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 200ms;
+  --duration-base: 400ms;
+  --duration-slow: 800ms;
+  --duration-cinematic: 1200ms;
+
+  /* ---------- Iconography ---------- */
+  --icon-stroke: 1px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-xl: 32px;
+}
+
+/* Reduced motion: disable parallax/scale, keep only a minimal fade */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 1ms;
+    --duration-base: 1ms;
+    --duration-slow: 1ms;
+    --duration-cinematic: 1ms;
+  }
+}
