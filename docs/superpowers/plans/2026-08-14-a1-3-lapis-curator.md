@@ -64,7 +64,7 @@
 - Consumes: 없음 (첫 태스크)
 - Produces: `assignments/a1-3/` 디렉터리 구조. 이후 모든 태스크가 이 경로 아래에서 작업한다.
 
-- [ ] **Step 1: 디렉터리와 자산 복사**
+- [x] **Step 1: 디렉터리와 자산 복사**
 
 ```bash
 cd /c/ia-codyssey/assignments
@@ -74,12 +74,12 @@ cp B1-2/brand/tokens.css a1-3/css/tokens.css
 cp B1-2/brand/images/* a1-3/images/
 ```
 
-- [ ] **Step 2: 복사가 맞는지 확인**
+- [x] **Step 2: 복사가 맞는지 확인**
 
 Run: `ls -la a1-3/images && wc -c a1-3/index.html`
 Expected: 이미지 7개, `index.html` 약 32000바이트. `assignments/B1-2/` 는 그대로 남아 있어야 한다.
 
-- [ ] **Step 3: `.gitignore` 작성**
+- [x] **Step 3: `.gitignore` 작성**
 
 ```gitignore
 .env
@@ -91,7 +91,7 @@ node_modules/
 .pytest_cache/
 ```
 
-- [ ] **Step 4: `.env.example` 작성**
+- [x] **Step 4: `.env.example` 작성**
 
 값은 비워 둔다. 실제 키는 절대 넣지 않는다.
 
@@ -99,14 +99,14 @@ node_modules/
 GEMINI_API_KEY=
 ```
 
-- [ ] **Step 5: `requirements-dev.txt` 작성**
+- [x] **Step 5: `requirements-dev.txt` 작성**
 
 ```
 pytest
 Pillow
 ```
 
-- [ ] **Step 6: 변환 스크립트 작성**
+- [x] **Step 6: 변환 스크립트 작성**
 
 `assignments/a1-3/scripts/convert_images.py`:
 
@@ -151,17 +151,17 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] **Step 7: 변환 실행**
+- [x] **Step 7: 변환 실행**
 
 ```bash
 cd /c/ia-codyssey/assignments/a1-3
-python -m pip install -r requirements-dev.txt
+.venv/Scripts/python.exe -m pip install -r requirements-dev.txt
 python scripts/convert_images.py
 ```
 
 Expected: 각 파일이 200KB 이하로 줄어든 출력. 하나라도 200KB를 넘으면 `QUALITY` 를 78로 낮추고 다시 실행한다.
 
-- [ ] **Step 8: 원본 PNG/JPG 삭제하고 참조 경로 교체**
+- [x] **Step 8: 원본 PNG/JPG 삭제하고 참조 경로 교체**
 
 ```bash
 rm assignments/a1-3/images/*.png assignments/a1-3/images/*.jpg
@@ -172,15 +172,15 @@ rm assignments/a1-3/images/*.png assignments/a1-3/images/*.jpg
 Run: `grep -n "images/" assignments/a1-3/index.html`
 Expected: 모든 경로가 `.webp` 로 끝난다.
 
-- [ ] **Step 9: 브라우저에서 확인**
+- [x] **Step 9: 브라우저에서 확인**
 
 ```bash
-cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8000
+cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
 ```
 
-`http://localhost:8000` 을 열어 이미지 5장이 모두 보이고 깨진 이미지 아이콘이 없는지 확인한다.
+`http://localhost:8731` 을 열어 이미지 5장이 모두 보이고 깨진 이미지 아이콘이 없는지 확인한다.
 
-- [ ] **Step 10: 커밋**
+- [x] **Step 10: 커밋**
 
 ```bash
 git add assignments/a1-3
@@ -205,7 +205,7 @@ git commit -m "feat(a1-3): scaffold project and port LAPIS assets as WebP"
 - [ ] **Step 1: 분리 전 기준 스크린샷 확보**
 
 ```bash
-cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8000
+cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
 ```
 
 브라우저 1280px에서 전체 페이지를 스크롤해 스크린샷을 남긴다. 분리 후 비교 기준이 된다. 이 태스크는 **동작을 바꾸지 않는 리팩터링**이라 눈으로 확인하는 것이 유일한 검증 수단이다.
@@ -239,7 +239,7 @@ cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8000
 
 - [ ] **Step 5: 분리 후 동작 확인**
 
-`http://localhost:8000` 새로고침 후 확인 항목:
+`http://localhost:8731` 새로고침 후 확인 항목:
 
 - 스크롤 시 내비게이션 배경이 생기는가
 - 820px 미만에서 햄버거 메뉴가 열리고 링크 클릭 시 닫히는가
@@ -433,7 +433,7 @@ def test_non_dict_payload_is_rejected():
 
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
-Run: `cd /c/ia-codyssey/assignments/a1-3 && python -m pytest tests/test_curate.py -v`
+Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'curate'`
 
 - [ ] **Step 3: 최소 구현 작성**
@@ -540,7 +540,7 @@ def validate_response(data):
 
 - [ ] **Step 4: 테스트 통과 확인**
 
-Run: `cd /c/ia-codyssey/assignments/a1-3 && python -m pytest tests/test_curate.py -v`
+Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
 Expected: PASS — 22개 테스트 전부 통과
 
 - [ ] **Step 5: 커밋**
@@ -707,7 +707,7 @@ def test_invalid_request_never_calls_model():
 
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
-Run: `cd /c/ia-codyssey/assignments/a1-3 && python -m pytest tests/test_curate.py -v -k curate or 전체 실행`
+Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v -k curate or 전체 실행`
 Expected: FAIL — `AttributeError: module 'curate' has no attribute 'ModelError'`
 
 - [ ] **Step 3: 오케스트레이터 구현**
@@ -781,7 +781,7 @@ def curate(body, call_model, now=time.monotonic, sleep=time.sleep):
 
 - [ ] **Step 4: 테스트 통과 확인**
 
-Run: `cd /c/ia-codyssey/assignments/a1-3 && python -m pytest tests/test_curate.py -v`
+Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
 Expected: PASS — 32개 테스트 전부 통과
 
 - [ ] **Step 5: 커밋**
@@ -1004,14 +1004,14 @@ class handler(BaseHTTPRequestHandler):
 
 - [ ] **Step 5: 기존 테스트가 여전히 통과하는지 확인**
 
-Run: `cd /c/ia-codyssey/assignments/a1-3 && python -m pytest tests/test_curate.py -v`
+Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
 Expected: PASS — 32개 전부. 모듈 최상단에서 `google.genai` 를 import하지 않았으므로(함수 안에서 import) 패키지 없이도 테스트가 돈다.
 
 - [ ] **Step 6: 실제 Gemini 호출 1회 확인**
 
 ```bash
 cd /c/ia-codyssey/assignments/a1-3
-python -m pip install -r requirements.txt
+.venv/Scripts/python.exe -m pip install -r requirements.txt
 python -c "
 import os, json, sys
 sys.path.insert(0, 'api')
@@ -1279,7 +1279,7 @@ JS 없이 정적으로 먼저 세운다. 레이아웃과 반응형을 먼저 확
 - [ ] **Step 4: 시각 확인**
 
 ```bash
-cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8000
+cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
 ```
 
 - 1280px — 라벨과 칩이 한 줄에 놓이는가
@@ -1865,8 +1865,14 @@ vercel dev
 ### 테스트
 
 ```bash
-python -m pip install -r requirements-dev.txt
-python -m pytest tests/ -v
+python -m venv .venv
+```
+
+Windows PowerShell 은 `.\.venv\Scripts\Activate.ps1`, macOS · Linux 는 `source .venv/bin/activate` 로 활성화한다.
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/ -v
 ```
 
 Gemini 호출 없이 돌아간다. 검증·재시도·백오프 로직이 모델 상태와 무관하게 검증된다.
@@ -2073,7 +2079,7 @@ git push
 전체 테스트를 한 번 더 돌린다.
 
 ```bash
-cd /c/ia-codyssey/assignments/a1-3 && python -m pytest tests/ -v
+cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/ -v
 ```
 
 Expected: PASS — 32개 전부
