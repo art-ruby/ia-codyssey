@@ -204,11 +204,14 @@
   footer .foot-copy{font-size:11.5px;letter-spacing:.05em;color:rgba(245,243,238,.4);}
 
   /* ---------- curator ---------- */
-  .curator-lead{margin-top:var(--space-3);font-family:var(--sans-kr);font-size:var(--text-body);color:var(--text-secondary);}
+  /* keep-all 이 없으면 좁은 화면에서 한글 단어 중간이 끊긴다("…주세 / 요."). */
+  .curator-lead{margin-top:var(--space-3);font-family:var(--sans-kr);font-size:var(--text-body);color:var(--text-secondary);word-break:keep-all;}
   .curator-form{max-width:720px;margin:var(--space-7) auto 0;}
   .curator-field{border:0;padding:0;margin:0 0 var(--space-4);display:flex;align-items:baseline;gap:var(--space-4);}
   .curator-label{padding:0;flex:none;width:56px;font-family:var(--sans-kr);font-size:var(--text-caption);letter-spacing:var(--tracking-wide);color:var(--text-secondary);}
-  .curator-chips{display:flex;flex-wrap:wrap;gap:var(--space-2);}
+  /* position:relative 가 없으면 아래 absolute 라디오 10개가 조상 섹션 좌상단에
+     한꺼번에 겹쳐 쌓인다. 사용자는 라벨을 누르므로 티가 안 나지만 DOM은 어긋난다. */
+  .curator-chips{display:flex;flex-wrap:wrap;gap:var(--space-2);position:relative;}
   /* 라디오는 화면에서만 숨긴다. display:none이면 키보드 탐색에서도 빠진다. */
   .curator-chips input[type="radio"]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
   .curator-chips label{display:inline-flex;align-items:center;padding:var(--space-2) var(--space-3);border:1px solid var(--border-hairline);font-family:var(--sans-kr);font-size:var(--text-caption);color:var(--text-secondary);cursor:pointer;transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out),background-color var(--duration-fast) var(--ease-out);}

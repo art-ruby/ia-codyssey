@@ -1,0 +1,11 @@
+{
+  "name": "lapis-curator-scripts",
+  "private": true,
+  "description": "제출 증빙 스크린샷 캡처용. 서비스 자체는 빌드 없이 정적 파일로 배포된다.",
+  "scripts": {
+    "capture": "node scripts/capture.cjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.48.0"
+  }
+}
