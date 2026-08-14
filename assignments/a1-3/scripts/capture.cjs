@@ -68,11 +68,14 @@ async function captureCuratorFlow(browser) {
   // 3. 대기 중 — 스켈레톤과 로딩 문구
   await page.click('#curatorSubmit');
   await page.waitForTimeout(1200);
+  await page.locator('#curatorResult').scrollIntoViewIfNeeded();
   await page.screenshot({ path: shot('ai-03-loading.png') });
   console.log('  ai-03-loading.png');
 
   // 4. 결과 — 성공이든 실패든 증빙이 된다
   await page.waitForSelector('.curator-card, .curator-error', { timeout: 45000 });
+  // 결과는 폼 아래에 붙는다. 스크롤하지 않으면 화면 밖이라 빈 폼만 찍힌다.
+  await page.locator('#curatorResult').scrollIntoViewIfNeeded();
   // 커서를 버튼 밖으로 뺀다. 안 그러면 제출 버튼이 hover 상태(골드 채움)로 찍힌다.
   await page.mouse.move(0, 0);
   await page.waitForTimeout(700);

@@ -1,7 +1,15 @@
-.env
+# .env* 는 .env 와 .env.local(vercel link가 생성) 을 함께 덮는다.
+.env*
+.vercel/
+.venv/
+node_modules/
 __pycache__/
 *.pyc
-.venv/
-.vercel/
-node_modules/
 .pytest_cache/
+
+# 증빙 스크린샷은 배포 URL 기준으로 다시 찍어 커밋한다.
+# 로컬 검증본이 섞이지 않도록 무시하지 않고 그대로 둔다.
+
+# 오타 파일 방어 — .env, ,env, .env.local 등 env 가 들어간 로컬 설정 전부
+*env
+*env.*

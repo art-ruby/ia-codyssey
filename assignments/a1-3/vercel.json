@@ -1,7 +1,18 @@
 {
-  "functions": {
-    "api/curate.py": {
-      "maxDuration": 30
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
+    {
+      "src": "api/curate.py",
+      "use": "@vercel/python",
+      "config": { "maxDuration": 30 }
+    },
+    {
+      "src": "{index.html,css/**,js/**,images/**}",
+      "use": "@vercel/static"
     }
-  }
+  ],
+  "routes": [
+    { "src": "/api/curate", "dest": "/api/curate.py" },
+    { "handle": "filesystem" }
+  ]
 }

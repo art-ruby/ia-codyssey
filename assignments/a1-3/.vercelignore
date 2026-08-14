@@ -1,0 +1,9 @@
+# 배포에 올라갈 필요가 없는 것들. 함수 번들과 정적 자산만 남긴다.
+tests/
+scripts/
+docs/
+images/shots/
+requirements-dev.txt
+package.json
+package-lock.json
+README.md

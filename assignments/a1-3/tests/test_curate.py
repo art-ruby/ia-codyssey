@@ -218,15 +218,43 @@ def test_auth_failure_stops_immediately():
     assert len(caller.calls) == 1, "인증 실패에는 재시도하지 않는다"
 
 
-def test_third_attempt_uses_fallback_model():
+def test_only_first_attempt_uses_primary_model():
     clock = FakeClock()
     err = curate.ModelError("overloaded", status=503)
     caller = make_caller([err, err, valid_payload()])
     curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
     models = [c["model"] for c in caller.calls]
     assert models[0] == curate.PRIMARY_MODEL
-    assert models[1] == curate.PRIMARY_MODEL
+    assert models[1] == curate.FALLBACK_MODEL
     assert models[2] == curate.FALLBACK_MODEL
+
+
+def test_never_requests_a_deadline_below_the_api_minimum():
+    """Gemini는 10초 미만 데드라인을 400으로 거부하고, 400은 재시도 대상이 아니다.
+
+    예산이 줄었다고 timeout을 그 아래로 깎으면, 재시도가 도는 대신 즉시 실패한다.
+    실제로 상한을 8초로 낮췄을 때 배포본이 이 방식으로 죽었다.
+    """
+    clock = FakeClock()
+    seen = []
+
+    def slow(model, timeout):
+        seen.append(timeout)
+        clock.t += curate.PER_ATTEMPT_CAP_SECONDS
+        raise curate.ModelError("overloaded", status=503)
+
+    curate.curate(valid_body(), slow, now=clock.now, sleep=clock.sleep)
+    assert seen, "적어도 한 번은 호출되어야 한다"
+    assert all(t >= curate.API_MIN_DEADLINE_SECONDS for t in seen), seen
+
+
+def test_fast_failures_still_get_all_attempts():
+    """호출이 빨리 실패하면(429처럼) 예산이 남으므로 3회를 모두 시도한다."""
+    clock = FakeClock()
+    err = curate.ModelError("quota", status=429)
+    caller = make_caller([err, err, err])
+    curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert len(caller.calls) == curate.MAX_ATTEMPTS
 
 
 def test_fallback_model_is_used_when_it_differs(monkeypatch):
@@ -242,7 +270,7 @@ def test_fallback_model_is_used_when_it_differs(monkeypatch):
     curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
     assert [c["model"] for c in caller.calls] == [
         curate.PRIMARY_MODEL,
-        curate.PRIMARY_MODEL,
+        "some-other-model",
         "some-other-model",
     ]
 

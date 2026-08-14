@@ -100,8 +100,14 @@ def validate_response(data):
 
 
 TOTAL_BUDGET_SECONDS = 25.0
-PER_ATTEMPT_CAP_SECONDS = 12.0
-MIN_ATTEMPT_SECONDS = 3.0
+
+# Gemini는 10초 미만의 데드라인을 400 INVALID_ARGUMENT로 거부한다
+# ("Manually set deadline 8s is too short. Minimum allowed deadline is 10s.").
+# 400은 재시도 대상이 아니라서, 상한을 이보다 낮게 잡으면 재시도가 도는 게 아니라
+# 첫 호출부터 즉시 실패한다. 남은 예산이 이보다 적으면 호출을 아예 걸지 않는다.
+API_MIN_DEADLINE_SECONDS = 10.0
+PER_ATTEMPT_CAP_SECONDS = 10.0
+MIN_ATTEMPT_SECONDS = API_MIN_DEADLINE_SECONDS
 
 PRIMARY_MODEL = "gemini-3.5-flash"
 # 3회차 폴백. 과부하는 특정 모델에 몰리므로 같은 모델을 세 번 두드리지 않는다.
@@ -126,7 +132,14 @@ class ModelError(Exception):
 
 
 def _model_for(attempt):
-    return FALLBACK_MODEL if attempt == MAX_ATTEMPTS else PRIMARY_MODEL
+    """1회차만 기본 모델, 이후는 폴백.
+
+    원래는 마지막 회차에만 전환했는데, 기본 모델이 8~10초씩 걸려 2회차까지
+    예산을 소진하면 폴백이 실행되지 않았다. 첫 시도가 실패했다는 것 자체가
+    그 모델이 지금 불안정하다는 신호이므로, 같은 모델을 한 번 더 두드리는
+    것보다 빠른 폴백으로 곧장 넘어가는 편이 낫다.
+    """
+    return PRIMARY_MODEL if attempt == 1 else FALLBACK_MODEL
 
 
 def curate(body, call_model, now=time.monotonic, sleep=time.sleep):
