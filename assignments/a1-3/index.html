@@ -24,6 +24,7 @@
   <div class="nav-links">
     <a href="#story">스토리</a>
     <a href="#notes">노트</a>
+    <a href="#curator">큐레이터</a>
     <a href="#collection">컬렉션</a>
     <a href="#philosophy">철학</a>
     <a href="#contact">문의</a>
@@ -35,6 +36,7 @@
   <button class="mobile-close" id="mobileClose" aria-label="메뉴 닫기">✕</button>
   <a href="#story" class="mobile-link">스토리</a>
   <a href="#notes" class="mobile-link">노트</a>
+  <a href="#curator" class="mobile-link">큐레이터</a>
   <a href="#collection" class="mobile-link">컬렉션</a>
   <a href="#philosophy" class="mobile-link">철학</a>
   <a href="#contact" class="mobile-link">문의</a>
@@ -151,6 +153,68 @@
 
 <div class="divider"><span class="line"></span><span class="star">✦</span><span class="line r"></span></div>
 
+<!-- CURATOR -->
+<section id="curator">
+  <div class="section-inner">
+    <div class="notes-head fade-up" id="curatorHead">
+      <span class="eyebrow">CURATOR</span>
+      <h2>당신의 노트를 찾다</h2>
+      <p class="curator-lead">세 가지를 고르고, 닿고 싶은 순간을 한 줄로 남겨 주세요.</p>
+    </div>
+
+    <form class="curator-form fade-up" id="curatorForm" novalidate>
+      <fieldset class="curator-field">
+        <legend class="curator-label">계절</legend>
+        <div class="curator-chips">
+          <input type="radio" id="season-spring" name="season" value="spring">
+          <label for="season-spring">봄</label>
+          <input type="radio" id="season-summer" name="season" value="summer">
+          <label for="season-summer">여름</label>
+          <input type="radio" id="season-autumn" name="season" value="autumn">
+          <label for="season-autumn">가을</label>
+          <input type="radio" id="season-winter" name="season" value="winter">
+          <label for="season-winter">겨울</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="curator-field">
+        <legend class="curator-label">시간</legend>
+        <div class="curator-chips">
+          <input type="radio" id="time-day" name="time" value="day">
+          <label for="time-day">낮</label>
+          <input type="radio" id="time-dusk" name="time" value="dusk">
+          <label for="time-dusk">해질녘</label>
+          <input type="radio" id="time-night" name="time" value="night">
+          <label for="time-night">밤</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="curator-field">
+        <legend class="curator-label">무드</legend>
+        <div class="curator-chips">
+          <input type="radio" id="mood-calm" name="mood" value="calm">
+          <label for="mood-calm">차분한</label>
+          <input type="radio" id="mood-bold" name="mood" value="bold">
+          <label for="mood-bold">대담한</label>
+          <input type="radio" id="mood-warm" name="mood" value="warm">
+          <label for="mood-warm">따뜻한</label>
+        </div>
+      </fieldset>
+
+      <label class="curator-moment-label" for="curatorMoment">닿고 싶은 순간</label>
+      <input class="curator-moment" id="curatorMoment" type="text" maxlength="120"
+             placeholder="어떤 순간에 닿고 싶나요?" autocomplete="off">
+      <p class="curator-field-msg" id="curatorFieldMsg" role="alert"></p>
+
+      <button class="curator-submit" id="curatorSubmit" type="submit">향 찾기</button>
+    </form>
+
+    <div class="curator-result" id="curatorResult" aria-live="polite" aria-busy="false"></div>
+  </div>
+</section>
+
+<div class="divider"><span class="line"></span><span class="star">✦</span><span class="line r"></span></div>
+
 <!-- COLLECTION -->
 <section id="collection">
   <div class="section-inner">
@@ -228,6 +292,7 @@
       <div class="foot-links">
         <a href="#story">스토리</a>
         <a href="#notes">노트</a>
+        <a href="#curator">큐레이터</a>
         <a href="#collection">컬렉션</a>
         <a href="#philosophy">철학</a>
         <a href="#contact">문의</a>

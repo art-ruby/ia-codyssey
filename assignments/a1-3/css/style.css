@@ -202,3 +202,33 @@
   footer .foot-links{display:flex;gap:28px;flex-wrap:wrap;justify-content:center;}
   footer .foot-links a{font-size:12.5px;color:rgba(245,243,238,.72);}
   footer .foot-copy{font-size:11.5px;letter-spacing:.05em;color:rgba(245,243,238,.4);}
+
+  /* ---------- curator ---------- */
+  .curator-lead{margin-top:var(--space-3);font-family:var(--sans-kr);font-size:var(--text-body);color:var(--text-secondary);}
+  .curator-form{max-width:720px;margin:var(--space-7) auto 0;}
+  .curator-field{border:0;padding:0;margin:0 0 var(--space-4);display:flex;align-items:baseline;gap:var(--space-4);}
+  .curator-label{padding:0;flex:none;width:56px;font-family:var(--sans-kr);font-size:var(--text-caption);letter-spacing:var(--tracking-wide);color:var(--text-secondary);}
+  .curator-chips{display:flex;flex-wrap:wrap;gap:var(--space-2);}
+  /* 라디오는 화면에서만 숨긴다. display:none이면 키보드 탐색에서도 빠진다. */
+  .curator-chips input[type="radio"]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
+  .curator-chips label{display:inline-flex;align-items:center;padding:var(--space-2) var(--space-3);border:1px solid var(--border-hairline);font-family:var(--sans-kr);font-size:var(--text-caption);color:var(--text-secondary);cursor:pointer;transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out),background-color var(--duration-fast) var(--ease-out);}
+  .curator-chips label:hover{background:var(--state-hover);}
+  .curator-chips input[type="radio"]:checked + label{border-color:var(--border-active);color:var(--text-accent);background:var(--state-hover);}
+  .curator-chips input[type="radio"]:focus-visible + label{outline:2px solid var(--state-focus-ring);outline-offset:2px;}
+  .curator-moment-label{display:block;margin-top:var(--space-6);font-family:var(--sans-kr);font-size:var(--text-caption);letter-spacing:var(--tracking-wide);color:var(--text-secondary);}
+  .curator-moment{width:100%;background:transparent;border:0;border-bottom:1px solid var(--border-hairline);padding:var(--space-3) 0;font-family:var(--serif-kr);font-size:var(--text-body);color:var(--text-primary);transition:border-color var(--duration-fast) var(--ease-out);}
+  .curator-moment:focus{outline:none;border-bottom-color:var(--border-active);}
+  .curator-moment.invalid{border-bottom-color:var(--state-error);}
+  .curator-field-msg{min-height:var(--space-5);margin:var(--space-2) 0 0;font-family:var(--sans-kr);font-size:var(--text-caption);color:var(--state-error);}
+  .curator-submit{margin-top:var(--space-4);padding:var(--space-3) var(--space-6);background:transparent;border:1px solid var(--gold);color:var(--text-accent);font-family:var(--sans-kr);font-size:var(--text-button);letter-spacing:var(--tracking-button);text-transform:uppercase;cursor:pointer;transition:background-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out);}
+  .curator-submit:hover:not(:disabled){background:var(--gold);color:var(--text-inverse);}
+  .curator-submit:disabled{border-color:var(--border-hairline);color:var(--text-secondary);cursor:default;}
+  .curator-result{margin-top:var(--space-7);}
+  .curator-result:empty{margin-top:0;}
+
+  @media (max-width:600px){
+    .curator-field{display:block;}
+    .curator-label{width:auto;display:block;margin-bottom:var(--space-2);}
+    /* 모바일 터치 타겟 하한. 데스크톱 패딩 그대로면 손가락으로 누르기 어렵다. */
+    .curator-chips label{min-height:44px;min-width:44px;justify-content:center;}
+  }
