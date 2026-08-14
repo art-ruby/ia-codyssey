@@ -202,7 +202,7 @@ git commit -m "feat(a1-3): scaffold project and port LAPIS assets as WebP"
 - Consumes: Task 1의 `assignments/a1-3/index.html`
 - Produces: `css/tokens.css` → `css/style.css` 순서로 로드되는 스타일, `js/main.js` (IIFE, 전역 노출 없음). Task 6·7이 `style.css` 에 큐레이터 스타일을 덧붙이고, Task 7이 `curator.js` 를 별도 파일로 추가한다.
 
-- [ ] **Step 1: 분리 전 기준 스크린샷 확보**
+- [x] **Step 1: 분리 전 기준 스크린샷 확보**
 
 ```bash
 cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
@@ -210,17 +210,17 @@ cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
 
 브라우저 1280px에서 전체 페이지를 스크롤해 스크린샷을 남긴다. 분리 후 비교 기준이 된다. 이 태스크는 **동작을 바꾸지 않는 리팩터링**이라 눈으로 확인하는 것이 유일한 검증 수단이다.
 
-- [ ] **Step 2: `<style>` 블록을 `css/style.css` 로 이동**
+- [x] **Step 2: `<style>` 블록을 `css/style.css` 로 이동**
 
 `index.html` 의 17번 줄 `<style>` 부터 229번 줄 `</style>` 사이 내용을 통째로 `css/style.css` 에 옮긴다. 내용은 한 글자도 바꾸지 않는다.
 
 `:root { ... }` 블록은 `tokens.css` 와 중복되지만 **이 태스크에서는 그대로 둔다.** 지금 정리하면 리팩터링과 동작 변경이 뒤섞여 회귀 원인을 못 찾는다. 정리는 Step 6에서 별도로 한다.
 
-- [ ] **Step 3: `<script>` 블록을 `js/main.js` 로 이동**
+- [x] **Step 3: `<script>` 블록을 `js/main.js` 로 이동**
 
 453번 줄 `<script>` 부터 632번 줄 `</script>` 사이 내용을 `js/main.js` 로 옮긴다. 바깥의 `(function(){ ... })();` IIFE 구조를 그대로 유지한다.
 
-- [ ] **Step 4: `index.html` 에 참조 추가**
+- [x] **Step 4: `index.html` 에 참조 추가**
 
 `</head>` 직전:
 
@@ -237,7 +237,7 @@ cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
 
 `defer` 를 쓰는 이유: 기존 스크립트가 `document.getElementById` 로 요소를 즉시 찾는데, `</body>` 직전이라 지금은 우연히 동작한다. `defer` 를 붙이면 위치와 무관하게 DOM 파싱 완료 후 실행이 보장된다.
 
-- [ ] **Step 5: 분리 후 동작 확인**
+- [x] **Step 5: 분리 후 동작 확인**
 
 `http://localhost:8731` 새로고침 후 확인 항목:
 
@@ -251,14 +251,14 @@ cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
 
 Step 1의 스크린샷과 레이아웃이 동일해야 한다.
 
-- [ ] **Step 6: `style.css` 의 중복 `:root` 제거**
+- [x] **Step 6: `style.css` 의 중복 `:root` 제거**
 
 `style.css` 상단의 `:root { ... }` 블록에서 `tokens.css` 에 이미 있는 변수를 지운다. `tokens.css` 에 없는 변수만 남긴다.
 
 Run: 브라우저 새로고침 후 Step 5의 확인 항목을 다시 전부 통과하는지 본다.
 Expected: 색·간격·폰트가 하나도 바뀌지 않는다. 하나라도 달라지면 지운 변수 중 `tokens.css` 에 없는 것이 있다는 뜻이므로 되돌린다.
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 git add assignments/a1-3
