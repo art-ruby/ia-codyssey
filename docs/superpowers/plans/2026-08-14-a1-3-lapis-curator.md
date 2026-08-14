@@ -880,7 +880,7 @@ git commit -m "feat(a1-3): add budget-based retry orchestrator with model fallba
 - Consumes: Task 4의 `curate()`, `ModelError`, `PRIMARY_MODEL`, `FALLBACK_MODEL`
 - Produces: `POST /api/curate` 엔드포인트. Task 7의 `curator.js` 가 이 계약대로 호출한다.
 
-- [ ] **Step 1: 대체 모델 ID 확인**
+- [x] **Step 1: 대체 모델 ID 확인**
 
 기획서 §12의 열린 항목이다. 추측으로 박지 않고 실제 목록에서 고른다.
 
@@ -898,7 +898,7 @@ for m in client.models.list():
 
 출력에서 `PRIMARY_MODEL` 과 다른 flash 계열 모델 하나를 고른다. 없으면 `FALLBACK_MODEL = PRIMARY_MODEL` 로 두고 그 사실을 기획서 §12에 기록한다 — 모델 폴백이 불가능하다는 것도 결과다.
 
-- [ ] **Step 2: `requirements.txt` 작성**
+- [x] **Step 2: `requirements.txt` 작성**
 
 ```
 google-genai
@@ -906,7 +906,7 @@ google-genai
 
 `pytest` 와 `Pillow` 는 여기 넣지 않는다. 이 파일은 Vercel이 함수를 빌드할 때 설치하는 목록이다.
 
-- [ ] **Step 3: `vercel.json` 작성**
+- [x] **Step 3: `vercel.json` 작성**
 
 ```json
 {
@@ -920,7 +920,7 @@ google-genai
 
 `TOTAL_BUDGET_SECONDS` 25초에 마진을 더한 값이다. 배포 시 플랜 한도를 초과한다는 오류가 나면 그 한도에 맞춰 낮추고, `TOTAL_BUDGET_SECONDS` 도 함께 줄인다 (함수 상한 − 5초).
 
-- [ ] **Step 4: 어댑터와 핸들러 구현**
+- [x] **Step 4: 어댑터와 핸들러 구현**
 
 `api/curate.py` 상단 import에 `json`, `os` 를 추가하고 `FALLBACK_MODEL` 값을 Step 1에서 고른 것으로 바꾼 뒤, 파일 끝에 붙인다:
 
@@ -1078,12 +1078,12 @@ class handler(BaseHTTPRequestHandler):
         return
 ```
 
-- [ ] **Step 5: 기존 테스트가 여전히 통과하는지 확인**
+- [x] **Step 5: 기존 테스트가 여전히 통과하는지 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
 Expected: PASS — 40개 전부. 모듈 최상단에서 `google.genai` 를 import하지 않았으므로(함수 안에서 import) 패키지 없이도 테스트가 돈다.
 
-- [ ] **Step 6: 실제 Gemini 호출 1회 확인**
+- [x] **Step 6: 실제 Gemini 호출 1회 확인**
 
 ```bash
 cd /c/ia-codyssey/assignments/a1-3
@@ -1101,7 +1101,7 @@ Expected: `(200, {...})` 형태로 `name`, `name_kr`, `notes.top/heart/base`, `a
 - `response_schema` 를 dict로 넘겼을 때 라이브러리가 거부하면, `types.Schema` 객체나 TypedDict 형태로 바꿔야 한다. 이 단계에서 실제 오류 메시지를 보고 맞춘다.
 - `503` 이 나오면 재시도가 실제로 도는지 확인하고, 성공 시 `attempts` 가 2 이상으로 찍히는지 본다. 그것이 이번 설계의 핵심 검증이다.
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 git add assignments/a1-3
