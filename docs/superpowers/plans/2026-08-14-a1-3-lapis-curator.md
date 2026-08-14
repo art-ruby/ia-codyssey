@@ -279,7 +279,7 @@ git commit -m "refactor(a1-3): extract inline CSS and JS into css/ and js/"
 - Consumes: Task 2의 분리된 `index.html` / `style.css`, 그리고 `images/luna-crystal.webp`
 - Produces: 없음 (독립 변경). 이후 태스크가 의존하지 않는다.
 
-- [ ] **Step 1: LUNA 카드 마크업 교체**
+- [x] **Step 1: LUNA 카드 마크업 교체**
 
 `index.html` 의 두 번째 `.line-card` 안에서 `.abstract-panel.compact` div를 `<img>` 로 바꾼다. LAPIS 카드와 같은 형태가 된다.
 
@@ -301,7 +301,7 @@ git commit -m "refactor(a1-3): extract inline CSS and JS into css/ and js/"
 
 `alt` 는 무드를 담아 쓴다 (Global Constraints). "luna.webp" 같은 문자 그대로의 설명을 쓰지 않는다.
 
-- [ ] **Step 2: 죽은 CSS 제거**
+- [x] **Step 2: 죽은 CSS 제거**
 
 교체 후 `.compact` 를 쓰는 곳이 사라진다. `css/style.css` 에서 다음 두 규칙을 지운다:
 
@@ -319,7 +319,7 @@ git commit -m "refactor(a1-3): extract inline CSS and JS into css/ and js/"
 Run: `grep -n "compact\|line-card .abstract-panel" assignments/a1-3/index.html assignments/a1-3/css/style.css`
 Expected: 결과 없음
 
-- [ ] **Step 3: 시각 확인**
+- [x] **Step 3: 시각 확인**
 
 ```bash
 cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
@@ -334,7 +334,7 @@ cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
 - 375px 에서도 카드가 깨지지 않는가
 - Brand Story 섹션의 추상 패널이 **그대로 남아 있는가** (Step 2에서 잘못 지우지 않았는지 확인)
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add assignments/a1-3
