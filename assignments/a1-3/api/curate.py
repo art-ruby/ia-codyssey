@@ -113,7 +113,8 @@ FALLBACK_MODEL = "gemini-3.5-flash-lite"
 
 _BUSY_ERROR = {"code": "MODEL_UNAVAILABLE", "message": "향을 짓는 곳이 잠시 붐비고 있습니다. 잠시 뒤 다시 시도해 주세요."}
 _SHAPE_ERROR = {"code": "INVALID_RESPONSE", "message": "결과를 완성하지 못했습니다. 잠시 뒤 다시 시도해 주세요."}
-_SERVICE_ERROR = {"code": "SERVICE_UNAVAILABLE", "message": "지금은 큐레이터를 이용할 수 없습니다. 잠시 후 다시 방문해 주세요."}
+# 프론트가 제목을 "지금은 큐레이터를 이용할 수 없습니다"로 붙이므로 여기서 반복하지 않는다.
+_SERVICE_ERROR = {"code": "SERVICE_UNAVAILABLE", "message": "잠시 후 다시 방문해 주세요. 다른 섹션은 정상적으로 보실 수 있습니다."}
 
 
 class ModelError(Exception):

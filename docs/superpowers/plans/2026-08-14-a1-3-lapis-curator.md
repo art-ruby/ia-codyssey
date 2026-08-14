@@ -1385,7 +1385,7 @@ git commit -m "feat(a1-3): add curator section markup, styles, and nav entry"
 - Consumes: Task 5의 `POST /api/curate` 계약, Task 6의 DOM id
 - Produces: 완성된 큐레이터 기능. 이후 태스크는 배포와 증빙만 다룬다.
 
-- [ ] **Step 1: `curator.js` 작성**
+- [x] **Step 1: `curator.js` 작성**
 
 ```javascript
 /* LAPIS 향 큐레이터 — 입력 수집, 검증, 호출, 상태 전환.
@@ -1582,7 +1582,7 @@ git commit -m "feat(a1-3): add curator section markup, styles, and nav entry"
 
 `SERVICE_UNAVAILABLE` 일 때만 재시도 버튼을 숨긴다. 키가 잘못된 상태에서는 몇 번을 눌러도 결과가 같기 때문이다.
 
-- [ ] **Step 2: `index.html` 에 스크립트 추가**
+- [x] **Step 2: `index.html` 에 스크립트 추가**
 
 `js/main.js` 줄 다음에:
 
@@ -1590,7 +1590,7 @@ git commit -m "feat(a1-3): add curator section markup, styles, and nav entry"
 <script src="js/curator.js" defer></script>
 ```
 
-- [ ] **Step 3: 결과·로딩·에러 스타일 추가**
+- [x] **Step 3: 결과·로딩·에러 스타일 추가**
 
 `css/style.css` 끝에 붙인다:
 
@@ -1738,7 +1738,7 @@ git commit -m "feat(a1-3): add curator section markup, styles, and nav entry"
 }
 ```
 
-- [ ] **Step 4: 로컬에서 전체 경로 확인**
+- [x] **Step 4: 로컬에서 전체 경로 확인**
 
 ```bash
 cd /c/ia-codyssey/assignments/a1-3
@@ -1756,14 +1756,14 @@ npx vercel dev
 | 키 오류 | `.env` 의 `GEMINI_API_KEY` 를 `invalid` 로 바꾸고 제출 | 재시도 버튼 **없는** 에러 화면, `SERVICE_UNAVAILABLE` |
 | 중복 제출 | 대기 중 버튼 클릭 | 버튼이 비활성이라 눌리지 않음 |
 
-- [ ] **Step 5: 접근성 확인**
+- [x] **Step 5: 접근성 확인**
 
 - Tab만으로 폼 전체를 순회할 수 있는가
 - Enter로 제출되는가
 - 결과가 뜰 때 `curatorResult` 의 `aria-busy` 가 `true` → `false` 로 바뀌는가 (요소 검사기로 확인)
 - OS 설정에서 "동작 줄이기"를 켜면 셰이머와 카드 등장 애니메이션이 멈추는가
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add assignments/a1-3
@@ -1824,6 +1824,12 @@ Vercel 프로젝트 Settings → Environment Variables 에서 `GEMINI_API_KEY` �
 | AI 기능 | 입력 → 결과 카드 출력 |
 | 빈 입력 | 안내 문구, 요청 없음 |
 | 실기기 | 실제 휴대폰에서 한 번 확인 |
+
+> **각 크기에서 새로 로드해서 확인한다. 창 크기만 바꾸면 안 된다.**
+>
+> `js/main.js` 의 노트 모션 그리드는 `scale = containerWidth / STAGE_BASE` 를 **로드 시점에 한 번만** 계산하고 resize 리스너가 없다. 리사이즈만 하면 이전 폭이 남아, 실제로는 멀쩡한 레이아웃이 1824px까지 넘치는 것처럼 보인다. Task 6 검증 중 실제로 이 함정에 빠져 없는 버그를 쫓았다.
+>
+> 사용자에게는 로드 시점 크기가 적용되므로 배포본의 결함은 아니다. 다만 화면 회전이나 창 크기 변경 시 스케일이 갱신되지 않는 것은 사실이며, B1-2에서 이식해 온 기존 동작이라 이번 과제 범위 밖으로 둔다.
 
 문제가 있으면 고치고 커밋 → 자동 재배포 → 다시 확인한다.
 
