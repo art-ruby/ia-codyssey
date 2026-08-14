@@ -646,7 +646,7 @@ Gemini 호출 함수를 주입받아 예산 안에서 재시도하는 층이다.
   - 상수: `TOTAL_BUDGET_SECONDS`, `PER_ATTEMPT_CAP_SECONDS`, `MIN_ATTEMPT_SECONDS`, `PRIMARY_MODEL`, `FALLBACK_MODEL`
   - Task 5의 HTTP 핸들러가 `curate()` 를 호출한다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_curate.py` 끝에 추가한다:
 
@@ -781,12 +781,12 @@ def test_invalid_request_never_calls_model():
     assert caller.calls == []
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v -k curate or 전체 실행`
 Expected: FAIL — `AttributeError: module 'curate' has no attribute 'ModelError'`
 
-- [ ] **Step 3: 오케스트레이터 구현**
+- [x] **Step 3: 오케스트레이터 구현**
 
 `api/curate.py` 상단 import에 `time` 을 추가하고, 파일 끝에 다음을 붙인다:
 
@@ -855,12 +855,12 @@ def curate(body, call_model, now=time.monotonic, sleep=time.sleep):
     return status, {"error": last_failure}
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
-Expected: PASS — 39개 통과 (Task 3의 29개 + 오케스트레이터 10개)
+Expected: PASS — 40개 통과 (Task 3의 29개 + 오케스트레이터 11개)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add assignments/a1-3/api assignments/a1-3/tests
@@ -1081,7 +1081,7 @@ class handler(BaseHTTPRequestHandler):
 - [ ] **Step 5: 기존 테스트가 여전히 통과하는지 확인**
 
 Run: `cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/test_curate.py -v`
-Expected: PASS — 39개 전부. 모듈 최상단에서 `google.genai` 를 import하지 않았으므로(함수 안에서 import) 패키지 없이도 테스트가 돈다.
+Expected: PASS — 40개 전부. 모듈 최상단에서 `google.genai` 를 import하지 않았으므로(함수 안에서 import) 패키지 없이도 테스트가 돈다.
 
 - [ ] **Step 6: 실제 Gemini 호출 1회 확인**
 
@@ -2158,7 +2158,7 @@ git push
 cd /c/ia-codyssey/assignments/a1-3 && .venv/Scripts/python.exe -m pytest tests/ -v
 ```
 
-Expected: PASS — 39개 전부
+Expected: PASS — 40개 전부
 
 제출 패키지 점검:
 

@@ -6,6 +6,7 @@
 경계를 지켜야 Gemini가 503을 뱉는 동안에도 로직을 검증할 수 있다.
 """
 import random
+import time
 
 SEASONS = frozenset({"spring", "summer", "autumn", "winter"})
 TIMES = frozenset({"day", "dusk", "night"})
@@ -93,3 +94,67 @@ def validate_response(data):
             return f"missing description: {layer}"
 
     return None
+
+
+TOTAL_BUDGET_SECONDS = 25.0
+PER_ATTEMPT_CAP_SECONDS = 12.0
+MIN_ATTEMPT_SECONDS = 3.0
+
+PRIMARY_MODEL = "gemini-3.5-flash"
+FALLBACK_MODEL = PRIMARY_MODEL  # Task 5에서 실제 대체 모델로 교체한다
+
+_BUSY_ERROR = {"code": "MODEL_UNAVAILABLE", "message": "향을 짓는 곳이 잠시 붐비고 있습니다. 잠시 뒤 다시 시도해 주세요."}
+_SHAPE_ERROR = {"code": "INVALID_RESPONSE", "message": "결과를 완성하지 못했습니다. 잠시 뒤 다시 시도해 주세요."}
+_SERVICE_ERROR = {"code": "SERVICE_UNAVAILABLE", "message": "지금은 큐레이터를 이용할 수 없습니다. 잠시 후 다시 방문해 주세요."}
+
+
+class ModelError(Exception):
+    """모델 호출 실패. status가 None이면 네트워크 오류나 타임아웃이다."""
+
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
+
+
+def _model_for(attempt):
+    return FALLBACK_MODEL if attempt == MAX_ATTEMPTS else PRIMARY_MODEL
+
+
+def curate(body, call_model, now=time.monotonic, sleep=time.sleep):
+    """(http_status, payload) 를 돌려준다.
+
+    call_model(model, timeout) 은 파싱된 dict를 돌려주거나 ModelError를 던진다.
+    now/sleep을 주입받는 이유는 테스트에서 실제로 25초를 기다리지 않기 위해서다.
+    """
+    invalid = validate_request(body)
+    if invalid is not None:
+        return 400, {"error": invalid}
+
+    deadline = now() + TOTAL_BUDGET_SECONDS
+    last_failure = _BUSY_ERROR
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        remaining = deadline - now()
+        if remaining < MIN_ATTEMPT_SECONDS:
+            break
+
+        timeout = min(PER_ATTEMPT_CAP_SECONDS, remaining)
+        try:
+            raw = call_model(_model_for(attempt), timeout)
+        except ModelError as exc:
+            if not should_retry(exc.status):
+                return 500, {"error": _SERVICE_ERROR}
+            last_failure = _BUSY_ERROR
+        else:
+            reason = validate_response(raw)
+            if reason is None:
+                result = dict(raw)
+                result["attempts"] = attempt
+                return 200, result
+            last_failure = _SHAPE_ERROR
+
+        if attempt < MAX_ATTEMPTS:
+            sleep(next_delay(attempt))
+
+    status = 502 if last_failure is _SHAPE_ERROR else 503
+    return status, {"error": last_failure}

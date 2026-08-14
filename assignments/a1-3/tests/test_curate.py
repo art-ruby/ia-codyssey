@@ -127,3 +127,151 @@ def test_non_string_material_is_rejected():
 
 def test_non_dict_payload_is_rejected():
     assert curate.validate_response("just a string") is not None
+
+
+# ---------- curate orchestrator ----------
+
+class FakeClock:
+    """단조 증가 시계. sleep 호출이 그대로 시간을 밀어준다."""
+
+    def __init__(self):
+        self.t = 0.0
+
+    def now(self):
+        return self.t
+
+    def sleep(self, seconds):
+        self.t += seconds
+
+
+def make_caller(outcomes):
+    """outcomes의 각 원소는 payload(dict) 또는 raise할 예외다."""
+    calls = []
+
+    def call_model(model, timeout):
+        calls.append({"model": model, "timeout": timeout})
+        outcome = outcomes[len(calls) - 1]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    call_model.calls = calls
+    return call_model
+
+
+def test_first_attempt_success_returns_payload_with_attempts_one():
+    clock = FakeClock()
+    caller = make_caller([valid_payload()])
+    status, payload = curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert status == 200
+    assert payload["attempts"] == 1
+    assert payload["name"] == "Quiet Amber"
+    assert len(caller.calls) == 1
+
+
+def test_retries_on_503_then_succeeds():
+    clock = FakeClock()
+    caller = make_caller([curate.ModelError("overloaded", status=503), valid_payload()])
+    status, payload = curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert status == 200
+    assert payload["attempts"] == 2
+    assert len(caller.calls) == 2
+
+
+def test_retries_on_schema_violation():
+    clock = FakeClock()
+    broken = valid_payload()
+    del broken["notes"]["base"]
+    caller = make_caller([broken, valid_payload()])
+    status, payload = curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert status == 200
+    assert payload["attempts"] == 2
+
+
+def test_three_failures_return_model_unavailable():
+    clock = FakeClock()
+    err = curate.ModelError("overloaded", status=503)
+    caller = make_caller([err, err, err])
+    status, payload = curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert status == 503
+    assert payload["error"]["code"] == "MODEL_UNAVAILABLE"
+    assert len(caller.calls) == curate.MAX_ATTEMPTS
+
+
+def test_three_schema_violations_return_invalid_response():
+    clock = FakeClock()
+    broken = valid_payload()
+    del broken["notes"]["base"]
+    caller = make_caller([broken, dict(broken), dict(broken)])
+    status, payload = curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert status == 502
+    assert payload["error"]["code"] == "INVALID_RESPONSE"
+
+
+def test_auth_failure_stops_immediately():
+    clock = FakeClock()
+    err = curate.ModelError("bad key", status=401)
+    caller = make_caller([err, valid_payload()])
+    status, payload = curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert status == 500
+    assert payload["error"]["code"] == "SERVICE_UNAVAILABLE"
+    assert len(caller.calls) == 1, "인증 실패에는 재시도하지 않는다"
+
+
+def test_third_attempt_uses_fallback_model():
+    clock = FakeClock()
+    err = curate.ModelError("overloaded", status=503)
+    caller = make_caller([err, err, valid_payload()])
+    curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    models = [c["model"] for c in caller.calls]
+    assert models[0] == curate.PRIMARY_MODEL
+    assert models[1] == curate.PRIMARY_MODEL
+    assert models[2] == curate.FALLBACK_MODEL
+
+
+def test_fallback_model_is_used_when_it_differs(monkeypatch):
+    """FALLBACK_MODEL이 PRIMARY_MODEL과 같은 동안에는 위 테스트가 통과해도 의미가 없다.
+
+    (Task 5에서 실제 대체 모델 ID가 정해지기 전까지 두 값이 같다.)
+    실제로 다른 값을 넣어 3회차에만 전환되는지 확인한다.
+    """
+    monkeypatch.setattr(curate, "FALLBACK_MODEL", "some-other-model")
+    clock = FakeClock()
+    err = curate.ModelError("overloaded", status=503)
+    caller = make_caller([err, err, valid_payload()])
+    curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert [c["model"] for c in caller.calls] == [
+        curate.PRIMARY_MODEL,
+        curate.PRIMARY_MODEL,
+        "some-other-model",
+    ]
+
+
+def test_budget_exhaustion_stops_before_max_attempts():
+    clock = FakeClock()
+
+    def slow_call(model, timeout):
+        clock.t += 11.0
+        raise curate.ModelError("overloaded", status=503)
+
+    slow_call.calls = []
+    status, payload = curate.curate(valid_body(), slow_call, now=clock.now, sleep=clock.sleep)
+    assert status == 503
+    assert payload["error"]["code"] == "MODEL_UNAVAILABLE"
+    assert clock.t <= curate.TOTAL_BUDGET_SECONDS + curate.PER_ATTEMPT_CAP_SECONDS
+
+
+def test_attempt_timeout_never_exceeds_cap():
+    clock = FakeClock()
+    caller = make_caller([valid_payload()])
+    curate.curate(valid_body(), caller, now=clock.now, sleep=clock.sleep)
+    assert caller.calls[0]["timeout"] <= curate.PER_ATTEMPT_CAP_SECONDS
+
+
+def test_invalid_request_never_calls_model():
+    clock = FakeClock()
+    caller = make_caller([valid_payload()])
+    status, payload = curate.curate(valid_body(moment=""), caller, now=clock.now, sleep=clock.sleep)
+    assert status == 400
+    assert payload["error"]["code"] == "EMPTY_INPUT"
+    assert caller.calls == []
