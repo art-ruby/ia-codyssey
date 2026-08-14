@@ -267,6 +267,82 @@ git commit -m "refactor(a1-3): extract inline CSS and JS into css/ and js/"
 
 ---
 
+## Task 2B: LUNA 컬렉션 카드 이미지 적용
+
+기획서 §13.2. LUNA 카드는 실사 자산이 없어 CSS 그라디언트 플레이스홀더였는데, 크리스털 향수병 이미지를 확보해 채운다. 자산 `images/luna-crystal.webp` (180KB)는 이미 준비되어 있다.
+
+**Files:**
+- Modify: `assignments/a1-3/index.html` (COLLECTION 섹션의 두 번째 `.line-card`)
+- Modify: `assignments/a1-3/css/style.css`
+
+**Interfaces:**
+- Consumes: Task 2의 분리된 `index.html` / `style.css`, 그리고 `images/luna-crystal.webp`
+- Produces: 없음 (독립 변경). 이후 태스크가 의존하지 않는다.
+
+- [ ] **Step 1: LUNA 카드 마크업 교체**
+
+`index.html` 의 두 번째 `.line-card` 안에서 `.abstract-panel.compact` div를 `<img>` 로 바꾼다. LAPIS 카드와 같은 형태가 된다.
+
+바꾸기 전:
+
+```html
+<div class="abstract-panel compact" role="img" aria-label="달빛 톤의 넥스트 라인업을 암시하는 추상 무드 패널">
+  <span class="mark">✦</span>
+</div>
+```
+
+바꾼 뒤:
+
+```html
+<img src="images/luna-crystal.webp" alt="달빛 아래 푸른 크리스털을 깎아 만든 듯한 드레스 형상의 향수병, 뒤로는 옅게 흩어지는 별빛">
+```
+
+`Coming Soon` 배지(`.line-badge`)와 `.line-info` 는 그대로 둔다. LUNA는 여전히 공개 전 라인이고, 이미지가 생겼다고 출시 상태가 바뀌는 것은 아니다.
+
+`alt` 는 무드를 담아 쓴다 (Global Constraints). "luna.webp" 같은 문자 그대로의 설명을 쓰지 않는다.
+
+- [ ] **Step 2: 죽은 CSS 제거**
+
+교체 후 `.compact` 를 쓰는 곳이 사라진다. `css/style.css` 에서 다음 두 규칙을 지운다:
+
+```css
+.abstract-panel.compact{aspect-ratio:auto;position:absolute;inset:0;}
+```
+
+```css
+.line-card .abstract-panel{transition:filter 1200ms var(--ease-out);}
+.line-card:hover .abstract-panel{filter:brightness(1.15);}
+```
+
+`.abstract-panel` 기본 규칙은 **지우지 않는다.** Brand Story 섹션이 여전히 쓴다.
+
+Run: `grep -n "compact\|line-card .abstract-panel" assignments/a1-3/index.html assignments/a1-3/css/style.css`
+Expected: 결과 없음
+
+- [ ] **Step 3: 시각 확인**
+
+```bash
+cd /c/ia-codyssey/assignments/a1-3 && python -m http.server 8731
+```
+
+`http://localhost:8731` 의 컬렉션 섹션에서:
+
+- LUNA 카드에 크리스털 이미지가 4:5 비율로 꽉 차게 들어가는가 (`.line-card img` 의 `object-fit:cover`)
+- 마우스 호버 시 이미지가 1.06배로 확대되는가 — LAPIS 카드와 동일한 동작. 기존 `.line-card img` 규칙이 그대로 적용되므로 CSS를 새로 쓸 필요가 없다
+- 하단 그라디언트 오버레이(`.line-card::before`) 위로 `LUNA` 텍스트가 읽히는가
+- `Coming Soon` 배지가 여전히 보이는가
+- 375px 에서도 카드가 깨지지 않는가
+- Brand Story 섹션의 추상 패널이 **그대로 남아 있는가** (Step 2에서 잘못 지우지 않았는지 확인)
+
+- [ ] **Step 4: 커밋**
+
+```bash
+git add assignments/a1-3
+git commit -m "feat(a1-3): replace LUNA placeholder panel with crystal bottle image"
+```
+
+---
+
 ## Task 3: 요청·응답 검증 순수 함수
 
 네트워크 없이 돌아가는 부분부터 만든다. Gemini가 지금 503을 뱉고 있어서, 검증 로직 테스트가 모델 상태에 묶이면 안 된다.
@@ -2106,6 +2182,8 @@ Expected: PASS — 32개 전부
 | §5.2 출력 (name/name_kr/copy/notes/scene) | Task 5 Step 4 (스키마), Task 7 Step 1 (렌더) |
 | §6.1 프로젝트 구조 | Task 1, Task 2 |
 | §6.1 이미지 WebP | Task 1 Step 6–8 |
+| §13.1 인물 이미지 노출 (B1-2 PRD와 다른 결정) | 별도 구현 없음 — 자산을 그대로 둔다 |
+| §13.2 LUNA 카드 비주얼 | Task 2B |
 | §6.2 데이터 흐름 | Task 5, Task 7 |
 | §6.3 API 계약 · 에러 코드 | Task 4 Step 3, Task 5 Step 4 |
 | §6.3 서버 재검증 | Task 3 Step 3, Task 5 (`handle`) |
