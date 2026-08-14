@@ -48,9 +48,21 @@ async function captureCuratorFlow(browser) {
   await page.locator('#curator').scrollIntoViewIfNeeded();
   await page.waitForTimeout(800);
 
+  // 폼이 화면 가운데 오도록 맞춘다. 그냥 찍으면 위쪽 절반을 Notes 섹션이 차지해
+  // 정작 증빙해야 할 입력·안내가 화면 맨 아래에 깔린다.
+  const frameForm = async () => {
+    await page.evaluate(() => {
+      document.getElementById('curatorForm')
+        .scrollIntoView({ block: 'center', behavior: 'instant' });
+    });
+    // 커서를 버튼 밖으로 뺀다. 클릭 직후엔 버튼이 hover 상태(골드 채움)로 찍힌다.
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(400);
+  };
+
   // 1. 빈 입력 실패 안내 — 요청을 보내지 않고 즉시 안내가 뜬다
   await page.click('#curatorSubmit');
-  await page.waitForTimeout(400);
+  await frameForm();
   await page.screenshot({ path: shot('ai-01-empty-input.png') });
   console.log('  ai-01-empty-input.png');
 
@@ -61,7 +73,7 @@ async function captureCuratorFlow(browser) {
     await page.click(`label[for="${id}"]`);
   }
   await page.fill('#curatorMoment', '퇴근길 지하철에서 창밖을 볼 때');
-  await page.waitForTimeout(300);
+  await frameForm();
   await page.screenshot({ path: shot('ai-02-filled.png') });
   console.log('  ai-02-filled.png');
 

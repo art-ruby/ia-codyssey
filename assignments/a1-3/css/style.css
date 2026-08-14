@@ -101,19 +101,6 @@
   .story-image{flex:1 1 420px;}
   .story-image img{width:100%;aspect-ratio:4/5;object-fit:cover;}
 
-  /* 인물 사진 대신 쓰는 추상 패널 — 실제 뮤즈/모델 이미지를 사이트에 노출하지 않기 위한
-     의도적 선택(벤치마킹 방지). 브랜드 톤(딥블루+골드, ✦ 모티프)만으로 여백을 채운다. */
-  .abstract-panel{
-    position:relative;width:100%;aspect-ratio:4/5;overflow:hidden;
-    background:radial-gradient(ellipse at 50% 40%, var(--lapis-mid) 0%, var(--lapis-deep) 55%, var(--black) 100%);
-    border:1px solid rgba(201,162,75,.2);
-    display:flex;align-items:center;justify-content:center;
-  }
-  .abstract-panel::before{
-    content:'';position:absolute;inset:14px;border:1px solid rgba(201,162,75,.25);
-  }
-  .abstract-panel .mark{font-size:clamp(28px,4vw,44px);color:var(--gold);opacity:.85;}
-
   /* reflective prompt — ephemeral, no persistence claim */
   .story-prompt{max-width:420px;}
   .story-prompt-q{font-size:12.5px;letter-spacing:.1em;color:var(--gold-light);margin-bottom:12px;}
