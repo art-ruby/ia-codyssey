@@ -10,13 +10,6 @@
 | 작성일 | 2026년 7월 21일 |
 | 구현 환경 | Gmail · Google Sheets · Make · n8n · Google Gemini AI |
 
-> **과제 핵심 제출본 (JSON 3개)**
->
-> - [프로젝트 1 Make JSON](submission/project1_make.json)
-> - [프로젝트 1 n8n JSON](submission/project1_n8n.json)
-> - [프로젝트 2 n8n JSON](submission/project2_n8n.json)
-> - [제출보고서 PDF](노코드_자동화_워크플로우_과제_제출보고서.pdf)
-
 ## 목차
 
 1. [과제 개요](#1-과제-개요)

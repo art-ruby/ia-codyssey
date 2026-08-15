@@ -1,0 +1,303 @@
+{
+  "name": "Project 2 - Economic Hot Issue Detection",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "economic-news-project2",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-project2",
+      "name": "HTTP Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const required = ['newsletter_name','sender','subject','received_date','message_id'];\nreturn items.map(item => {\n  const missing = required.filter(field => !item.json[field]);\n  return { json: { ...item.json, valid: missing.length === 0, missing_fields: missing } };\n});"
+      },
+      "id": "validate-required-fields",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.valid}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid",
+      "name": "IF Valid Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "뉴스수집",
+        "lookupColumn": "message_id",
+        "lookupValue": "={{$json.message_id}}"
+      },
+      "id": "lookup-message-id",
+      "name": "Google Sheets - Lookup Message ID",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [660, -140],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.message_id}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "if-duplicate",
+      "name": "IF Duplicate Message",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [880, -140]
+    },
+    {
+      "parameters": {
+        "jsCode": "const economic = new Set(['너겟레터','순살브리핑','데일리바이트','어피티']);\nconst general = new Set(['뉴닉','디그']);\nreturn items.map(item => {\n  const name = String(item.json.newsletter_name || '').trim();\n  const group = economic.has(name) ? '경제전문' : general.has(name) ? '종합시사' : '미분류';\n  return { json: { ...item.json, newsletter_name: name || '미분류', newsletter_group: group } };\n});"
+      },
+      "id": "detect-newsletter",
+      "name": "Detect Newsletter Group",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, -60]
+    },
+    {
+      "parameters": {
+        "jsCode": "const map = {\n  '금리': ['금리','기준금리','금리 인하','금리 인상','연준','FOMC','통화정책'],\n  '환율': ['환율','원달러','원/달러','달러 강세','달러 약세','원화 강세','원화 약세'],\n  '주식시장': ['코스피','코스닥','증시','주식','나스닥','S&P500'],\n  '부동산': ['부동산','아파트','주택','전세','월세','주택 공급'],\n  '반도체': ['반도체','HBM','삼성전자','SK하이닉스','엔비디아'],\n  'AI': ['AI','인공지능','생성형 AI','AI 반도체'],\n  '물가': ['물가','인플레이션','소비자물가','CPI'],\n  '관세': ['관세','무역분쟁','무역전쟁'],\n  '가상자산': ['비트코인','가상자산','암호화폐','이더리움'],\n  '경기': ['경기침체','경기 회복','경제성장률','GDP','고용지표']\n};\nreturn items.map(item => {\n  const text = `${item.json.subject || ''}\\n${item.json.body || ''}`;\n  const matches = [];\n  for (const [topic, keywords] of Object.entries(map)) {\n    const found = keywords.filter(keyword => text.includes(keyword));\n    if (found.length) matches.push({ topic, found });\n  }\n  const secondary = [...new Set(matches.flatMap(m => m.found))];\n  return { json: { ...item.json, main_topic: matches[0]?.topic || '기타', secondary_keywords: secondary.join(', '), important_news: matches.length > 0 } };\n});"
+      },
+      "id": "classify-keywords",
+      "name": "Classify Economic Keywords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, -60]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "뉴스수집",
+        "lookupColumn": "main_topic",
+        "lookupValue": "={{$json.main_topic}}",
+        "returnAllMatches": true
+      },
+      "id": "lookup-same-topic",
+      "name": "Google Sheets - Lookup Same Topic",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1540, -60],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = items.map(item => item.json);\nconst current = rows[0];\nconst sameDateRows = rows.filter(row => row.received_date === current.received_date && row.main_topic === current.main_topic && row.processing_status !== 'DUPLICATE');\nconst newsletters = new Set(sameDateRows.map(row => String(row.newsletter_name || '').trim()).filter(Boolean));\nnewsletters.add(String(current.newsletter_name || '').trim());\nconst sourceCount = newsletters.size;\nconst issueLevel = sourceCount >= 3 ? '핵심' : sourceCount >= 2 ? '관심' : '일반';\nreturn [{ json: { ...current, source_count: sourceCount, issue_level: issueLevel, hot_issue: sourceCount >= 2, newsletters: Array.from(newsletters).join(', '), related_subjects: sameDateRows.map(row => row.subject).concat(current.subject).filter(Boolean).join('\\n') } }];"
+      },
+      "id": "calculate-source-count",
+      "name": "Calculate Source Count",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, -60]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "뉴스수집",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "collected_at": "={{$now}}",
+            "received_date": "={{$json.received_date}}",
+            "newsletter_name": "={{$json.newsletter_name}}",
+            "newsletter_group": "={{$json.newsletter_group}}",
+            "sender": "={{$json.sender}}",
+            "subject": "={{$json.subject}}",
+            "body_preview": "={{($json.body || '').slice(0, 200)}}",
+            "main_topic": "={{$json.main_topic}}",
+            "secondary_keywords": "={{$json.secondary_keywords}}",
+            "source_count": "={{$json.source_count}}",
+            "issue_level": "={{$json.issue_level}}",
+            "hot_issue": "={{$json.hot_issue}}",
+            "message_id": "={{$json.message_id}}",
+            "processing_status": "SUCCESS",
+            "error_message": ""
+          }
+        }
+      },
+      "id": "append-news-row",
+      "name": "Google Sheets - Add News Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1980, -60],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.hot_issue}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-hot-issue",
+      "name": "IF Hot Issue",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2200, -60]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "핫이슈",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "detected_at": "={{$now}}",
+            "issue_date": "={{$json.received_date}}",
+            "main_topic": "={{$json.main_topic}}",
+            "source_count": "={{$json.source_count}}",
+            "issue_level": "={{$json.issue_level}}",
+            "newsletters": "={{$json.newsletters}}",
+            "related_subjects": "={{$json.related_subjects}}",
+            "notification_sent": "TRUE",
+            "last_updated_at": "={{$now}}"
+          }
+        }
+      },
+      "id": "append-hot-issue",
+      "name": "Google Sheets - Add Hot Issue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2420, -160],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'success', message_id: $json.message_id, newsletter_name: $json.newsletter_name, main_topic: $json.main_topic, source_count: $json.source_count, issue_level: $json.issue_level, hot_issue: $json.hot_issue, notification_sent: $json.hot_issue } }}"
+      },
+      "id": "success-response",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2640, -60]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'duplicate', message_id: $json.message_id, message: '이미 처리된 메시지입니다.' } }}"
+      },
+      "id": "duplicate-response",
+      "name": "Respond Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, -260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ { status: 'error', error_type: 'VALIDATION_ERROR', missing_fields: $json.missing_fields } }}"
+      },
+      "id": "validation-response",
+      "name": "Respond Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [660, 140]
+    }
+  ],
+  "connections": {
+    "HTTP Webhook": {
+      "main": [[{"node": "Validate Required Fields", "type": "main", "index": 0}]]
+    },
+    "Validate Required Fields": {
+      "main": [[{"node": "IF Valid Input", "type": "main", "index": 0}]]
+    },
+    "IF Valid Input": {
+      "main": [
+        [{"node": "Google Sheets - Lookup Message ID", "type": "main", "index": 0}],
+        [{"node": "Respond Validation Error", "type": "main", "index": 0}]
+      ]
+    },
+    "Google Sheets - Lookup Message ID": {
+      "main": [[{"node": "IF Duplicate Message", "type": "main", "index": 0}]]
+    },
+    "IF Duplicate Message": {
+      "main": [
+        [{"node": "Respond Duplicate", "type": "main", "index": 0}],
+        [{"node": "Detect Newsletter Group", "type": "main", "index": 0}]
+      ]
+    },
+    "Detect Newsletter Group": {
+      "main": [[{"node": "Classify Economic Keywords", "type": "main", "index": 0}]]
+    },
+    "Classify Economic Keywords": {
+      "main": [[{"node": "Google Sheets - Lookup Same Topic", "type": "main", "index": 0}]]
+    },
+    "Google Sheets - Lookup Same Topic": {
+      "main": [[{"node": "Calculate Source Count", "type": "main", "index": 0}]]
+    },
+    "Calculate Source Count": {
+      "main": [[{"node": "Google Sheets - Add News Row", "type": "main", "index": 0}]]
+    },
+    "Google Sheets - Add News Row": {
+      "main": [[{"node": "IF Hot Issue", "type": "main", "index": 0}]]
+    },
+    "IF Hot Issue": {
+      "main": [
+        [{"node": "Google Sheets - Add Hot Issue", "type": "main", "index": 0}],
+        [{"node": "Respond Success", "type": "main", "index": 0}]
+      ]
+    },
+    "Google Sheets - Add Hot Issue": {
+      "main": [[{"node": "Respond Success", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

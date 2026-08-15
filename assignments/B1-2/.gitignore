@@ -1,0 +1,28 @@
+# Keep local working materials in place, but publish only the submission essentials.
+
+# Local automation and workspace metadata
+.agents/
+.codex/
+
+# Intermediate prompt experiments
+prompts/**
+
+# Local verification renders
+tmp/**
+
+# Brand drafts and source assets
+brand/**
+
+# Storyboard and generation drafts
+storyboard/**
+media/**
+
+# Draft report exports
+reports/*
+!reports/LAPIS_storyboard_plan.pdf
+!reports/LAPIS_brand_ad_final.mp4
+
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store

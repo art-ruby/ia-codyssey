@@ -1,0 +1,30 @@
+main_topic,keyword,active,priority
+금리,금리,TRUE,1
+금리,기준금리,TRUE,1
+금리,금리 인하,TRUE,1
+금리,금리 인상,TRUE,1
+금리,연준,TRUE,1
+금리,FOMC,TRUE,1
+금리,통화정책,TRUE,1
+환율,환율,TRUE,2
+환율,원달러,TRUE,2
+환율,원/달러,TRUE,2
+환율,달러 강세,TRUE,2
+환율,달러 약세,TRUE,2
+주식시장,코스피,TRUE,3
+주식시장,코스닥,TRUE,3
+주식시장,증시,TRUE,3
+주식시장,주식,TRUE,3
+부동산,부동산,TRUE,4
+부동산,아파트,TRUE,4
+부동산,주택,TRUE,4
+부동산,전세,TRUE,4
+반도체,반도체,TRUE,5
+반도체,HBM,TRUE,5
+AI,AI,TRUE,6
+AI,인공지능,TRUE,6
+물가,물가,TRUE,7
+물가,CPI,TRUE,7
+관세,관세,TRUE,8
+가상자산,비트코인,TRUE,9
+경기,GDP,TRUE,10
