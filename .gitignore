@@ -1,57 +1,57 @@
-# 비밀 정보 (절대 커밋 금지)
-.env
-.env.*
-!.env.example
-
-# Python
+# ===== 의존성 / 빌드 산출물 =====
 __pycache__/
 *.pyc
 .venv/
 venv/
-
-# Node
 node_modules/
 .next/
 dist/
 .npm-cache/
 
-# 배포 / 로컬 실행 산출물
+# ===== 비밀 정보 (절대 커밋 금지) =====
+.env
+.env.*
+!.env.example
+
+# ===== 배포 / 로컬 실행 산출물 =====
 .vercel/
 .docker-cli/
 .n8n-data/
 *.log
 *.pid
 
-# 에디터 / OS
+# ===== 에디터 / OS =====
 .vscode/
 .DS_Store
 Thumbs.db
-
-# Office 임시 잠금 파일
 ~$*
 
-# Brainstorming visual companion sessions (mockups, server state)
-.superpowers/
-
-# 업로드 대상 외 (과제 6개만 관리: A1-1~A1-3, B1-1~B1-3)
-/assignments/04*/
-/assignments/Team projec 2/
-
-# ===== 로컬 보관용 (제출 미포함) =====
-# 수행 가이드, 참고 문서
+# ===== 과제 무관: 준비과정 자료 (Git 금지) =====
+# 학습용 가이드, 초보자 자료, 참고 문서
 *수행가이드*
 *초보자*
 *참고자료*
+*튜토리얼*
 *guide*
 *tutorial*
+*learning*
 
 # 발표 자료
 *발표자료*
+*발표*
 *.pptx
 *.potx
 
 # 임시 작업 파일
 *임시*
 *temp*
+*draft*
 *backup*
-~*
+*test_data*
+
+# ===== 과제 외 폴더 =====
+/assignments/04*/
+/assignments/Team*/
+
+# ===== Brainstorming visual companion =====
+.superpowers/
