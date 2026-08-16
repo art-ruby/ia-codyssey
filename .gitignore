@@ -36,3 +36,22 @@ Thumbs.db
 # 업로드 대상 외 (과제 6개만 관리: A1-1~A1-3, B1-1~B1-3)
 /assignments/04*/
 /assignments/Team projec 2/
+
+# ===== 로컬 보관용 (제출 미포함) =====
+# 수행 가이드, 참고 문서
+*수행가이드*
+*초보자*
+*참고자료*
+*guide*
+*tutorial*
+
+# 발표 자료
+*발표자료*
+*.pptx
+*.potx
+
+# 임시 작업 파일
+*임시*
+*temp*
+*backup*
+~*
