@@ -120,14 +120,24 @@ def collect(client, verbose=True):
         else:
             if verbose:
                 print(f"\n  제목 번역 {len(fresh)}건…")
-            for r, ko in zip(fresh, translate.translate_titles(
-                    [r["title"] for r in fresh])):
-                r["title_ko"] = ko
+            # 검색은 이미 끝났고 그 값이 비싸다(검색어 12개면 2,400 units).
+            # 번역이 어떤 이유로 죽든 **모은 것을 잃지 않는다.**
+            # 실제로 읽기 타임아웃 하나 때문에 2,400 units 를 날린 적이 있다.
+            try:
+                for r, ko in zip(fresh, translate.translate_titles(
+                        [r["title"] for r in fresh])):
+                    r["title_ko"] = ko
+            except Exception as e:               # noqa: BLE001
+                if verbose:
+                    print(f"  번역이 실패했습니다 ({type(e).__name__}) — "
+                          "원문 그대로 저장합니다.")
             done = sum(1 for r in fresh if r["title_ko"])
             if verbose:
                 print(f"  번역됨 {done}/{len(fresh)}건")
                 if done < len(fresh) and translate.last_error:
                     print(f"  {translate.last_error.splitlines()[0]}")
+                if done < len(fresh):
+                    print("  빠진 것은 `python tools/backfill_titles.py` 로 채웁니다.")
     return rows, stat
 
 
@@ -184,6 +194,13 @@ def main():
     except QuotaError as e:
         print(f"\n{e}")
         client.log_quota("quota exceeded")
+        return 1
+    except Exception as e:                       # noqa: BLE001
+        # 검색은 이미 돈을 썼다. 기록하지 않으면 «안 썼다» 로 남아
+        # 다음 실행이 상한을 조용히 넘긴다.
+        client.log_quota("collector (실패)")
+        print(f"\n수집 도중 실패했습니다 — {type(e).__name__}: {e}")
+        print(f"  쓴 양은 기록했습니다: {client.report()}")
         return 1
 
     added = storage.append_videos(rows)

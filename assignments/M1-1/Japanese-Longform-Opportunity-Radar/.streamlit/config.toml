@@ -1,0 +1,70 @@
+# 화면 색·글꼴. mockup/index.html 에서 정한 것을 그대로 옮긴다.
+#
+# CSS 클래스를 직접 건드리지 않는다 — Streamlit 내부 클래스 이름은 버전마다
+# 바뀌어서, 그렇게 만든 디자인은 업그레이드 한 번에 조용히 무너진다.
+# 여기 있는 것은 전부 공식 테마 옵션이다.
+#
+# 색이 뜻을 나른다 (mockup 설계 그대로)
+#   주황  영상(Video Score) — 시장 신호
+#   청록  채널(Channel Score·링크) — 두 점수를 합치지 않는다는 것을 색으로도 보인다
+#   회색은 초록 쪽으로 살짝 기울여 «고른 중립색» 이 되게 한다
+
+[server]
+address = "127.0.0.1"          # 기본값은 같은 네트워크에 열린다
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+
+backgroundColor = "#EDF1F0"           # ground — 차가운 오프화이트
+secondaryBackgroundColor = "#FFFFFF"  # panel — 카드·확장 패널
+textColor = "#0F1618"
+primaryColor = "#C1501C"              # signal — 영상 점수·기본 버튼
+linkColor = "#1C6577"                 # channel — 링크([열기])
+borderColor = "#D3DBD9"
+dataframeBorderColor = "#D3DBD9"
+dataframeHeaderBackgroundColor = "#F6F8F7"
+codeBackgroundColor = "#E4EAE8"
+codeTextColor = "#0F1618"
+
+baseRadius = "4px"
+buttonRadius = "3px"
+showWidgetBorder = true
+
+font = "IBM Plex Sans KR, Malgun Gothic, sans-serif"
+headingFont = "IBM Plex Sans KR, Malgun Gothic, sans-serif"
+codeFont = "IBM Plex Mono, Consolas, monospace"
+baseFontSize = 15
+metricValueFontSize = "1.9rem"
+metricValueFontWeight = 500
+
+# 알림 색 — st.success / st.warning / st.error 가 쓴다
+greenColor = "#2A6B50"
+greenBackgroundColor = "#DDEBE4"
+orangeColor = "#7E5711"
+orangeBackgroundColor = "#F5EAD3"
+redColor = "#A83A2C"
+redBackgroundColor = "#F6E0DC"
+blueColor = "#1C6577"
+blueBackgroundColor = "#DCEAEE"
+grayColor = "#5E6D6E"
+
+# 그래프 — 주황(영상)과 청록(채널)을 먼저 쓴다
+chartCategoricalColors = [
+  "#C1501C", "#1C6577", "#2A6B50", "#7E5711",
+  "#A83A2C", "#4A5658", "#8A9899", "#D3DBD9",
+]
+
+# ── 사이드바는 어두운 레일 ────────────────────────────────────────
+[theme.sidebar]
+backgroundColor = "#101A1C"
+secondaryBackgroundColor = "#1B282B"
+textColor = "#C3D0D0"
+primaryColor = "#EE7C42"              # 어두운 바탕에서는 주황을 밝게
+linkColor = "#54AEC2"
+borderColor = "#222F31"
+codeBackgroundColor = "#0A0F11"
+codeTextColor = "#C3D0D0"
