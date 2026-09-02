@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+data/raw/*.csv
+data/processed/*.csv
+.venv/
+*.bak
+
+# 실제 채널 정체성·검색어 전략은 로컬 데이터다 — 코드가 아니라 값이고,
+# 공개 저장소에 그대로 노출할 이유가 없다. 스키마·읽기쓰기 로직(src/channels.py,
+# src/seeds.py)은 커밋 대상이지만 그 값 자체는 아니다.
+data/config/
+data/raw/seeds.json
