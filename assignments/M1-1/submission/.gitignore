@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+
+# 수집 스크립트를 실행하면 이 아래에 원본 데이터가 쌓인다.
+# YouTube API Services Terms of Service 에 따라 재배포하지 않는다.
+# (data/README.md 참고)
+data/raw/
+data/processed/

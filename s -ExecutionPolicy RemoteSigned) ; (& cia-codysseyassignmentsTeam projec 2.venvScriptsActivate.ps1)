@@ -1,0 +1,106 @@
+* [33m68362004[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m docs: 보너스 기능 상세 설명자료 추가
+* [33mef710001[m docs: 보너스 기능 문서 업데이트
+* [33m8eb408c8[m feat: JSON 파일 저장/불러오기 기능 구현 (프롬프트 영속화)
+* [33m1b8b042d[m feat: 프롬프트에 조회수(view_count) 필드 추가
+*   [33mc94fdfe6[m Merge branch 'main' of https://github.com/art-ruby/ia-codyssey
+[32m|[m[33m\[m  
+[32m|[m * [33ma25690f9[m Delete assignments/A1-1/A1-1_작업진행순서.docx
+* [33m|[m [33m39a067da[m docs: A1-1 README와 최종 결과보고서 추가
+[33m|[m[33m/[m  
+* [33mddfc9c99[m feat: A1-1 Python 프롬프트 관리 프로그램 - 10개 커밋 완성
+* [33md54785b7[m Delete assignments/A1-1/python-prompt-manager directory
+* [33m66c6e2a1[m Update 서비스기획서.md by removing asset details
+* [33mf9fd929c[m Revise README for accuracy and readability
+* [33m45831d10[m chore: A1-3 과제 지시문(미션 소개) 파일을 Git에서 제외 — 결과물이 아닌 안내문
+* [33m05774b24[m chore: A1-2 미사용 image.png 삭제
+* [33ma23e61de[m chore: A1-2 수행가이드와 준비과정 파일을 Git에서 제외
+* [33md516bc33[m chore: 발표자료 pptx를 Git에서 제외 (로컬에만 보관)
+* [33m4ce84df4[m chore: .gitignore 명확화 — 과제 제출물만 Git, 준비과정 자료는 제외
+* [33mf8a271f3[m chore: .gitignore 강화 — 수행가이드, pptx, 임시파일 제외
+*   [33m16ee3294[m Merge branch 'main' of https://github.com/art-ruby/ia-codyssey
+[34m|[m[35m\[m  
+[34m|[m * [33md68693da[m Delete assignments/A1-1/Python_Git_미션과제_수행가이드.docx
+[34m|[m * [33m1dae0431[m Delete assignments/A1-1/Python & Git 기초 Git과 함께하는 Python 첫 발자국.txt
+* [35m|[m [33m18b4c553[m chore: A1-1 개발 임시 스크립트 제거
+[35m|[m[35m/[m  
+* [33maeb5f623[m chore: A1-2 README 오타 파일 제거 (README..md -> README.md로 통일)
+* [33m0dc60764[m docs: A1-1 제출보고서 docx를 현재 26장 캡처 기준으로 재생성
+* [33m1c906e12[m chore: 과제물을 assignments 6개 폴더로 통합하고 저장소 구조 정리
+* [33m64044cd8[m[33m ([m[1;32ma1-3/service-spec[m[33m)[m Fill the Brand Story panel with a real image; add presentation deck
+* [33m0deb0744[m Deploy to Vercel; fix routing, retry timing, and capture framing
+* [33mc624f3bc[m[33m ([m[1;31morigin/a1-3/service-spec[m[33m)[m Add screenshot capture script; fix two defects it exposed
+* [33m20ed595c[m Wire curator form to /api/curate with loading and error states
+* [33mc637e6fe[m Add curator section markup, styles, and nav entry
+* [33m80e482b1[m Add agent skill configuration
+* [33m09d24ae7[m Add Gemini adapter and serverless HTTP handler
+* [33ma2298aec[m Add budget-based retry orchestrator with model fallback
+* [33me6baeec6[m Add request/response validation and retry policy helpers
+* [33m3bf826b4[m Replace LUNA placeholder panel with crystal bottle image
+* [33m2bde0278[m refactor(a1-3): extract inline CSS and JS into css/ and js/
+* [33m9ab54efd[m Add LUNA crystal asset and record the image-policy decision
+* [33m19a88d80[m Fix plan: reserved port 8000 and global-interpreter installs
+* [33m5e6e4d67[m feat(a1-3): scaffold project and port LAPIS assets as WebP
+* [33ma1fcdb52[m Add a1-3 LAPIS 향 큐레이터 implementation plan
+* [33m7fabe44e[m Add a1-3 LAPIS 향 큐레이터 service spec
+* [33mc0258952[m Add A1-1 Python and Git assignment
+* [33m6029d6fe[m Rename assignment directories to B1 series
+* [33mb18d18dd[m Delete SUBMISSION_MANIFEST.md
+* [33m2f4f05a1[m Delete index.html
+* [33m0f611fa5[m 과제 보고서 이미지 추가
+* [33m3bf80879[m 3회차 노코드 자동화 기초: 워크플로우 설계 과제 보고서
+* [33m4305f99a[m Delete README.md
+* [33mdde39df1[m Add assignment 03 images
+* [33m8cf17418[m Revert "Add assignment 03 section anchors"
+* [33mb1fc016d[m Add assignment 03 section anchors
+* [33mdfde9b53[m Delete README.md
+* [33m7f1e1dd4[m Delete README.md
+* [33m6e1933a5[m 3회차 노코드 자동화 워크플로우 과제 제출
+* [33m7416b731[m Use JSON-only assignment 03 submission
+* [33m51a5202b[m Simplify assignment 03 submission files
+* [33m589770d5[m Publish assignment 03 landing materials
+* [33mc5f4c4b1[m Sanitize assignment 02 public materials
+* [33mfed94d3f[m Remove assignment 02 video from GitHub
+* [33mb45ebf32[m Clarify assignment 02 production details
+* [33m92203080[m Refine assignment 02 README section titles
+* [33m035dc41f[m Address remaining assignment 02 evaluation criteria
+* [33m72be129b[m Add assignment 02 production constraints to README
+* [33m8f455008[m Make assignment 02 the repository README
+* [33m224e1a66[m Document assignment 02 on repository README
+* [33m96966413[m Limit LAPIS assignment published files
+* [33m4398bd15[m Remove final output list from LAPIS README
+* [33m2cd5e71d[m Add LAPIS final brand video
+* [33ma2188722[m Add LAPIS assignment README and storyboard plan
+* [33mc1662da1[m remove unrelated interview references
+* [33ma39fa599[m exclude interview-only notes from assignment submission
+* [33mb138e4e7[m add final assignment 01 submission text
+* [33m7edd3d8d[m add assignment 01 evaluation response
+* [33m2ed4d560[m restore assignment 02 multimodal content
+* [33mdec88fff[m remove misplaced evaluation redirect
+* [33me9c5c23c[m restore pages deployment
+* [33m0d0767d2[m use pages links for blog previews
+* [33m479ebae9[m link evaluation page to blog outputs
+* [33md2750e43[m remove assignment guide link
+* [33m1234e73f[m Revert "simplify assignment 1 published materials"
+* [33mf12e44c2[m simplify assignment 1 published materials
+* [33m05876958[m organize assignment 1 submission
+* [33mf67b8de0[m prompts: separate system user and input template
+* [33m572ae00c[m evaluation: embed all rubric evidence in README
+* [33mdfad4fdd[m evaluation: expose complete submission at repository root
+* [33m644c827d[m ci: retry self-contained evaluation deployment
+* [33m59d27b29[m evaluation: make submission package self-contained
+* [33mc033719a[m docs: add evaluator submission guide
+* [33m00f4547c[m docs: link public evaluation site from README
+* [33mdf01b145[m ci: retry GitHub Pages deployment
+* [33mbd11e0cc[m site: publish evaluation reports with GitHub Pages
+* [33m027dea11[m evaluation: complete Hermes Agent model comparison mission
+* [33m6740bf35[m prompts: identify ChatGPT and Gemini variants
+* [33md95fd372[m prompts: add AI news content package v4
+* [33m6d03fa53[m prompts: publish AI news content package v3
+* [33m832e94b5[m outputs: add generated blog thumbnail
+* [33ma87ceb8e[m outputs: add generated blog short videos
+* [33mc2e1a42a[m prompts: add Sora 2 twelve-second content package v2
+* [33m05ec40ac[m prompts: accept a single news article input
+*   [33maf2d3712[m Merge remote-tracking branch 'origin/main'
+[36m|[m[1;31m\[m  
+[36m|[m * [33mc9fa165d[m Clear repository content
+* [33m887e6840[m docs: organize AI tech news automation project
