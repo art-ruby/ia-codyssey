@@ -192,9 +192,40 @@ class RadarSource(CandidateSource):
                 continue
             record = self._from_payload(payload, envelope, titles)
             if record and record["radar_id"]:
-                # 같은 소재의 여러 revision 중 나중 것이 이긴다.
-                found[record["radar_id"]] = record
+                # 같은 소재의 여러 revision 중 나중 것이 이긴다. 키는 (영상, 채널) — 한 영상이 두 채널의 후보일 수 있다.
+                record["radar_stage"] = "packaged"
+                found[(record["radar_id"], record.get("channel") or "")] = record
         return list(found.values())
+
+    def _from_pool(self, existing: dict[tuple[str, str], dict[str, Any]], titles: dict[str, str]) -> list[dict[str, Any]]:
+        """candidate_pool.json — RADAR 깔때기의 판정·브리프·점수 상위 단계. 패키지와 겹치면 패키지가 이긴다."""
+        from ..services.radar_pool import load as load_pool
+
+        pool = load_pool(self.root)
+        if not pool:
+            return []
+        out = []
+        for row in pool.get("rows") or []:
+            key = (str(row.get("video_id") or ""), str(row.get("channel_id") or ""))
+            if not key[0] or key in existing:
+                continue
+            score = _clamp_score(row.get("video_score"))
+            date = _parse_dt(row.get("found_at")) or _parse_dt(row.get("collected_at")) or _parse_dt(row.get("published_at"))
+            if score is None or date is None:
+                self._skipped["풀 행에 점수/시점 없음"] += 1
+                continue
+            metrics = {k: v for k, v in (row.get("metrics") or {}).items() if v is not None}
+            out.append({
+                "date": date, "value": score, "memo": "",
+                "radar_id": key[0], "channel": key[1],
+                "topic": row.get("title_ko") or row.get("title"),
+                "title": titles.get(key[0]) or row.get("title"),
+                "radar_score": score, "radar_package_id": row.get("package_id"), "radar_payload_hash": None,
+                "radar_metrics": metrics or {"video_score": score},
+                "radar_stage": row.get("stage") or "scored",
+                "decision": None, "decision_reason": "", "source": "radar",
+            })
+        return out
 
     def _from_payload(
         self, payload: dict[str, Any], envelope: dict[str, Any], titles: dict[str, str]
@@ -326,6 +357,8 @@ class RadarSource(CandidateSource):
             return []
         titles = self._titles()
         records = self._from_outbox(titles)
+        existing = {(r["radar_id"], r.get("channel") or ""): r for r in records}
+        records += self._from_pool(existing, titles)
         if records:
             return self._overlay_ledger(records)
         return self._from_decisions(titles)
@@ -337,9 +370,11 @@ class RadarSource(CandidateSource):
         outbox_db = (self.root / self.OUTBOX_DB).is_file()
         outbox_dir = (self.root / "outbox").is_dir()
         decisions = (self.root / "data" / "decisions.jsonl").is_file()
+        pool = (self.root / "data" / "decision_assistant" / "candidate_pool.json").is_file()
         return {
             "name": self.name,
-            "available": self.root.is_dir() and (outbox_db or outbox_dir or decisions),
+            "available": self.root.is_dir() and (outbox_db or outbox_dir or decisions or pool),
+            "has_pool": pool,
             "path": str(self.root),
             "is_real_data": True,
             "has_outbox": outbox_db or outbox_dir,

@@ -173,7 +173,7 @@ function renderCandidates() {
     const source = item.source || 'manual';
     return `<tr data-id="${item.id}" class="${item.id === state.selectedId ? 'selected' : ''}">
       <td><span class="tag tag-${source}">${source === 'sample' ? '표본' : source === 'radar' ? '실측' : '수동'}</span></td>
-      <td class="title-cell">${escapeHtml(item.title || '(제목 없음)')}</td>
+      <td class="title-cell">${escapeHtml(item.title || '(제목 없음)')}${item.radar_stage ? ` <span class="stage stage-${escapeHtml(item.radar_stage)}" title="RADAR 깔때기 단계">${escapeHtml({scored: '점수', fit_judged: '판정', briefed: '브리프', packaged: '패키지'}[item.radar_stage] || item.radar_stage)}</span>` : ''}</td>
       <td>${escapeHtml(item.topic || '-')}</td>
       <td>${escapeHtml(item.channel || '-')}</td>
       <td class="num">${item.value}</td>
@@ -956,6 +956,17 @@ function bindEvents() {
   $('conversationSelect').addEventListener('change', (e) => openConversation(e.target.value));
   $('btnDeleteConv').addEventListener('click', deleteConversation);
   $('btnRefreshHandoff').addEventListener('click', loadHandoffs);
+  $('btnPoolRefresh').addEventListener('click', async (event) => {
+    const btn = event.target; btn.disabled = true; btn.textContent = 'RADAR 풀 내보내는 중…';
+    try {
+      const r = await api('/api/data/pool/refresh?top=20', { method: 'POST', body: '{}' });
+      await api('/api/data/import?source=radar&replace=true', { method: 'POST', body: '{}' });
+      toast(`풀 ${r.rows}건 (${Object.entries(r.stages || {}).map(([k, v]) => `${k} ${v}`).join(' · ')}) · 수집 ${r.n_scored_total}건 중`);
+      await Promise.all([loadCandidates(), loadSummary()]);
+      syncIdentityChannels();
+    } catch (err) { toast(describeError(err)); }
+    btn.disabled = false; btn.textContent = 'RADAR 후보 풀 새로고침';
+  });
   $('btnIdentityLoad').addEventListener('click', loadIdentity);
   $('btnIdentityPropose').addEventListener('click', proposeIdentity);
   $('btnIdentityApprove').addEventListener('click', approveIdentity);

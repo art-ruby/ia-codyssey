@@ -139,6 +139,19 @@ def update_candidate(
     return _to_candidate(updated)
 
 
+@router.post("/pool/refresh", summary="RADAR 후보 풀 새로고침 (analysis·fit·briefs·outbox → candidate_pool.json)")
+def refresh_pool(top: int = Query(20, ge=0, le=200), settings: Settings = Depends(config_dep)) -> dict[str, Any]:
+    """RADAR 런타임에서 후보 풀을 다시 내보낸다. 그 뒤 import?source=radar 가 이 풀을 읽는다."""
+    from ..services.radar_pool import refresh
+
+    if not settings.radar_root:
+        raise HTTPException(status_code=503, detail="RADAR_ROOT 가 없습니다.")
+    res = refresh(settings.radar_root, python=settings.radar_python, top=top)
+    if not res.get("ok"):
+        raise HTTPException(status_code=502, detail="RADAR 풀 내보내기 실패: " + str(res.get("why")))
+    return res
+
+
 @router.patch("/{candidate_id}/decision", response_model=DecisionResult, summary="MAKE/WATCH/SKIP 변경")
 def set_decision(
     candidate_id: str,

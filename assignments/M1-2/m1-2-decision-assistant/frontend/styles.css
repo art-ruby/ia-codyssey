@@ -336,3 +336,9 @@ tbody tr.flash { animation: row-flash 1.6s ease-out; }
 .suggested.SKIP { color: var(--skip); }
 .suggested.REVIEW_REQUIRED { color: var(--danger); border-color: var(--danger); }
 .blocker { color: var(--danger); }
+
+/* ① RADAR 깔때기 단계 */
+.stage { font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin-left: 4px; vertical-align: middle; }
+.stage-packaged { color: var(--make); border-color: var(--make); }
+.stage-briefed { color: var(--accent); border-color: var(--accent); }
+.stage-fit_judged { color: var(--watch); border-color: var(--watch); }

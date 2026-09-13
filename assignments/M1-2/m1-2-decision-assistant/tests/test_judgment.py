@@ -17,6 +17,7 @@ from app.services import assessment as A  # noqa: E402
 from app.services import fit_state as F  # noqa: E402
 from app.services import identity as I  # noqa: E402
 from app.services.radar_data import RadarData  # noqa: E402
+from app.adapters.sources import RadarSource  # noqa: E402
 
 
 # ── 픽스처: 최소 RADAR 루트 ─────────────────────────────────────────────────
@@ -234,3 +235,26 @@ class TestRegressionHomebody:
         inputs = I.gather_inputs(RadarData(root), DecisionsLedger(root, enabled=False), "loss_defense")
         assert set(inputs) == {"profile", "dna", "make_history", "performance"}
         assert inputs["profile"]["id"] == "loss_defense" and inputs["make_history"] == []
+
+
+# ── RADAR 후보 풀 병합 ──────────────────────────────────────────────────────
+class TestCandidatePool:
+    def test_pool_rows_merge_with_outbox_and_key_is_video_x_channel(self, tmp_path):
+        """같은 영상이 두 채널의 후보일 수 있다. 패키지가 있으면 패키지가 이긴다."""
+        root = make_root(tmp_path)
+        (root / "data/decision_assistant").mkdir(parents=True)
+        (root / "data/decision_assistant/candidate_pool.json").write_text(json.dumps({"rows": [
+            {"video_id": "v1", "channel_id": "loss_defense", "stage": "scored", "title": "A", "video_score": 88.0,
+             "found_at": "2026-09-10T00:00:00Z", "metrics": {"video_score": 88.0, "svr_percentile": 90.0}},
+            {"video_id": "v1", "channel_id": "solo_pride", "stage": "fit_judged", "title": "A", "video_score": 88.0,
+             "found_at": "2026-09-10T00:00:00Z", "metrics": {"video_score": 88.0}},
+            {"video_id": "bad", "channel_id": "loss_defense", "stage": "scored", "title": "no score", "video_score": None,
+             "found_at": "2026-09-10T00:00:00Z", "metrics": {}},
+        ]}, ensure_ascii=False), encoding="utf-8")
+        rows = RadarSource(root).load()
+        keys = {(r["radar_id"], r["channel"]) for r in rows}
+        assert keys == {("v1", "loss_defense"), ("v1", "solo_pride")}
+        assert {r["radar_stage"] for r in rows} == {"scored", "fit_judged"}
+        assert all(r["source"] == "radar" for r in rows)
+        src = RadarSource(root); src.load()
+        assert src._skipped.get("풀 행에 점수/시점 없음") == 1  # 점수 없는 행은 지어내지 않고 뺀다

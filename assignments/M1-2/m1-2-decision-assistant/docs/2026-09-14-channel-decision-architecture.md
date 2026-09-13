@@ -129,6 +129,16 @@ Gate 4 Production    brief 없음 / narrator 미정 ─▶ REVIEW_REQUIRED
 
 AutoMaker 중복 입력: 벤치마킹 URL(패키지에 channel_id 있음 — AutoMaker 미반영, 수동), 페르소나(승인 관문, 근거는 패키지 1건 → v3 에서 Identity 가 target_channel 에 실려 근거가 채널 수준이 됨), 화자(TTS 음성 선택은 AutoMaker 수동 — 추천 역할은 decision.signals 로 표시).
 
+## 7b. 후보 풀 — 깔때기의 어느 지점을 읽는가 (2026-09-14 추가)
+
+v2 는 outbox.sqlite3 만 읽어 후보가 1건이었다. 그건 «AutoMaker 로 보내기로 한 것» — 판단이 끝난 뒤다.
+실측 깔때기: videos.csv 1,870 → channel_fit 판정 9 → briefs 5 → 패키지 1.
+v3 `services/radar_pool.py` 는 RADAR 런타임에서 채널마다 `packaged ∪ briefed ∪ fit_judged ∪ scored 상위 N` 을
+내보낸다(`data/decision_assistant/candidate_pool.json`). scored 는 **그 채널로 태그된 seed 검색어로 찾은 영상만**
+(RADAR handoff_ui 규칙) — 태그 없는 영상(AI·仕事)은 어느 채널의 후보도 아니다. 후보 키는 (video, channel).
+결과: 47건 · loss_defense 25 · solo_pride 22. 미판정 후보는 Gate 1 → REVIEW → «RADAR 재판정» 으로 흐른다.
+남는 수동 단계: **브리프 작성(RADAR UI)** — 브리프 없이는 패키지를 만들 수 없어 production 게이트가 막는다.
+
 ## 8. 최소 변경안
 
 DA 안에서만 바꾼다. RADAR·AutoMaker 코드는 손대지 않고 **RADAR 의 함수를 부르고 RADAR 의 파일에 쓴다.**

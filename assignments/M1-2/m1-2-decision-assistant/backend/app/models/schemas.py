@@ -54,6 +54,7 @@ class CandidateBase(BaseModel):
     radar_package_id: str | None = Field(None, max_length=120)
     radar_payload_hash: str | None = Field(None, max_length=120)
     radar_metrics: dict[str, Any] | None = Field(None, description="production_signals.demand 의 video_score·components")
+    radar_stage: str | None = Field(None, description="scored | fit_judged | briefed | packaged — RADAR 깔때기의 어느 단계인가")
     decision: Decision | None = None
     decision_reason: str = Field("", max_length=1000)
     source: DataSource = DataSource.MANUAL
