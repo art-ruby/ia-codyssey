@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from .config import get_settings
 from .repositories.store import get_store
-from .routers import chat, conversations, data, handoff
+from .routers import chat, conversations, data, handoff, judgment
 
 settings = get_settings()
 
@@ -38,6 +38,7 @@ app.include_router(data.router)
 app.include_router(conversations.router)
 app.include_router(chat.router)
 app.include_router(handoff.router)
+app.include_router(judgment.router)
 
 
 @app.exception_handler(Exception)

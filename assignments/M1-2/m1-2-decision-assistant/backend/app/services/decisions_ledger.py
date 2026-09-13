@@ -109,7 +109,8 @@ class DecisionsLedger:
                         fcntl.flock(lock, fcntl.LOCK_UN)
 
     def append(
-        self, candidate: dict[str, Any], decision: str, note: str = ""
+        self, candidate: dict[str, Any], decision: str, note: str = "",
+        signals: dict[str, Any] | None = None,
     ) -> tuple[bool, str, dict[str, Any] | None]:
         """(썼는가, 이유, 레코드). 쓰지 않은 이유는 숨기지 않고 돌려준다."""
         if not self.enabled:
@@ -145,7 +146,9 @@ class DecisionsLedger:
             "population": {},
             "note": note or "",
             "decision": decision,
-            "signals": {},
+            # assessment 요약·narrator 추천. RADAR automaker_intake 가 결정 줄을 통째로 payload.decision 에
+            # 싣기 때문에 AutoMaker 까지 그대로 간다.
+            "signals": dict(signals or {}),
         }
         with self._writer():
             previous = [

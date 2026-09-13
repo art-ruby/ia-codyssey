@@ -47,7 +47,7 @@ def generate_draft(prompt: str, settings: Settings) -> tuple[dict[str, Any], str
     completion = client.chat.completions.create(
         model=settings.openai_model,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=max(settings.openai_max_tokens, 1500),
+        max_tokens=max(settings.openai_max_tokens, 12000),
     )
     text = (completion.choices[0].message.content or "").strip()
     return parse_draft(text), settings.openai_model

@@ -310,3 +310,29 @@ tbody tr.flash { animation: row-flash 1.6s ease-out; }
 .persona-text { white-space: pre-wrap; font: inherit; font-size: 12px; background: var(--bg); border: 1px solid var(--line);
   border-radius: 8px; padding: 8px 10px; max-height: 260px; overflow: auto; margin: 6px 0; }
 .persona-box details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+
+/* ⓪ Channel Identity */
+.panel-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.identity-box { font-size: 13px; }
+.identity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 8px; }
+.identity-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); }
+.identity-card h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+.identity-card ul { margin: 0; padding-left: 16px; }
+.identity-card li { margin: 2px 0; }
+.identity-status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); }
+.identity-status.approved { color: var(--make); border-color: var(--make); }
+.identity-status.proposed { color: var(--watch); border-color: var(--watch); }
+.narrator { border-left: 3px solid var(--accent); padding-left: 8px; margin: 6px 0; }
+.narrator b { font-size: 12px; }
+/* ④ 판정 */
+.assess-box { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12px; }
+.assess-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; margin: 6px 0; }
+.assess-cell { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); }
+.assess-cell .k { color: var(--muted); font-size: 11px; }
+.gate-pass { color: var(--make); } .gate-warn { color: var(--watch); } .gate-fail, .gate-blocked { color: var(--danger); }
+.suggested { font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); }
+.suggested.MAKE { color: var(--make); border-color: var(--make); }
+.suggested.WATCH { color: var(--watch); border-color: var(--watch); }
+.suggested.SKIP { color: var(--skip); }
+.suggested.REVIEW_REQUIRED { color: var(--danger); border-color: var(--danger); }
+.blocker { color: var(--danger); }

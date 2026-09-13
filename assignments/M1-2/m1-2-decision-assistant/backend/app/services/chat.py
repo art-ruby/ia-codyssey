@@ -48,6 +48,9 @@ MAKE / WATCH / SKIP 판단을 돕는다.
    당신의 제안이 곧 제작 실행이 아니라는 점을 전제로 말한다.
 6. 일반적인 유튜브 조언이 아니라 이 데이터에 대한 답을 한다.
 7. 간결하게 답한다. 근거 수치를 함께 제시한다.
+8. 판단의 기준은 [채널 운영 기준(Identity)] 이다. 소재 하나로 채널을 다시 정의하지 않는다.
+   점수(시장 기회)와 채널 적합성은 다른 것이다 — 점수가 높아도 적합성이 미평가·LOW 면 MAKE 를 말하지 않는다.
+   후보 줄에 «판정:» 이 있으면 그 suggested·게이트·blocker 를 근거로 쓴다.
 
 특정 후보를 추천하거나 판정을 논할 때는 아래 네 줄 구조를 지킨다.
 «근거 데이터»는 목록에 있는 값만 옮기고, «판단 이유»는 그 값에서 끌어낸
@@ -156,9 +159,13 @@ def build_candidate_refs(candidates: list[dict[str, Any]]) -> list[dict[str, Any
 
 
 def build_context_block(
-    summary: Summary, candidates: list[dict[str, Any]], basis: str = "keyword"
+    summary: Summary, candidates: list[dict[str, Any]], basis: str = "keyword",
+    identity_lines: list[str] | None = None, assessments: dict[str, dict[str, Any]] | None = None,
 ) -> str:
-    lines = [
+    lines = []
+    if identity_lines:
+        lines += ["[채널 운영 기준(Identity)]", *identity_lines, ""]
+    lines += [
         "[데이터 요약]",
         f"- 기간: {summary.period}",
         f"- 후보 수: {summary.count}건",
@@ -187,12 +194,23 @@ def build_context_block(
         lines.append("- (없음)")
     for index, item in enumerate(candidates, start=1):
         when_text = _date_text(item.get("date"))
-        lines.append(
+        line = (
             f"#{index} {_source_text(item.get('source'))} "
             f"{item.get('title') or item.get('topic') or '(제목 없음)'} "
             f"| 채널 {item.get('channel') or '-'} | 주제 {item.get('topic') or '-'} "
             f"| 점수 {item.get('value')} | {when_text} | 결정 {_decision_text(item.get('decision'))}"
         )
+        a = (assessments or {}).get(str(item.get("id")))
+        if a:
+            d = a.get("decision") or {}
+            line += (f" | 판정: {d.get('suggested')} · 시장 {(a.get('market') or {}).get('level')}"
+                     f" · 적합성 {(a.get('fit') or {}).get('state')}/{(a.get('fit') or {}).get('channel_relevance')}"
+                     f" · pillar {((a.get('pillar') or {}).get('id')) or '-'}"
+                     f" · boundary {(a.get('portfolio') or {}).get('boundary_risk')}"
+                     f" · narrator {((a.get('narrator') or {}).get('id')) or '-'}")
+            if d.get("blockers"):
+                line += " · blocker " + "; ".join(b.split(" — ")[0] for b in d["blockers"])
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -278,13 +296,15 @@ def generate_reply(
     history: list[dict[str, str]],
     settings: Settings,
     basis: str = "keyword",
+    identity_lines: list[str] | None = None,
+    assessments: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[str, str, str]:
     """(답변, 사용한 모델명, 답변 출처) 를 돌려준다.
 
     출처를 문자열 모델명으로 추측하게 두지 않는다. 화면이 «AI 응답»과
     «대체 응답»을 확실히 갈라 보여줘야 하기 때문이다.
     """
-    context = build_context_block(summary, candidates, basis)
+    context = build_context_block(summary, candidates, basis, identity_lines, assessments)
 
     if not settings.openai_enabled:
         return (

@@ -63,6 +63,26 @@ try:
 
     payload = automaker_intake.build_payload(
         root, video_id, channel_id, "material", expected_source_pack_hash=expected_hash)
+
+    # Channel Identity(승인본) 를 target_channel 에 싣는다. AutoMaker 의 persona draft-input 이
+    # target_channel 을 근거로 쓰므로, 페르소나가 패키지 1건이 아니라 채널 기준에서 나온다.
+    out["channel_identity"] = {"included": False, "reason": None}
+    try:
+        ipath = root / "data" / "config" / "channel_identity" / (channel_id + ".json")
+        if ipath.is_file():
+            identity = json.loads(ipath.read_text(encoding="utf-8"))
+            if identity.get("status") == "approved":
+                keys = ("identity_version", "problem_space", "expectations", "pillars", "boundary",
+                        "narrator_pool", "approved_at", "built_on_profile_version")
+                payload["target_channel"]["identity"] = {k: identity.get(k) for k in keys}
+                out["channel_identity"] = {"included": True, "identity_version": identity.get("identity_version")}
+            else:
+                out["channel_identity"]["reason"] = "Identity 가 제안 상태 — 승인 전에는 싣지 않는다"
+        else:
+            out["channel_identity"]["reason"] = "Channel Identity 없음"
+    except Exception as exc:
+        out["channel_identity"]["reason"] = "Identity 읽기 실패: " + str(exc)
+
     decision = payload.get("decision") or {}
     if decision.get("decision") != "MAKE":
         out["error"] = ("RADAR 원장(decisions.jsonl)의 마지막 결정이 MAKE 가 아닙니다: "

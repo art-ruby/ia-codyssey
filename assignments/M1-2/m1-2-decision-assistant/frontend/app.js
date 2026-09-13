@@ -17,6 +17,8 @@ const state = {
   lastLedger: null, // 마지막 결정이 RADAR 원장에 남았는지 (id, written, decision_id, revision, reason)
   lastHandoff: null, // 마지막 인계 결과 (id, ok, package_id, revision, link | error)
   persona: null, // AutoMaker 페르소나 상태 (id, draft, draft_hash, persona_status, radar_draft | error)
+  identity: null, // ⓪ 채널 운영 기준 { channel_id, identity, profile }
+  assessment: null, // ④ 선택 후보의 판정 { id, assessment, fit_now | error }
 };
 
 const $ = (id) => document.getElementById(id);
@@ -321,6 +323,7 @@ function renderSelected() {
       ${item.value}점 · ${String(item.date).slice(0, 10)} ·
       <span class="tag tag-${item.source || 'manual'}">${item.source === 'sample' ? '표본' : item.source === 'radar' ? '실측' : '수동'}</span>
     </p>
+    ${renderAssessmentBlock(item)}
     <div class="decision-buttons">
       <button class="btn btn-make ${decision === 'MAKE' ? 'active' : ''}" data-decision="MAKE">MAKE</button>
       <button class="btn btn-watch ${decision === 'WATCH' ? 'active' : ''}" data-decision="WATCH">WATCH</button>
@@ -332,6 +335,144 @@ function renderSelected() {
     ${renderLedgerLine(item)}
     ${renderHandoffLine(item)}
     ${renderPersonaBlock(item)}`;
+}
+
+// ── ⓪ Channel Identity ─────────────────────────────
+function syncIdentityChannels() {
+  const sel = $('identityChannel');
+  const current = sel.value;
+  const channels = [...new Set(state.candidates.filter((c) => c.source === 'radar').map((c) => c.channel).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">채널 선택</option>' + channels.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.value = current || channels[0] || '';
+}
+
+function renderIdentity() {
+  const box = $('identityBox');
+  const it = state.identity;
+  $('btnIdentityApprove').hidden = !(it && it.identity && it.identity.status === 'proposed');
+  $('btnIdentityPersona').hidden = !(it && it.identity && it.identity.status === 'approved');
+  if (!it) return;
+  if (it.error) { box.innerHTML = `<p class="ledger-line ledger-no">${escapeHtml(it.error)}</p>`; return; }
+  const p = it.profile || {};
+  const d = it.identity;
+  const head = `<p><b>${escapeHtml(p.name_ko || it.channel_id)}</b> · 프로필 v${escapeHtml(String(p.profile_version || '-'))} · 대상 ${escapeHtml(p.audience || '-')}<br>
+    <span class="muted">약속: ${escapeHtml(p.promise_ko || '-')}</span></p>`;
+  if (!d) {
+    box.innerHTML = head + '<p class="ledger-line ledger-no">Identity 없음 — 이 채널의 모든 후보는 REVIEW_REQUIRED. [AI 제안] 을 눌러 시작하세요.</p>';
+    return;
+  }
+  const li = (arr) => (arr || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+  box.innerHTML = head + `
+    <p><span class="identity-status ${d.status}">${d.status === 'approved' ? '승인됨' : '제안 — 승인 대기'} · Identity v${d.identity_version}</span>
+      <span class="muted"> · 근거: 프로필 v${escapeHtml(String((d.proposal_basis || {}).profile_version))} · DNA ${((d.proposal_basis || {}).dna || []).length}개 · MAKE 이력 ${(d.proposal_basis || {}).make_history} · 성과 ${(d.proposal_basis || {}).performance}</span></p>
+    <p>${escapeHtml(d.problem_space || '')}</p>
+    <div class="identity-grid">
+      <div class="identity-card"><h4>Content Pillars</h4><ul>${(d.pillars || []).map((x) => `<li><b>${escapeHtml(x.label)}</b> <span class="muted">(${escapeHtml((x.lenses || []).join(', ') || '-')})</span><br>${escapeHtml(x.description || '')}</li>`).join('')}</ul></div>
+      <div class="identity-card"><h4>Narrator Pool — 설명 관점 (Pillar 담당이 아님)</h4>${(d.narrator_pool || []).map((n) => `<div class="narrator"><b>${escapeHtml(n.label)}</b> <span class="muted">${escapeHtml(n.role_type)}</span><br>${escapeHtml(n.viewpoint || '')}</div>`).join('')}</div>
+      <div class="identity-card"><h4>다루는 것 (boundary.in)</h4><ul>${li((d.boundary || {}).in)}</ul></div>
+      <div class="identity-card"><h4>다루지 않는 것 (boundary.out) — 주축이 되면 정체성 이동</h4><ul>${li((d.boundary || {}).out)}</ul></div>
+    </div>
+    <p class="hint">${escapeHtml(d.narrator_rationale || '')}</p>`;
+}
+
+async function loadIdentity() {
+  const ch = $('identityChannel').value;
+  if (!ch) { toast('채널을 선택하세요.'); return; }
+  try { state.identity = await api(`/api/identity/${encodeURIComponent(ch)}`); }
+  catch (err) { state.identity = { channel_id: ch, error: describeError(err) }; }
+  renderIdentity();
+}
+
+async function proposeIdentity() {
+  const ch = $('identityChannel').value;
+  if (!ch) { toast('채널을 선택하세요.'); return; }
+  const btn = $('btnIdentityPropose'); btn.disabled = true; btn.textContent = '제안 생성 중… (모델 호출)';
+  try {
+    await api(`/api/identity/${encodeURIComponent(ch)}/propose`, { method: 'POST', body: '{}' });
+    toast('Identity 제안이 생성됐습니다 — 검토 후 승인하세요.');
+  } catch (err) { toast(describeError(err)); }
+  btn.disabled = false; btn.textContent = 'AI 제안 (프로필+DNA+MAKE 이력)';
+  await loadIdentity();
+}
+
+async function approveIdentity() {
+  const ch = $('identityChannel').value;
+  if (!window.confirm('이 제안을 채널 운영 기준(Identity)으로 승인합니다. 이후 모든 후보 판정의 기준이 됩니다.')) return;
+  try {
+    const r = await api(`/api/identity/${encodeURIComponent(ch)}/approve`, { method: 'POST', body: '{}' });
+    toast(`승인됨 · Identity v${r.identity.identity_version}`);
+  } catch (err) { toast(describeError(err)); }
+  await loadIdentity();
+}
+
+async function deriveChannelPersona() {
+  const ch = $('identityChannel').value;
+  const btn = $('btnIdentityPersona'); btn.disabled = true; btn.textContent = '페르소나 파생 중…';
+  try {
+    const r = await api(`/api/identity/${encodeURIComponent(ch)}/persona`, { method: 'POST', body: '{}' });
+    const box = $('identityBox');
+    box.insertAdjacentHTML('beforeend', `<div class="identity-card" style="margin-top:10px"><h4>채널 수준 페르소나 (Identity 파생 · Episode 없음) — AutoMaker 채널 설정에 붙여넣기</h4><pre class="persona-text">${escapeHtml(r.persona.persona)}</pre><p class="hint">아트 디렉션: ${escapeHtml(r.persona.art_direction.name)} — ${escapeHtml(r.persona.art_direction.description)}</p></div>`);
+    toast('채널 페르소나가 파생됐습니다 (channel_identity/<채널>.persona.json).');
+  } catch (err) { toast(describeError(err)); }
+  btn.disabled = false; btn.textContent = '채널 페르소나 파생';
+}
+
+// ── ④ Episode 판정 ─────────────────────────────────
+function renderAssessmentBlock(item) {
+  if (item.source !== 'radar') return '';
+  const as = state.assessment && state.assessment.id === item.id ? state.assessment : null;
+  if (!as) return `<div class="assess-box"><button class="btn btn-small" id="btnAssessLoad">판정 보기</button> <button class="btn btn-primary btn-small" id="btnAssessRun">판정 실행 (4 게이트)</button></div>`;
+  if (as.error) return `<div class="assess-box"><p class="ledger-line ledger-no">${escapeHtml(as.error)}</p><button class="btn btn-primary btn-small" id="btnAssessRun">판정 실행</button></div>`;
+  const fitNow = as.fit_now || {};
+  const a = as.assessment;
+  const fitLine = `<span class="k">Fit 상태 지금</span> <b class="${fitNow.state === 'VALID' ? 'gate-pass' : 'gate-blocked'}">${escapeHtml(fitNow.state || '-')}</b> (프로필 v${escapeHtml(String(fitNow.profile_version || '-'))}${fitNow.stale_reason ? ' · ' + escapeHtml(fitNow.stale_reason) : ''})`
+    + (fitNow.state !== 'VALID' ? ` <button class="btn btn-small" id="btnFitReeval">RADAR 재판정 (v${escapeHtml(String(fitNow.profile_version))})</button>` : '');
+  if (!a) return `<div class="assess-box"><p>${fitLine}</p><p class="muted">저장된 판정 없음.</p><button class="btn btn-primary btn-small" id="btnAssessRun">판정 실행 (4 게이트)</button></div>`;
+  const d = a.decision || {};
+  const cell = (k, v, cls) => `<div class="assess-cell"><div class="k">${k}</div><div class="${cls || ''}">${v}</div></div>`;
+  const g = d.gates || {};
+  const gate = (name) => `<span class="gate-${g[name] || 'pass'}">${escapeHtml(g[name] || '-')}</span>`;
+  return `<div class="assess-box">
+    <p>${fitLine}</p>
+    <p><span class="suggested ${escapeHtml(d.suggested || '')}">${escapeHtml(d.suggested || '-')}</span>
+      <span class="muted"> · Identity v${escapeHtml(String(a.identity_version || '-'))} · ${escapeHtml(String(a.assessed_at || '').slice(0, 16).replace('T', ' '))} · 게이트 fit ${gate('fit')} / market ${gate('market')} / portfolio ${gate('portfolio')} / production ${gate('production')}</span></p>
+    ${(d.blockers || []).map((b) => `<p class="blocker">⛔ ${escapeHtml(b)}</p>`).join('')}
+    <div class="assess-grid">
+      ${cell('Market Opportunity', `<b>${escapeHtml((a.market || {}).level || '-')}</b> · 점수 ${escapeHtml(String((a.market || {}).score ?? '-'))} · longform ${escapeHtml((a.market || {}).longform_potential || '-')} · evergreen ${escapeHtml((a.market || {}).evergreen_potential || '-')}`)}
+      ${cell('Channel Fit', `<b>${escapeHtml((a.fit || {}).state || '-')}</b> · 관련성 ${escapeHtml((a.fit || {}).channel_relevance || '-')} · 시청자 ${escapeHtml((a.fit || {}).audience_fit || '-')} · 돈 ${escapeHtml((a.fit || {}).money_impact || '-')}`)}
+      ${cell('Pillar', a.pillar ? `<b>${escapeHtml(a.pillar.label)}</b> (${escapeHtml(a.pillar.confidence || '-')})<br><span class="muted">앵글: ${escapeHtml(a.pillar.anchor_angle || '')}</span>` : '<span class="muted">미배정</span>')}
+      ${cell('Portfolio Fit', `MAKE ${escapeHtml(String((a.portfolio || {}).make_count ?? 0))}건 · 중복 ${((a.portfolio || {}).duplicates || []).length} · ${escapeHtml((a.portfolio || {}).expansion_kind || '-')}`)}
+      ${cell('Boundary Risk', `<b>${escapeHtml((a.portfolio || {}).boundary_risk || '-')}</b><br><span class="muted">${escapeHtml((a.portfolio || {}).boundary_reason || '')}</span>`)}
+      ${cell('Series Potential', `<b>${escapeHtml((a.series || {}).potential || '-')}</b><br><span class="muted">안: ${escapeHtml(((a.series || {}).followups_in || []).slice(0, 2).join(' / '))}<br>밖(금지): ${escapeHtml(((a.series || {}).followups_out || []).slice(0, 2).join(' / '))}</span>`)}
+      ${cell('Narrator', a.narrator ? `<b>${escapeHtml(a.narrator.label)}</b> (${escapeHtml(a.narrator.role_type)})<br><span class="muted">${escapeHtml(a.narrator.why || '')}</span>` : '<span class="muted">미추천</span>')}
+      ${cell('Identity 주의', `<span class="muted">${escapeHtml(a.identity_caution || '')}</span>`)}
+    </div>
+    ${(d.reasons || []).map((r) => `<p class="ledger-line">· ${escapeHtml(r)}</p>`).join('')}
+    <button class="btn btn-small" id="btnAssessRun">판정 다시 실행</button>
+    <p class="hint">MAKE/WATCH/SKIP 은 위 버튼으로 사용자가 확정한다. 확정 시 이 판정 요약과 화자 추천이 RADAR 원장 → AutoMaker 로 함께 간다.</p>
+  </div>`;
+}
+
+async function loadAssessment(id) {
+  try { state.assessment = { id, ...(await api(`/api/assessment/${id}`)) }; }
+  catch (err) { state.assessment = { id, error: describeError(err) }; }
+  renderSelected();
+}
+
+async function runAssessment(id) {
+  const btn = $('btnAssessRun'); if (btn) { btn.disabled = true; btn.textContent = '판정 중… (규칙 게이트 + AI 해석)'; }
+  try { await api(`/api/assessment/${id}`, { method: 'POST', body: JSON.stringify({ force: true }) }); toast('판정 완료'); }
+  catch (err) { toast(describeError(err)); }
+  await loadAssessment(id);
+}
+
+async function reevaluateFit(id) {
+  const btn = $('btnFitReeval'); if (btn) { btn.disabled = true; btn.textContent = 'RADAR 재판정 중…'; }
+  try {
+    const r = await api(`/api/fit/${id}/reevaluate`, { method: 'POST', body: '{}' });
+    toast(r.skipped ? r.reason : `재판정 완료 · ${r.before} → ${r.fit.state}`);
+  } catch (err) { toast(describeError(err)); }
+  await loadAssessment(id);
 }
 
 /**
@@ -737,6 +878,9 @@ function bindEvents() {
     if (event.target.dataset.decision) setDecision(event.target.dataset.decision);
     if (event.target.id === 'btnHandoff') createHandoff();
     if (event.target.id === 'btnPersonaState') loadPersona(state.selectedId);
+    if (event.target.id === 'btnAssessLoad') loadAssessment(state.selectedId);
+    if (event.target.id === 'btnAssessRun') runAssessment(state.selectedId);
+    if (event.target.id === 'btnFitReeval') reevaluateFit(state.selectedId);
     if (event.target.id === 'btnPersonaDraft') makePersonaDraft(state.selectedId);
     if (event.target.id === 'btnPersonaApprove') approvePersona(state.selectedId);
   });
@@ -812,6 +956,10 @@ function bindEvents() {
   $('conversationSelect').addEventListener('change', (e) => openConversation(e.target.value));
   $('btnDeleteConv').addEventListener('click', deleteConversation);
   $('btnRefreshHandoff').addEventListener('click', loadHandoffs);
+  $('btnIdentityLoad').addEventListener('click', loadIdentity);
+  $('btnIdentityPropose').addEventListener('click', proposeIdentity);
+  $('btnIdentityApprove').addEventListener('click', approveIdentity);
+  $('btnIdentityPersona').addEventListener('click', deriveChannelPersona);
 
   $('suggestions').innerHTML = SUGGESTIONS
     .map((s) => `<button type="button">${escapeHtml(s)}</button>`).join('');
@@ -842,6 +990,8 @@ function bindEvents() {
 async function init() {
   await loadHealth();
   await Promise.all([loadCandidates(), loadSummary(), loadConversations(), loadHandoffs()]);
+  syncIdentityChannels();
+  if ($('identityChannel').value) loadIdentity();
   renderSelected();
 }
 

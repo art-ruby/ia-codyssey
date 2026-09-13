@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RADAR Decision Assistant</title>
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
 
@@ -36,6 +36,22 @@
 <main class="grid">
 
   <!-- ① RADAR Candidates -->
+  <section class="panel panel-identity">
+    <div class="panel-head">
+      <h2>⓪ 채널 운영 기준 (Channel Identity)</h2>
+      <div class="panel-actions">
+        <select id="identityChannel"><option value="">채널 선택</option></select>
+        <button id="btnIdentityLoad" class="btn btn-small" type="button">불러오기</button>
+        <button id="btnIdentityPropose" class="btn btn-small" type="button">AI 제안 (프로필+DNA+MAKE 이력)</button>
+        <button id="btnIdentityApprove" class="btn btn-small btn-make" type="button" hidden>이 제안을 승인</button>
+        <button id="btnIdentityPersona" class="btn btn-small" type="button" hidden>채널 페르소나 파생</button>
+      </div>
+    </div>
+    <div id="identityBox" class="identity-box">
+      <p class="muted">Identity 는 Episode 위에 있다. 소재 하나로 채널을 정의하지 않는다 — 프로필·DNA·MAKE 이력·성과에서 제안하고 사람이 승인한다.</p>
+    </div>
+  </section>
+
   <section class="panel panel-candidates">
     <div class="panel-head">
       <h2>① RADAR 후보</h2>
@@ -172,6 +188,6 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="config.js?v=1"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

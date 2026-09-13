@@ -162,8 +162,18 @@ def set_decision(
         raise HTTPException(status_code=404, detail="후보를 찾을 수 없습니다")
 
     ledger = DecisionsLedger(settings.radar_root, enabled=settings.radar_decisions_write)
+    # 판정(assessment)이 있으면 요약을 결정 줄에 함께 남긴다 — 판단 근거 추적 + AutoMaker 전달.
+    signals: dict[str, Any] = {}
+    if updated.get("radar_id") and updated.get("channel"):
+        from ..services.assessment import AssessmentStore, ledger_signals
+        doc = AssessmentStore(settings.radar_root).load(str(updated["channel"]), str(updated["radar_id"]))
+        if doc:
+            signals = ledger_signals(doc)
+            signals["user_decision_vs_suggested"] = {
+                "suggested": (doc.get("decision") or {}).get("suggested"), "user": payload.decision.value,
+            }
     try:
-        written, reason, rec = ledger.append(updated, payload.decision.value, payload.reason)
+        written, reason, rec = ledger.append(updated, payload.decision.value, payload.reason, signals=signals)
     except OSError as exc:  # 잠금·권한 문제는 결정 자체를 막지 않되 사실대로 알린다
         written, reason, rec = False, f"RADAR 원장 쓰기 실패: {exc}", None
     result = LedgerWrite(

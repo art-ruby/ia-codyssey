@@ -70,6 +70,31 @@ def preview(
     }
 
 
+def _channel_context(selected: list[dict], settings: Settings) -> tuple[list[str], dict[str, dict]]:
+    """선별된 후보들의 채널 Identity 요약과 저장된 assessment 를 모은다. 없으면 없는 대로."""
+    from ..services.assessment import AssessmentStore
+    from ..services.identity import IdentityStore, summary_line
+
+    if not settings.radar_root:
+        return [], {}
+    istore, astore = IdentityStore(settings.radar_root), AssessmentStore(settings.radar_root)
+    lines: list[str] = []
+    seen: set[str] = set()
+    assessments: dict[str, dict] = {}
+    for item in selected:
+        ch = str(item.get("channel") or "")
+        vid = str(item.get("radar_id") or "")
+        if ch and ch not in seen:
+            seen.add(ch)
+            doc = istore.load(ch)
+            lines.append(f"- {ch}: " + (summary_line(doc) if doc else "Identity 없음 — 모든 후보는 REVIEW_REQUIRED"))
+        if ch and vid:
+            a = astore.load(ch, vid)
+            if a:
+                assessments[str(item.get("id"))] = a
+    return lines, assessments
+
+
 @router.post("", response_model=ChatResponse, summary="데이터 기반 AI 대화")
 def chat(
     payload: ChatRequest,
@@ -101,7 +126,8 @@ def chat(
             {"role": m.get("role", ""), "content": m.get("content", "")} for m in stored
         ]
 
-    # ④ 프롬프트 주입 + 모델 호출
+    # ④ 프롬프트 주입 + 모델 호출 — 채널 운영 기준과 후보별 판정을 함께 넣는다
+    identity_lines, assessments = _channel_context(selected, settings)
     reply, model_name, answer_source = generate_reply(
         question=question,
         summary=summary,
@@ -109,6 +135,8 @@ def chat(
         history=history,
         settings=settings,
         basis=basis,
+        identity_lines=identity_lines,
+        assessments=assessments,
     )
 
     # ⑤ 자동 저장 — assistant 메시지에 번호↔후보 대응표를 함께 남긴다.
