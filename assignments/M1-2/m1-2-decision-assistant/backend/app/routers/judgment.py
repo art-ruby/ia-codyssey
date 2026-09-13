@@ -129,3 +129,29 @@ def channel_persona(channel_id: str, settings: Settings = Depends(config_dep)) -
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"채널 페르소나 생성 실패: {exc}") from exc
     return {"ok": True, "persona": doc}
+
+
+@router.post("/api/brief/{candidate_id}", summary="RADAR 제작 브리프 생성 (comments → analyze → production_brief.build)")
+def make_brief(candidate_id: str, payload: dict[str, Any] | None = None, store: Store = Depends(store_dep),
+               settings: Settings = Depends(config_dep)) -> dict[str, Any]:
+    """브리프는 RADAR 가 만든다. DA 는 순서를 지켜 부르고, 끝나면 판정을 다시 돌려 production 게이트를 갱신한다."""
+    from ..services.radar_brief import build_in_radar
+
+    data = _radar(settings)
+    c = _candidate(candidate_id, store)
+    vid, cid = str(c["radar_id"]), str(c["channel"])
+    fit = evaluate_fit(data, vid, cid)
+    if fit["state"] != "VALID":
+        raise HTTPException(status_code=409, detail=f"적합성이 {fit['state']} — 먼저 RADAR 재판정을 하세요. 브리프는 판정 위에 조립됩니다.")
+    if fit.get("channel_relevance") == "LOW":
+        raise HTTPException(status_code=409, detail="채널 관련성 LOW — 브리프를 만들지 않습니다(RADAR 규칙).")
+    res = build_in_radar(settings.radar_root, vid, cid, python=settings.radar_python,
+                         with_comments=bool((payload or {}).get("with_comments", True)))
+    if not res.get("ok"):
+        raise HTTPException(status_code=409 if res.get("gate") else 502, detail="RADAR 브리프 실패: " + str(res.get("why")) + f" · steps={res.get('steps')}")
+    # 브리프가 생겼으니 판정을 다시 — production 게이트가 열린다. 저장소 후보의 단계도 briefed 로.
+    store.update_candidate(candidate_id, {"radar_stage": "briefed"})
+    doc = assess.run(store.get_candidate(candidate_id), settings=settings, data=data,
+                     ledger=DecisionsLedger(settings.radar_root, enabled=False),
+                     identity_store=ident.IdentityStore(settings.radar_root), store=assess.AssessmentStore(settings.radar_root))
+    return {"ok": True, "brief": {k: res.get(k) for k in ("path", "chars", "fit", "steps")}, "assessment": doc}

@@ -137,7 +137,10 @@ v3 `services/radar_pool.py` 는 RADAR 런타임에서 채널마다 `packaged ∪
 내보낸다(`data/decision_assistant/candidate_pool.json`). scored 는 **그 채널로 태그된 seed 검색어로 찾은 영상만**
 (RADAR handoff_ui 규칙) — 태그 없는 영상(AI·仕事)은 어느 채널의 후보도 아니다. 후보 키는 (video, channel).
 결과: 47건 · loss_defense 25 · solo_pride 22. 미판정 후보는 Gate 1 → REVIEW → «RADAR 재판정» 으로 흐른다.
-남는 수동 단계: **브리프 작성(RADAR UI)** — 브리프 없이는 패키지를 만들 수 없어 production 게이트가 막는다.
+브리프도 DA 가 RADAR 를 부른다(`services/radar_brief.py`): handoff_ui 와 같은 순서 comments.fetch → analyze →
+production_brief.build. 관련성 LOW 면 만들지 않는다(RADAR 규칙). 실물: «연금 3가지 오산» 점수→재판정→브리프
+4,492자→4게이트 통과→MAKE→패키지 `radar-cec7f…`→AutoMaker accepted (신규라 제작 채널 확인은 사람).
+RADAR 버그 1건 수정(production_brief.py: ratio NaN 이 "" 로 바뀌어 f-포맷 예외 — 저참여율 영상 전부 브리프 실패).
 
 ## 8. 최소 변경안
 

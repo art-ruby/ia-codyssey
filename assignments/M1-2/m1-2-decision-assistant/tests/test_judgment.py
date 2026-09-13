@@ -258,3 +258,35 @@ class TestCandidatePool:
         assert all(r["source"] == "radar" for r in rows)
         src = RadarSource(root); src.load()
         assert src._skipped.get("풀 행에 점수/시점 없음") == 1  # 점수 없는 행은 지어내지 않고 뺀다
+
+
+# ── RADAR 브리프 호출 관문 ───────────────────────────────────────────────────
+class TestBriefRunner:
+    def test_relevance_low_refuses_before_any_work(self, tmp_path):
+        """RADAR 규칙: 관련성 LOW 면 브리프를 만들지 않는다. 댓글 수집도 하지 않는다."""
+        import sys as _sys
+        from app.services.radar_brief import build_in_radar
+        src = tmp_path / "src"; src.mkdir()
+        (src / "__init__.py").write_text("", encoding="utf-8")
+        (src / "config.py").write_text("ROOT = None\n", encoding="utf-8")
+        # DA venv 에는 pandas 가 없다(RADAR 런타임의 것). runner 가 쓰는 최소 API 만 흉내 낸다.
+        (src / "analysis.py").write_text(
+            "class _Col(list):\n"
+            "    def astype(self, t): return _Col(t(x) for x in self)\n"
+            "    def __eq__(self, v): return [x == v for x in self]\n"
+            "class _Frame:\n"
+            "    def __init__(self, rows): self.rows = rows\n"
+            "    def __getitem__(self, k):\n"
+            "        if isinstance(k, list): return _Frame([r for r, keep in zip(self.rows, k) if keep])\n"
+            "        return _Col(r[k] for r in self.rows)\n"
+            "    @property\n"
+            "    def empty(self): return not self.rows\n"
+            "    @property\n"
+            "    def iloc(self): return self.rows\n"
+            "def build(root): return _Frame([{'video_id': 'v1', 'title': 't'}])\n", encoding="utf-8")
+        (src / "channels.py").write_text("def get(cid): return {'id': cid, 'profile_version': 3}\n", encoding="utf-8")
+        (src / "channel_fit.py").write_text("def cached(v, c, ver): return {'channel_relevance': 'LOW'}\n", encoding="utf-8")
+        (src / "comments.py").write_text("def fetch(v): raise AssertionError('must not fetch')\n", encoding="utf-8")
+        (src / "production_brief.py").write_text("def build(v, c): raise AssertionError('must not build')\n", encoding="utf-8")
+        r = build_in_radar(tmp_path, "v1", "loss_defense", python=_sys.executable)
+        assert r["ok"] is False and r.get("gate") == "relevance_low"

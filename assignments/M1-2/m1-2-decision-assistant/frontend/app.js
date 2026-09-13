@@ -436,7 +436,7 @@ function renderAssessmentBlock(item) {
     <p>${fitLine}</p>
     <p><span class="suggested ${escapeHtml(d.suggested || '')}">${escapeHtml(d.suggested || '-')}</span>
       <span class="muted"> · Identity v${escapeHtml(String(a.identity_version || '-'))} · ${escapeHtml(String(a.assessed_at || '').slice(0, 16).replace('T', ' '))} · 게이트 fit ${gate('fit')} / market ${gate('market')} / portfolio ${gate('portfolio')} / production ${gate('production')}</span></p>
-    ${(d.blockers || []).map((b) => `<p class="blocker">⛔ ${escapeHtml(b)}</p>`).join('')}
+    ${(d.blockers || []).map((b) => `<p class="blocker">⛔ ${escapeHtml(b)}${b.startsWith('brief_missing') && (a.fit || {}).state === 'VALID' ? ' <button class="btn btn-small" id="btnBriefMake">RADAR 브리프 만들기 (댓글 수집·해석 → 브리프)</button>' : ''}</p>`).join('')}
     <div class="assess-grid">
       ${cell('Market Opportunity', `<b>${escapeHtml((a.market || {}).level || '-')}</b> · 점수 ${escapeHtml(String((a.market || {}).score ?? '-'))} · longform ${escapeHtml((a.market || {}).longform_potential || '-')} · evergreen ${escapeHtml((a.market || {}).evergreen_potential || '-')}`)}
       ${cell('Channel Fit', `<b>${escapeHtml((a.fit || {}).state || '-')}</b> · 관련성 ${escapeHtml((a.fit || {}).channel_relevance || '-')} · 시청자 ${escapeHtml((a.fit || {}).audience_fit || '-')} · 돈 ${escapeHtml((a.fit || {}).money_impact || '-')}`)}
@@ -463,6 +463,16 @@ async function runAssessment(id) {
   const btn = $('btnAssessRun'); if (btn) { btn.disabled = true; btn.textContent = '판정 중… (규칙 게이트 + AI 해석)'; }
   try { await api(`/api/assessment/${id}`, { method: 'POST', body: JSON.stringify({ force: true }) }); toast('판정 완료'); }
   catch (err) { toast(describeError(err)); }
+  await loadAssessment(id);
+}
+
+async function makeBrief(id) {
+  const btn = $('btnBriefMake'); if (btn) { btn.disabled = true; btn.textContent = 'RADAR 브리프 생성 중… (댓글 수집·해석·조립)'; }
+  try {
+    const r = await api(`/api/brief/${id}`, { method: 'POST', body: '{}' });
+    toast(`브리프 저장 · ${r.brief.chars}자 · ${String(r.brief.path || '').split(/[\/]/).slice(-2).join('/')}`);
+    await loadCandidates();
+  } catch (err) { toast(describeError(err)); }
   await loadAssessment(id);
 }
 
@@ -881,6 +891,7 @@ function bindEvents() {
     if (event.target.id === 'btnAssessLoad') loadAssessment(state.selectedId);
     if (event.target.id === 'btnAssessRun') runAssessment(state.selectedId);
     if (event.target.id === 'btnFitReeval') reevaluateFit(state.selectedId);
+    if (event.target.id === 'btnBriefMake') makeBrief(state.selectedId);
     if (event.target.id === 'btnPersonaDraft') makePersonaDraft(state.selectedId);
     if (event.target.id === 'btnPersonaApprove') approvePersona(state.selectedId);
   });
