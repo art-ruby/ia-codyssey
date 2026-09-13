@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+# 인계 산출물은 실행 결과물이라 저장소에 올리지 않는다.
+handoff/*.json
+!handoff/.gitkeep
+.pytest_cache/
+backend_log.txt

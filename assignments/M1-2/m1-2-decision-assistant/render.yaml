@@ -1,0 +1,21 @@
+# Render 배포 정의. 대시보드에서 Blueprint 로 읽거나 수동 설정 시 참고한다.
+services:
+  - type: web
+    name: radar-decision-assistant-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Render 는 PORT 를 주입한다. 하드코딩하면 배포가 뜨지 않는다.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      # 아래 값은 대시보드에서 직접 넣는다. 저장소에 두지 않는다.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
