@@ -436,8 +436,8 @@ Average Daily Views 는 `조회수 ÷ 게시 후 경과일` 이다. 유튜브 �
 - **가장 큰 한계 — 지금의 시계열은 진짜 시계열이 아니다.**
   영상마다 스냅샷이 한 장뿐이라, 이 분석의 «시계열» 은 개별 영상의 시간
   변화가 아니라 **게시 시점별 코호트의 성과 비교**다. 반복 수집이 쌓이면
-  실제 일별 조회 증가분으로 다시 분석할 수 있다. 수집기는 이미 매일
-  돌도록 만들었고 오늘이 첫날이다.
+  실제 일별 조회 증가분으로 다시 분석할 수 있다. 수집기는 매일 돌도록 만들었다.
+  분석 기준일(2026-09-02) 이후 2주치 스냅샷이 쌓였다.
 - Average Daily Views 는 실제 조회 속도가 아니라 평균이다. 이름을 그렇게 쓴다.
 - Channel Baseline 과 Momentum 은 **대상보다 오래된 영상**과 비교했다.
   비교 대상이 시간을 더 가졌으므로 값은 **과소평가**다. 나온 신호는 진짜지만
@@ -511,8 +511,7 @@ pip install -r requirements.txt
 copy .env.example .env          # YOUTUBE_API_KEY 를 넣는다
 
 python -m src.collector           # 검색 → 필터 → videos.csv
-python -m src.snapshot_collector  # 매일 1회
-python -m src.channel_analyzer    # 채널 검증
+python -m src.snapshot_collector  # 매일 1회 — 조회수 스냅샷 갱신
 python analysis.py                # 그래프 3개 + 인사이트
 streamlit run app.py --server.address 127.0.0.1     # 화면
 ```
