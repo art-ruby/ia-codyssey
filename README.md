@@ -12,6 +12,7 @@
 | B1-1 | 브랜드 기획 | [assignments/B1-1](assignments/B1-1) |
 | B1-2 | 브랜드 홈페이지 | [assignments/B1-2](assignments/B1-2) |
 | B1-3 | 노코드 자동화 기초 — 워크플로우 설계 | [assignments/B1-3](assignments/B1-3) |
+| M1-1 | 시계열 데이터 분석 — 일본 YouTube 롱폼 콘텐츠 트렌드 | [assignments/M1-1](assignments/M1-1) |
 
 각 폴더의 `README.md`에 해당 과제의 개요, 실행 방법, 제출물이 정리되어 있습니다.
 
