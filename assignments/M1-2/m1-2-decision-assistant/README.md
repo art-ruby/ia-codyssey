@@ -44,18 +44,24 @@ RADAR 는 하루에도 수십 건의 소재 후보를 찾아냅니다. 문제는
 
 ## 3. 배포 URL
 
-배포 후 아래를 채웁니다.
+> ⚠️ **현재 미배포 상태입니다.** Render·Vercel 계정 연결 및 환경 변수 설정 후 아래 URL이 채워집니다.  
+> 지금은 [로컬 실행 방법](#4-로컬-실행-방법)으로 서비스를 확인할 수 있습니다.
 
-| 항목 | URL |
-|---|---|
-| Frontend (Vercel) | `https://<your-app>.vercel.app` |
-| Backend API (Render) | `https://<your-api>.onrender.com` |
-| Swagger UI | `https://<your-api>.onrender.com/docs` |
-| Health check | `https://<your-api>.onrender.com/api/health` |
+| 항목 | 상태 | URL |
+|---|---|---|
+| Frontend (Vercel) | 🔴 미배포 | — |
+| Backend API (Render) | 🔴 미배포 | — |
+| Swagger UI | 🔴 미배포 | — |
+| Health check | 🔴 미배포 | — |
 
-> **Render 무료 플랜 콜드 스타트**: 15분간 요청이 없으면 서버가 잠듭니다.
-> 첫 요청이 **최대 50초** 걸릴 수 있습니다. 프론트엔드는 타임아웃을 60초로
-> 잡고, 설정 패널에 이 사실을 안내합니다. 느린 첫 응답은 실패가 아닙니다.
+**배포 전 필요 작업**
+
+1. Render에서 Web Service 생성 → `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON` 환경 변수 입력
+2. Vercel에서 프론트엔드 배포 → `API_BASE_URL`을 Render URL로 설정
+3. Render URL을 Backend의 `ALLOWED_ORIGINS`에 추가
+
+> **배포 후 참고**: Render 무료 플랜은 15분간 요청이 없으면 서버가 잠듭니다.
+> 첫 요청이 **최대 50초** 걸릴 수 있습니다. 느린 첫 응답은 실패가 아닙니다.
 
 ---
 
