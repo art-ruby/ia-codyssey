@@ -24,6 +24,3 @@
   - 비밀 정보: `.env`, `.env.local` (형식 예시는 `.env.example`로 대체)
   - 로컬 산출물: `.vercel/`, 로그 파일, Office 임시 파일(`~$*`)
 
-## 에이전트 작업 규칙
-
-- [CLAUDE.md](CLAUDE.md)
