@@ -1,0 +1,53 @@
+name: M1-1 Radar tests
+
+# 이 저장소는 과제 모노레포다. 프로젝트는 assignments/M1-1/ 아래에 있지만
+# GitHub Actions 는 **저장소 루트의 .github/workflows/ 만** 읽으므로 워크플로
+# 파일은 여기 있어야 한다. 프로젝트 폴더 안에 두면 조용히 무시된다.
+#
+# paths 로 범위를 좁혀, 다른 과제를 고칠 때는 돌지 않게 한다.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "assignments/M1-1/Japanese-Longform-Opportunity-Radar/**"
+      - ".github/workflows/m1-1-radar-tests.yml"
+  pull_request:
+    paths:
+      - "assignments/M1-1/Japanese-Longform-Opportunity-Radar/**"
+      - ".github/workflows/m1-1-radar-tests.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: assignments/M1-1/Japanese-Longform-Opportunity-Radar
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          # requirements-dev.txt 는 requirements.txt 를 -r 로 끌어온다.
+          # 둘 다 키에 넣지 않으면 requirements.txt 만 바뀌었을 때 옛 캐시를 쓴다.
+          cache-dependency-path: |
+            assignments/M1-1/Japanese-Longform-Opportunity-Radar/requirements.txt
+            assignments/M1-1/Japanese-Longform-Opportunity-Radar/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # API 키가 없어도 통과해야 한다 — 네트워크를 부르는 테스트는 없다.
+      - name: Run tests
+        run: pytest -q
+
+      # 화면(app.py)과 그래프(analysis.py)는 테스트가 없다. 최소한 문법은 본다.
+      - name: Compile check
+        run: python -m py_compile src/*.py app.py analysis.py

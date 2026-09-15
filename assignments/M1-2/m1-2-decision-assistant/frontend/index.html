@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RADAR Decision Assistant</title>
+<link rel="stylesheet" href="styles.css?v=11">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <strong>RADAR Decision Assistant</strong>
+    <span class="flow">RADAR 발견 → <em>판단·기록</em> → AutoMaker 제작</span>
+  </div>
+  <div class="topbar-actions">
+    <span id="healthBadge" class="badge badge-idle">연결 확인 중…</span>
+    <button id="themeToggle" class="btn btn-ghost" type="button" title="다크 모드 전환">◐</button>
+    <button id="settingsToggle" class="btn btn-ghost" type="button" title="API 주소 설정">⚙</button>
+  </div>
+</header>
+
+<!-- API 주소 설정: Vercel 배포 시 백엔드 주소를 여기서 바꾼다 -->
+<div id="settingsPanel" class="settings" hidden>
+  <label for="apiBaseInput">API 서버 주소</label>
+  <input id="apiBaseInput" type="url" placeholder="https://your-api.onrender.com">
+  <button id="apiBaseSave" class="btn btn-primary" type="button">저장</button>
+  <p class="hint">
+    Render 무료 플랜은 첫 요청이 <strong>최대 50초</strong> 걸릴 수 있습니다(콜드 스타트).
+    처음 응답이 느려도 실패가 아닙니다.
+  </p>
+</div>
+
+<div id="banner" class="banner" hidden></div>
+
+<main class="grid">
+
+  <!-- ① RADAR Candidates -->
+  <section class="panel panel-identity">
+    <div class="panel-head">
+      <h2>⓪ 채널 운영 기준 (Channel Identity)</h2>
+      <div class="panel-actions">
+        <select id="identityChannel"><option value="">채널 선택</option></select>
+        <button id="btnIdentityLoad" class="btn btn-small" type="button">불러오기</button>
+        <button id="btnIdentityPropose" class="btn btn-small" type="button">AI 제안 (프로필+DNA+MAKE 이력)</button>
+        <button id="btnIdentityApprove" class="btn btn-small btn-make" type="button" hidden>이 제안을 승인</button>
+        <button id="btnIdentityPersona" class="btn btn-small" type="button" hidden>채널 페르소나 파생</button>
+      </div>
+    </div>
+    <div id="identityBox" class="identity-box">
+      <p class="muted">Identity 는 Episode 위에 있다. 소재 하나로 채널을 정의하지 않는다 — 프로필·DNA·MAKE 이력·성과에서 제안하고 사람이 승인한다.</p>
+    </div>
+  </section>
+
+  <section class="panel panel-candidates">
+    <div class="panel-head">
+      <h2>① RADAR 후보</h2>
+      <div class="panel-tools">
+        <select id="filterChannel" title="채널 필터">
+          <option value="">전체 채널</option>
+        </select>
+        <select id="filterDecision" title="판단 필터">
+          <option value="">전체 상태</option>
+          <option value="MAKE">MAKE</option>
+          <option value="WATCH">WATCH</option>
+          <option value="SKIP">SKIP</option>
+        </select>
+        <button id="btnPoolRefresh" class="btn" type="button" title="RADAR analysis·channel_fit·briefs·outbox 에서 후보 풀을 다시 내보내고 적재">RADAR 후보 풀 새로고침</button>
+        <button id="btnImport" class="btn btn-small" type="button">표본 적재</button>
+        <button id="btnAdd" class="btn btn-small" type="button">+ 추가</button>
+      </div>
+    </div>
+
+    <form id="addForm" class="add-form" hidden>
+      <div class="add-row">
+        <input name="title" placeholder="제목" required>
+        <input name="topic" placeholder="주제 (예: 年金 損)">
+      </div>
+      <div class="add-row">
+        <input name="channel" placeholder="채널 id">
+        <input name="value" type="number" step="0.1" min="0" max="100" placeholder="점수 0-100" required>
+        <input name="date" type="date" required>
+      </div>
+      <div class="add-row">
+        <input name="memo" placeholder="메모">
+        <button class="btn btn-primary btn-small" type="submit">저장</button>
+        <button class="btn btn-small" type="button" id="btnAddCancel">취소</button>
+      </div>
+    </form>
+
+    <div class="table-wrap">
+      <table id="candidateTable">
+        <thead>
+          <tr>
+            <th>출처</th><th>제목</th><th>주제</th><th>채널</th>
+            <th class="num">점수</th><th>날짜</th><th>판단</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="candidateBody">
+          <tr><td colspan="8" class="empty">불러오는 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="row-count"><span id="rowCount">0</span>건 표시 중</p>
+  </section>
+
+  <!-- ② Summary -->
+  <section class="panel panel-summary">
+    <div class="panel-head"><h2>② 요약</h2>
+      <button id="btnExport" class="btn btn-small" type="button" title="현재 목록을 JSON 으로 내려받기">내보내기</button>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><span class="stat-label">후보</span><span class="stat-value" id="sumCount">–</span></div>
+      <div class="stat"><span class="stat-label">평균</span><span class="stat-value" id="sumAvg">–</span></div>
+      <div class="stat"><span class="stat-label">최고</span><span class="stat-value" id="sumMax">–</span></div>
+      <div class="stat"><span class="stat-label">최저</span><span class="stat-value" id="sumMin">–</span></div>
+    </div>
+    <p class="period" id="sumPeriod">–</p>
+    <p class="trend" id="sumTrend">–</p>
+
+    <div class="decision-bar" id="decisionBar" aria-label="판단 분포"></div>
+    <ul class="legend" id="decisionLegend"></ul>
+
+    <div class="chart-wrap">
+      <h3>점수 추이</h3>
+      <svg id="sparkline" viewBox="0 0 600 140" preserveAspectRatio="none" role="img"
+           aria-label="시간에 따른 후보 점수 추이"></svg>
+      <p class="chart-note" id="chartNote"></p>
+    </div>
+
+    <div class="topics">
+      <h3>상위 주제</h3>
+      <ul id="topTopics"><li class="muted">–</li></ul>
+    </div>
+  </section>
+
+  <!-- ③ AI Assistant -->
+  <section class="panel panel-chat">
+    <div class="panel-head">
+      <h2>③ AI 어시스턴트</h2>
+      <select id="conversationSelect" title="이전 대화 불러오기">
+        <option value="">새 대화</option>
+      </select>
+      <button id="btnDeleteConv" class="btn btn-small" type="button" title="이 대화 삭제">삭제</button>
+    </div>
+
+    <div id="chatLog" class="chat-log">
+      <div class="msg msg-system">
+        저장된 RADAR 후보 데이터를 근거로 답합니다. 데이터에 없는 내용은 지어내지 않습니다.
+      </div>
+    </div>
+
+    <div id="chatLoading" class="chat-loading" hidden>
+      <span class="spinner"></span> 생각하는 중…
+    </div>
+
+    <div class="suggestions" id="suggestions"></div>
+
+    <form id="chatForm" class="chat-form">
+      <input id="chatInput" placeholder="예: 오늘 제작할 후보 3개를 추천해줘" autocomplete="off" required>
+      <button class="btn btn-primary" type="submit" id="chatSend">보내기</button>
+    </form>
+  </section>
+
+  <!-- ④ Decision / Handoff -->
+  <section class="panel panel-handoff">
+    <div class="panel-head">
+      <h2>④ 결정 · 인계</h2>
+      <button id="btnRefreshHandoff" class="btn btn-small" type="button">새로고침</button>
+    </div>
+
+    <div id="selectedBox" class="selected-box">
+      <p class="muted">후보 목록에서 항목을 선택하면 여기서 판단을 바꿀 수 있습니다.</p>
+    </div>
+
+    <h3>AutoMaker 로 보낸 패키지 (RADAR 저널 기준)</h3>
+    <ul id="handoffList" class="handoff-list">
+      <li class="muted">아직 없습니다.</li>
+    </ul>
+    <p class="hint">
+      인계는 RADAR <code>automaker_intake.package()</code> → <code>send()</code> 를 그대로 부릅니다.
+      DA 가 별도 파일이나 포맷을 만들지 않으며, 받을지는 AutoMaker 가 정합니다.
+      이 목록은 RADAR <code>outbox.sqlite3</code> 에서 DA 결정이 실린 패키지만 읽은 것입니다.
+    </p>
+  </section>
+
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="config.js?v=1"></script>
+<script src="app.js?v=13"></script>
+</body>
+</html>
