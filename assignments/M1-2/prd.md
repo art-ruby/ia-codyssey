@@ -1,11 +1,11 @@
 # AI Secretary — MVP 제품 요구사항 명세서
 
-- 버전: v1.4 · M1-1 API·환경 설정 근거 반영본
+- 버전: v1.5 · Provider·개인 모드 요약 확정본
 - 작성일: 2026-10-01
 - 작업 위치: `M1-2`
-- 근거: [사용자 시나리오](ai-secretary/AI_SECRETARY_SCENARIO.md), [단일 파일 목업](mockup/index.html), [과제 요구사항](m1-2.md). API 구현 참고 자료는 [M1-1 설정](../M1-1/submission/src/config.py)과 [호출 코드](../M1-1/submission/src/translate.py)다.
+- 근거: [사용자 시나리오](ai-secretary/AI_SECRETARY_SCENARIO.md), [단일 파일 목업](mockup/index.html), 과제에서 제공된 별도 요구사항 문서. API 구현 참고 자료는 [M1-1 설정](../M1-1/submission/src/config.py)과 [호출 코드](../M1-1/submission/src/translate.py)다.
 - 문서 범위: 제품 요구사항, 화면, 데이터, 승인 규칙, 개발 순서, 인수 기준. 구현 완료를 뜻하지 않는다.
-- 해석 순서: 최신 사용자 확정사항 → 사용자 시나리오 → v1.1 수정 지시 → 기존 PRD → 기존 목업. 충돌하면 앞선 근거를 따른다.
+- 해석 순서: 최신 사용자 확정사항 → 사용자 시나리오 → 최신 버전 변경사항 → 기존 PRD → 기존 목업. 충돌하면 앞선 근거를 따른다.
 - 표기: **[확정 요구사항]** 사용자가 결정한 동작, **[권장 구현안]** 검증 후 조정 가능한 설계, **[초기 가설]** 실제 사용량 측정 후 조정할 수치, **[Open Decision]** 사용자 선택이 필요한 항목. 권장안과 초기 가설을 사용자 확정사항으로 취급하지 않는다.
 
 ## 1. 제품 목적과 사용자
@@ -277,7 +277,7 @@ PC와 클라우드는 단일 트랜잭션으로 처리할 수 없으므로 다�
 - 결과 없음, 검색 실패, AI 호출 실패를 구분한다. 검색 실패를 “저장한 자료가 없다”로 표현하지 않는다.
 - 응답과 출처를 저장한 뒤 성공을 반환한다. 저장 실패는 상태와 재시도를 제공하며 request_id로 중복 메시지를 방지한다.
 - 대화는 자동 저장·목록·복원·삭제를 지원한다. 대화 삭제 시 하위 메시지도 삭제한다. 표본/개인 자료 대화는 서로 섞지 않는다.
-- 채팅은 현재 모드의 `/api/data/summary` 기본값을 사용해 사용자가 저장한 숫자 기록을 반영한다. 개인 모드에서는 수기 기록, 표본 모드에서는 표본 기록이며 응답에 출처를 명시한다. 별도로 **보관 승인·보관 완료·활성 자료만** 집계한 실제 `kept_count`를 보여줄 수 있으나 숫자 기록과 합산하지 않는다. 미승인·대기 항목의 제목·본문은 어떤 경우에도 채팅 문맥에 보내지 않는다. 내용이 없는 실제 `received_count` 합계를 채팅에 넣을지는 Open Decision 4에 둔다.
+- 채팅은 현재 모드의 `/api/data/summary` 기본값을 주입하고 응답에 출처를 명시한다. **개인 모드는 보관 승인·보관 완료·활성 자료만 집계한 실제 `kept_count`(`source=actual`)**, 표본 모드는 표본 기록(`source=sample`)이다. 개인 모드의 수기 기록은 사용자가 요청할 때만 `사용자 입력 기록`으로 따로 조회하며 실제 값과 합산하지 않는다. 미승인·대기 항목의 제목·본문은 어떤 경우에도 채팅 문맥에 보내지 않는다. 내용이 없는 실제 `received_count` 합계를 채팅에 넣을지는 Open Decision 4에 둔다.
 
 ## 11. 과제용 시계열 데이터와 요약 [권장 구현안]
 
@@ -294,13 +294,13 @@ PC와 클라우드는 단일 트랜잭션으로 처리할 수 없으므로 다�
 
 ### 11.2 Summary 기본값과 계산
 
-`GET /api/data/summary`는 `source=actual|manual|sample`로 출처를 구분한다. `manual`·`sample`은 `data.origin`에 대응하고 `actual`은 저장된 숫자 행이 아니라 자료 상태에서 계산한다. **개인 자료 모드 기본값은 `source=manual`, 표본 모드 기본값은 `source=sample`이며 기본 지표는 `kept_count`다.** 두 기본 경로 모두 `/api/data`에 저장한 숫자 기록을 요약한다. 실제 자료에서 계산한 현황은 `source=actual`을 명시해 요청하며 오늘·보관함 화면에서 사용한다. `metric_type=received_count` 등 다른 지표도 명시적으로 선택한다. 서로 다른 지표·출처·모드를 한 평균에 섞지 않는다. `metric_type=all`을 제공한다면 지표별로 분리된 결과를 반환한다.
+`GET /api/data/summary`는 `source=actual|manual|sample`로 출처를 구분한다. `manual`·`sample`은 `data.origin`에 대응하고 `actual`은 저장된 숫자 행이 아니라 자료 상태에서 계산한다. **개인 자료 모드 기본값은 `source=actual`, 표본 모드 기본값은 `source=sample`이며 기본 지표는 `kept_count`다.** 개인 모드는 시스템이 이미 아는 실제 보관 현황을 요약하고, 표본 모드는 `/api/data`에 저장한 표본 기록을 요약한다. 개인 모드의 수기 기록은 `source=manual`을 명시해 요청한다. `metric_type=received_count` 등 다른 지표도 명시적으로 선택한다. 서로 다른 지표·출처·모드를 한 평균에 섞지 않는다. `metric_type=all`을 제공한다면 지표별로 분리된 결과를 반환한다.
 
 응답에는 지표명·출처·모드·조회 기간, 일별 값, 일수, 합계, 일평균, 일별 최소·최대와 추세를 포함한다. 관측 시작 이후 조회 기간의 기록 없는 날은 0건이다. 기록이 전혀 없으면 기간·평균·최소·최대·추세는 null로 표시하고 총합은 0건이다. 자료의 중요도별 개수는 별도의 자료 현황으로 표시하며 숫자 지표의 평균에 섞지 않는다.
 
 추세의 기준일 D는 개인 모드에서는 현재 한국 날짜, 표본 모드에서는 표본 데이터의 최신 날짜다. D를 포함한 최근 7일의 일평균과 그 이전 7일의 일평균을 비교한다. 관측 시작 이후 14일이 되지 않았으면 `비교 부족`이다. 증감률 +10% 이상 증가, -10% 이하 감소, 그 사이는 유지로 제안한다. 이전 기간 0건이면 백분율을 만들지 않고 `새 보관 발생` 또는 `양쪽 모두 0건`으로 표시한다. 이 수치는 사용자의 접수·보관 활동이며 생산성 점수가 아니다.
 
-채팅은 같은 모드의 `/api/data/summary` 기본 계산을 재사용하고 숫자 기록의 `source`를 함께 전달한다. 과제 표본 모드에서는 명시적으로 생성한 표본 자료와 표본 숫자 기록만 사용하고 실제 개인 자료와 섞지 않는다. 어느 모드에서든 기본 범위인 `kept_count` 기록을 수정·삭제하면 다음 기본 Summary와 채팅 요약에 반영된다. 다른 지표를 선택한 화면·질문은 해당 지표의 Summary를 사용한다. 실제 보관 자료 현황은 필요할 때 `source=actual`로 별도 조회하고 출처를 구분한다. 이것이 과제 제출 시연의 `CRUD → 요약 → AI 답변` 흐름이다.
+채팅은 같은 모드의 `/api/data/summary` 기본 계산을 재사용하고 `source`를 함께 전달한다. 과제 표본 모드에서는 명시적으로 생성한 표본 자료와 표본 숫자 기록만 사용하고 실제 개인 자료와 섞지 않는다. **표본 모드**에서 `kept_count` 기록을 수정·삭제하면 다음 기본 Summary와 채팅 요약에 반영된다. 이것이 과제 제출 시연의 `CRUD → 요약 → AI 답변` 흐름이다. 개인 모드에서는 자료를 보관 승인하거나 휴지통으로 옮기면 다음 Summary와 채팅 요약이 바뀐다. 다른 지표를 선택한 화면·질문은 해당 지표의 Summary를 사용한다.
 
 ### 11.3 표본 데이터
 
@@ -319,15 +319,17 @@ PC와 클라우드는 단일 트랜잭션으로 처리할 수 없으므로 다�
 | Firebase Firestore | `materials`, 숫자용 `data`, 설정, 대화, 영속 작업 큐와 실행 기록 |
 | 비공개 Cloud Storage | 승인된 원본 사본과 한시적인 분석 파일. 휴지통은 앱의 논리 상태로 관리 |
 | Windows 연결 프로그램 | 승인 폴더 확인, 로컬 텍스트 추출·가능한 OCR·해시 계산, 승인된 업로드·파일 작업과 로컬 실행 기록 |
-| AI Provider Adapter | FastAPI가 호출하는 분석·분류·중요도 제안·답변 인터페이스. 이번 MVP Provider는 Codisay API |
+| AI Provider Adapter | FastAPI가 호출하는 분석·분류·중요도 제안·답변 인터페이스. 이번 MVP Provider는 Codyssey 프록시 |
 
-Web → FastAPI → AI Provider Adapter → **Codisay API** → 분석·분류·중요 이유·관련 프로젝트 제안·채팅을 MVP의 기본 실행 경로로 둔다. Adapter는 `analyze_material()`, `classify_material()`, `suggest_importance()`, `answer_question()`의 책임을 가진다.
+Web → FastAPI → AI Provider Adapter → **Codyssey 프록시** → 분석·분류·중요 이유·관련 프로젝트 제안·채팅을 MVP의 기본 실행 경로로 둔다. Adapter는 `analyze_material()`, `classify_material()`, `suggest_importance()`, `answer_question()`의 책임을 가진다.
 
-[확정 요구사항] 이번 MVP의 AI 실행 경로는 Codisay API 한 가지다. OpenAI API나 Codex CLI·Claude Code CLI를 대체 실행 경로로 구현하지 않는다. Adapter는 향후 교체 가능성을 위한 경계일 뿐이다. 과제는 GPT API 사용, `openai` 패키지와 OpenAI API 키를 요구한다. Codisay API가 이 조건을 충족하는지는 제공 규격과 과제 평가 기준으로 **구현 전에 확인해야 한다**. 호환성이 확인되지 않거나 인정되지 않으면 Milestone A를 `과제 제출 가능`으로 판정하지 않는다. 이 경우 Provider를 임의로 추가하지 않고 과제 조건 확인 결과와 변경 선택지를 사용자에게 제시한다. 과제에 열거된 Python 패키지(fastapi, uvicorn, firebase-admin, openai, python-dotenv)와 Pydantic 검증도 제출 시 확인한다. `openai` SDK가 이 API 호출에 쓰일 수 있는지는 별도 검증한다.
+[확정 요구사항] 이번 MVP의 AI 실행 경로는 **Codyssey 프록시**(`https://copa.codyssey.kr/v1`, OpenAI 호환 규격) 한 가지다. OpenAI API 직접 호출이나 Codex CLI·Claude Code CLI를 대체 실행 경로로 구현하지 않는다. Adapter는 향후 교체 가능성을 위한 경계일 뿐이다.
 
-**M1-1에서 확인한 구현 예시 — 현행 서비스 명세로 확정하지 않음:** M1-1은 `TRANSLATE_PROVIDER="openai"`를 **요청 형식**, `TRANSLATE_MODEL="gemini-3-flash"`를 **호출 모델**로 설정하고, Codyssey 프록시 주소 `https://copa.codyssey.kr/v1`을 사용한다([설정](../M1-1/submission/src/config.py)). 호출 코드는 `/chat/completions`에 Bearer 인증·`model`·`messages`를 보내고 `choices[0].message.content`를 읽는다([호출 코드](../M1-1/submission/src/translate.py)). 이 코드에서 키를 조회하는 환경변수명은 `OPENAI_API_KEY`이며, 이미지 URL 블록을 만드는 분기가 있다. 이는 **M1-1의 HTTP 호출 구현**을 보여줄 뿐, 현재 프록시의 정상 동작, 이미지 입력 수용, Python `openai` SDK 호환성, GPT 모델 사용이나 M1-2 과제 인정 여부를 증명하지 않는다. M1-1은 `urllib`로 직접 요청한다. 또한 M1-1의 `Codyssey 프록시`와 본 문서에서 사용자가 지정한 `Codisay API`가 동일 서비스인지 확인해야 한다.
+[권장 구현안] 과제 조건(GPT API, `openai` 패키지, API 키)은 다음 방식으로 충족한다. Python `openai` SDK의 `OpenAI(base_url=<프록시 주소>, api_key=<OPENAI_API_KEY>)`로 프록시를 호출하고, 채팅·분석 모델은 프록시가 제공하는 **GPT 계열 모델**로 설정한다. 키는 `OPENAI_API_KEY`, 주소·모델은 `AI_PROVIDER_BASE_URL`·`AI_PROVIDER_MODEL` 환경변수로 관리한다(`.env.example`과 동일).
 
-**구현 전 확인 필요:** 실제 사용할 서비스의 공식 명칭·Base URL·인증 발급 주체·모델명·요청/응답 형식·OpenAI SDK 호환 여부·Rate Limit·사용량·비용·파일/이미지 입력 지원 여부. M1-1의 URL·모델·환경변수명을 확인 없이 M1-2 운영값으로 복사하지 않는다. PC 연결 프로그램에서 텍스트를 추출하고, FastAPI는 사용자가 AI 분석을 승인한 범위만 Provider에 전달한다. 이미지·스캔 PDF의 OCR은 PC에서 가능한 범위를 우선 검증하고 실제 Provider의 이미지 입력 가능 여부를 확인한다. Render 무료 인스턴스에서 전체 OCR을 수행한다고 전제하지 않는다. 파서·OCR·Windows 파일 작업 라이브러리는 실제 표본으로 선택한다.
+근거는 M1-1 구현이다. M1-1은 같은 프록시에 `/chat/completions`로 Bearer 인증·`model`·`messages`를 보내고 `choices[0].message.content`를 읽는다([설정](../M1-1/submission/src/config.py), [호출 코드](../M1-1/submission/src/translate.py)). 설정 주석은 이 프록시가 OpenAI 규격으로 GPT·Gemini·Claude를 제공한다고 적고 있다. 다만 M1-1은 `urllib`로 직접 호출했고 번역용 모델(`gemini-3-flash`)을 썼으므로, SDK 호환성·GPT 모델명·이미지 입력은 A25 스모크 테스트로 확인한다.
+
+**구현 첫날 확인(A25):** 프록시에서 쓸 수 있는 GPT 모델명, Rate Limit·사용량·비용, 이미지 입력 지원 여부. 테스트가 실패하면 Provider를 임의로 바꾸지 않고 결과와 선택지를 사용자에게 제시한다. 과제에 열거된 Python 패키지(fastapi, uvicorn, firebase-admin, openai, python-dotenv)와 Pydantic 검증은 제출 시 확인한다. PC 연결 프로그램에서 텍스트를 추출하고, FastAPI는 사용자가 AI 분석을 승인한 범위만 Provider에 전달한다. 이미지·스캔 PDF의 OCR은 PC에서 가능한 범위를 우선 검증하고 실제 Provider의 이미지 입력 가능 여부를 확인한다. Render 무료 인스턴스에서 전체 OCR을 수행한다고 전제하지 않는다. 파서·OCR·Windows 파일 작업 라이브러리는 실제 표본으로 선택한다.
 
 브라우저와 클라우드 서버는 PC 파일을 직접 조작하지 않는다. 연결 프로그램이 인증된 HTTPS 연결로 작업을 가져오고 결과를 보고한다. PC에 외부 공개 포트를 열지 않는다. 로그인은 Firebase Authentication 같은 단일 소유자 인증을 권장한다.
 
@@ -349,7 +351,7 @@ Web → FastAPI → AI Provider Adapter → **Codisay API** → 분석·분류·
 |---|---|
 | POST /api/data | 날짜·지표·건수·메모가 있는 수기/표본 숫자 기록 추가 |
 | GET /api/data | 지표·출처·모드·기간·페이지별 수기/표본 숫자 기록 목록 |
-| GET /api/data/summary | §11의 지표별 기간·개수·합계·평균·최소·최대·추세. 기본값은 개인 모드 `source=manual`, 표본 모드 `source=sample`의 `kept_count`이며 `/api/data` CRUD 변경을 반영. `source=actual`은 자료에서 별도 계산 |
+| GET /api/data/summary | §11의 지표별 기간·개수·합계·평균·최소·최대·추세. 기본값은 개인 모드 `source=actual`(자료에서 계산), 표본 모드 `source=sample`(표본 CRUD 반영)의 `kept_count`. `source=manual`은 명시 요청 |
 | GET /api/data/{id} | 숫자 기록 상세·버전 |
 | PUT /api/data/{id} | 수기/표본 숫자 기록 수정·버전 검증 |
 | DELETE /api/data/{id} | 수기/표본 숫자 기록 삭제 |
@@ -364,7 +366,7 @@ Web → FastAPI → AI Provider Adapter → **Codisay API** → 분석·분류·
 | GET /api/trash · POST /api/trash/{id}/restore | 클라우드 휴지통 목록과 복원 |
 | DELETE /api/trash/{id} | 별도 영구 삭제 확인 값과 버전 검증 후 제거 |
 | GET /api/materials/{id}/original | 보관 완료·활성 사본의 인증된 다운로드 |
-| POST /api/chat | 유효 승인 자료 검색 + 현재 모드의 `/api/data/summary` 기본 요약 → AI Provider(Codisay API) → 대화 자동 저장. 실제 보관 자료 현황은 출처를 밝혀 별도 제공 |
+| POST /api/chat | 유효 승인 자료 검색 + 현재 모드의 `/api/data/summary` 기본 요약(개인 `actual`, 표본 `sample`) → AI Provider(Codyssey 프록시) → 대화 자동 저장 |
 | POST /api/conversations | 새 대화 또는 사용자 대화 저장, 클라이언트가 임의 AI 출처를 주입하지 못하게 검증 |
 | GET /api/conversations | 현재 모드의 대화 목록 |
 | GET /api/conversations/{id} | 전체 메시지와 현재 출처 상태 |
@@ -377,12 +379,12 @@ Web → FastAPI → AI Provider Adapter → **Codisay API** → 분석·분류·
 ## 14. 비기능 요구사항 [확정 요구사항·초기 가설]
 
 - 키는 서버 환경변수로 관리한다. 프론트에는 공개 API 주소와 공개 인증 설정만 전달한다. CORS는 실제 허용 도메인으로 제한한다.
-- 서버에 필요한 비밀은 Firebase 서비스 계정, 실제 AI Provider 인증 정보, 저장소 연결 정보다. M1-1은 프록시 키를 `OPENAI_API_KEY`라는 이름으로 조회하지만, 이 이름만으로 OpenAI가 발급한 키이거나 M1-2 과제를 충족한다고 판단하지 않는다. 실제 인증 발급 주체·변수명·모델·URL을 확인해 서버 설정에 매핑한다. 사용하지 않을 Provider의 키를 배포 필수값으로 만들지 않는다. 과제의 OpenAI 키·SDK 요구 충족 여부는 §12의 검증 항목이다.
+- 서버에 필요한 비밀은 Firebase 서비스 계정, 실제 AI Provider 인증 정보, 저장소 연결 정보다. AI 설정은 `OPENAI_API_KEY`(Codyssey 프록시 키), `AI_PROVIDER_BASE_URL`(프록시 주소), `AI_PROVIDER_MODEL`(GPT 계열 모델명)이다. 모델명과 SDK 호환성은 §12·A25 스모크 테스트로 확정한다.
 - 로컬 실제 키는 `M1-2/.env`에만 두고 커밋하지 않는다. `M1-2/.env.example`에는 변수 이름과 빈 예시 값만 보관한다. `M1-2/.gitignore`는 `.env`, `.env.*`를 제외하고 `.env.example`만 허용하며 서비스 계정 원본 파일을 둘 `secrets/`도 제외한다. Render·Vercel에는 필요한 값을 각 서비스 환경변수로 입력하고, 프론트에는 `API_BASE_URL`과 공개 인증 설정만 전달한다. 기존 M1-1의 `.env` 값은 이 문서나 예시 파일로 복사하지 않는다.
 - M1-1의 `.env.example`에는 YouTube 키만 있고 자체 `.gitignore`는 `.env`를 제외한다. 따라서 M1-1의 파일은 M1-2 환경변수의 완전한 목록으로 취급하지 않는다. 배포 전에는 `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON` 또는 키 경로, `API_BASE_URL`, `ALLOWED_ORIGINS`의 실제 사용 위치와 과제 요구를 README에 대응시킨다.
 - 바닐라 프론트에서 API_BASE_URL을 빌드/배포 설정으로 주입하는 방법을 README에 명시한다. 브라우저가 서버 환경변수를 직접 읽는다고 가정하지 않는다.
 - 입력과 문서 내용을 안전한 텍스트로 렌더링한다. HTML·매크로·설치파일·코드 실행을 분석 기능에 포함하지 않는다.
-- [초기 가설] 일별 AI Provider 요청 50회, 출력 1,500토큰 상당, 요청 시간 60초를 검토 시작값으로 둔다. Codisay API가 제공하는 제한과 계량 단위를 확인해 실제 설정을 정한다. **20개 분석 묶음과 50회 호출은 별개**다. `파일 20개 = AI 1회`로 계산하지 않는다. 한 자료를 여러 번 호출하면 실제 Codisay 요청 횟수를 모두 기록하고 분석·채팅에 공통 사용량을 표시한다.
+- [초기 가설] 일별 AI Provider 요청 50회, 출력 1,500토큰 상당, 요청 시간 60초를 검토 시작값으로 둔다. Codyssey 프록시가 제공하는 제한과 계량 단위를 확인해 실제 설정을 정한다. **20개 분석 묶음과 50회 호출은 별개**다. `파일 20개 = AI 1회`로 계산하지 않는다. 한 자료를 여러 번 호출하면 실제 Codyssey 프록시 요청 횟수를 모두 기록하고 분석·채팅에 공통 사용량을 표시한다.
 - 비용이 발생할 수 있는 AI 분석은 파일·묶음별 전송 범위, 예상 요청 수(알 수 없으면 추정 불가), 현재 사용량과 과금 가능성을 보여준 뒤 사용자가 시작한다. 제공 문서에 비용 정보가 없다면 금액을 지어내지 않는다. 질문 제출은 채팅 호출 시작 의사로 처리하되 사용량과 제한을 입력 화면에 표시한다.
 - 한도 도달 또는 Provider Rate Limit 발생 시 남은 자료는 `AI 분석 대기`로 유지한다. 실패·분실로 처리하지 않고 `사용량 37/50 · 남은 요청 13 · 대기 자료 42건`처럼 요청과 파일 건수를 구분해 표시한다. 재개는 사용자가 선택하며 일자 변경만으로 무한 자동 호출하지 않는다.
 - 파일 전송·OCR·AI 분석은 별도 단계 진행률을 표시한다. 긴 작업은 요청 연결이 종료되어도 상태 조회가 가능해야 한다.
@@ -419,8 +421,8 @@ Web → FastAPI → AI Provider Adapter → **Codisay API** → 분석·분류·
 | A21 | AI 분석 제외 파일·자료의 본문과 이미지가 어떤 AI Provider 요청·임시 AI 업로드에도 포함되지 않는다. 제외 해제 전 재분석도 실행되지 않는다. |
 | A22 | 묶음 스크린샷에서 작업 종료와 선택 파일을 확인하기 전에는 삭제 승인 단계로 진행할 수 없다. `아직 작업 중`과 제외 파일은 실행 대상이 아니다. |
 | A23 | 실제 Provider 요청 수를 사용량으로 기록한다. 한도 도달 후 남은 자료는 실패가 아닌 분석 대기 상태로 유지되며 사용량·대기 건수를 구분해 보여준다. |
-| A24 | Milestone A에서 Firestore 숫자 CRUD, Summary, 승인 자료 기반 AI Chat, Conversation 저장·불러오기, Render/Vercel 배포·Swagger·제출 화면·모바일 웹 사용을 검증한다. 개인·표본 모드 각각 기본 `kept_count` 기록 수정 → 기본 Summary 변화 → 같은 질문의 AI 숫자 답변 변화를 확인한다. 표본 답변은 가상 기록임을 밝힌다. |
-| A25 | Codisay API의 실제 규격·인증·응답·사용량을 확인하고 Adapter 계약을 검증한다. Codisay 경로가 과제의 GPT API·`openai` 패키지·API 키 요구를 충족하거나 과제 평가에서 인정됨을 확인해야 Milestone A를 `제출 가능`으로 표시한다. 미확인 또는 불인정이면 해당 기준은 미통과로 기록한다. |
+| A24 | Milestone A에서 Firestore 숫자 CRUD, Summary, 승인 자료 기반 AI Chat, Conversation 저장·불러오기, Render/Vercel 배포·Swagger·제출 화면·모바일 웹 사용을 검증한다. 표본 모드에서 `kept_count` 기록 수정 → 기본 Summary 변화 → 같은 질문의 AI 숫자 답변 변화를 확인하고, 답변은 가상 기록임을 밝힌다. 개인 모드에서는 자료를 보관 승인·휴지통 이동한 뒤 채팅의 실제 보관 수가 바뀌는지 확인한다. |
+| A25 | **스모크 테스트:** Python `openai` SDK로 Codyssey 프록시(`base_url`)에 GPT 모델 채팅 1회와 이미지 입력 1회를 호출한다. 응답 형식·사용 모델명·오류와 한도 응답을 기록하고 Adapter 계약을 통과하면 Milestone A의 AI 경로 조건을 충족한 것으로 본다. 실패하면 미통과로 기록하고 선택지를 사용자에게 제시한다. |
 
 실제 파일 검증은 전용 테스트 폴더에서 수행한다. 원본 손상·무승인 변경·미승인 자료의 답변 유입은 출시 차단 항목이다. 검색 품질은 평가 질문과 정답 자료를 먼저 고정하고 검증한다.
 
@@ -432,15 +434,15 @@ README에는 서비스 소개, 구조·기술 스택, 배포 주소, 웹·서버
 
 ### Milestone A — 과제 제출 가능 상태
 
-웹 URL·텍스트 입력 → Firestore `materials` 저장 → 검토·보관 승인 → AI Provider Adapter(Codisay API) 분석·채팅 → 근거 자료 표시·대화 자동 저장까지 한 흐름으로 구현한다. 제출 시연은 **표본 모드**에서 진행한다. 별도 `data`의 날짜·값·메모 CRUD, 100건 이상 표본, 지표별 Summary, 대화 목록·불러오기·삭제, Render API·Swagger, Vercel 웹, 모바일 웹 사용, README와 제출 화면을 완료한다. 과제의 필수 API와 요약·채팅·배포를 이 지점에서 검증한다. Codisay가 과제의 GPT API 조건을 충족하는지 확인하기 전에는 `과제 제출 가능`으로 판정하지 않는다. PC 파일 연결과 클라우드 원본 사본에 의존하지 않아도 이 흐름이 동작해야 한다.
+웹 URL·텍스트 입력 → Firestore `materials` 저장 → 검토·보관 승인 → AI Provider Adapter(Codyssey 프록시) 분석·채팅 → 근거 자료 표시·대화 자동 저장까지 한 흐름으로 구현한다. 제출 시연은 **표본 모드**에서 진행한다. 별도 `data`의 날짜·값·메모 CRUD, 100건 이상 표본, 지표별 Summary, 대화 목록·불러오기·삭제, Render API·Swagger, Vercel 웹, 모바일 웹 사용, README와 제출 화면을 완료한다. 과제의 필수 API와 요약·채팅·배포를 이 지점에서 검증한다. A25 스모크 테스트는 Milestone A의 첫 작업으로 수행하고, 통과 전에는 `과제 제출 가능`으로 판정하지 않는다. PC 파일 연결과 클라우드 원본 사본에 의존하지 않아도 이 흐름이 동작해야 한다.
 
 ### Milestone B — AI Secretary MVP 완성
 
 Windows 연결 프로그램과 허용 폴더 등록, 버튼을 누르는 수동 확인, 스크린샷 묶음 정리, Downloads 파일 분석·이름 제안·이동·새 폴더 생성, Windows 휴지통 삭제, 모바일 승인, 승인 원본의 클라우드 사본, PC·클라우드 연동 삭제, 부분 실패 복구·작업 기록·되돌리기, 최종 인수 검증을 완료한다. PC 파일 실제 변경은 Milestone B의 승인·버전·경로 검증을 통과한 경우에만 실행한다.
 
-Milestone A의 제출 가능 상태와 Milestone B의 최종 MVP 완료를 별도로 표시한다. A 완료를 전체 개인 비서 기능 완료로 소개하지 않는다. 가장 높은 기술 위험은 모바일에서 승인한 PC 파일 작업, Office·PDF 추출 범위, PC·클라우드 연동 삭제다. Milestone A 진행 중 작은 표본으로 이 위험과 Codisay API의 실제 규격·비용을 확인하되, PC 위험 때문에 과제 제출 기능 구현을 뒤로 미루지 않는다.
+Milestone A의 제출 가능 상태와 Milestone B의 최종 MVP 완료를 별도로 표시한다. A 완료를 전체 개인 비서 기능 완료로 소개하지 않는다. 가장 높은 기술 위험은 모바일에서 승인한 PC 파일 작업, Office·PDF 추출 범위, PC·클라우드 연동 삭제다. Milestone A 진행 중 작은 표본으로 이 위험과 Codyssey 프록시의 실제 규격·비용을 확인하되, PC 위험 때문에 과제 제출 기능 구현을 뒤로 미루지 않는다.
 
-구현 착수 시 확인할 기술 항목은 Codisay 규격·Rate Limit·파일 입력 가능 여부, Firestore 검색 에디션·전략, Cloud Storage 요금제·버킷 지역·예상 용량, 연결 프로그램 배포·Windows 휴지통 라이브러리, 구형 Office 호환성, OCR 위치, [초기 가설]의 한도 수치다. 검증이 어려워도 사용자 확정 기능을 임의로 완료 처리하거나 최종 MVP에서 삭제하지 않는다. 범위 변경이 필요하면 실제 검증 결과와 대안을 제시한다.
+구현 착수 시 확인할 기술 항목은 Codyssey 프록시 규격·Rate Limit·파일 입력 가능 여부, Firestore 검색 에디션·전략, Cloud Storage 요금제·버킷 지역·예상 용량, 연결 프로그램 배포·Windows 휴지통 라이브러리, 구형 Office 호환성, OCR 위치, [초기 가설]의 한도 수치다. 검증이 어려워도 사용자 확정 기능을 임의로 완료 처리하거나 최종 MVP에서 삭제하지 않는다. 범위 변경이 필요하면 실제 검증 결과와 대안을 제시한다.
 
 ## 17. 목업에서 다음에 반영할 차이
 
@@ -459,7 +461,7 @@ Milestone A의 제출 가능 상태와 Milestone B의 최종 MVP 완료를 별�
 
 ## v1.1 주요 변경사항
 
-1. AI 분석·채팅의 기본 Provider를 Codisay API 어댑터로 지정하고 미확인 규격을 구현 전 확인 대상으로 남겼다.
+1. AI 분석·채팅의 기본 Provider를 Codyssey 프록시 어댑터로 지정하고 미확인 규격을 구현 전 확인 대상으로 남겼다.
 2. 과제 제출용 Milestone A를 먼저 완성하고 PC 정리까지 포함한 Milestone B를 최종 MVP로 정의했다.
 3. 비서 자료 `materials`와 과제 숫자 기록 `data` 및 각 API를 분리했다.
 4. 시계열 주 지표를 파일 크기에서 날짜별 접수·보관 건수로 바꾸고 지표별 Summary를 정의했다.
@@ -483,7 +485,7 @@ Milestone A의 제출 가능 상태와 Milestone B의 최종 MVP 완료를 별�
 
 ## v1.3 주요 변경사항
 
-1. v1.2의 OpenAI 대체 구현을 현재 MVP 범위에서 제외하고 Codisay의 과제 인정 여부를 Milestone A의 완료 조건으로 명시했다.
+1. v1.2의 OpenAI 대체 구현을 현재 MVP 범위에서 제외하고 Codyssey 프록시의 과제 인정 여부를 Milestone A의 완료 조건으로 명시했다.
 2. `/api/data`의 저장 값이 개인·표본 모드의 기본 Summary와 다음 채팅 숫자 답변에 반영되도록 기본 `source`를 수정했다. 실제 보관 자료 현황은 `source=actual`로 구분한다.
 3. 표본·수기 건수와 실제 보관 자료 건수의 표시 이름을 구분했다.
 4. 자료 영구 삭제 시 연결된 접수 기록을 제거하고 `received_count`를 다시 계산하도록 했다.
@@ -494,6 +496,13 @@ Milestone A의 제출 가능 상태와 Milestone B의 최종 MVP 완료를 별�
 1. M1-1의 Codyssey 프록시 호출 코드에서 확인한 URL·HTTP 형식·키 변수명·모델 예시를 근거와 함께 추가했다. 현행 명세와 과제 인정 여부는 미확인으로 유지했다.
 2. M1-2의 `.env.example`·`.gitignore`와 배포 환경변수·비밀키 제외 규칙을 명시했다.
 
+## v1.5 주요 변경사항
+
+1. "Codisay" 표기를 **Codyssey 프록시**(`copa.codyssey.kr`, OpenAI 호환)로 확정했다. `openai` SDK의 `base_url`과 GPT 계열 모델로 과제 조건을 충족하는 방식을 정의했다.
+2. A25를 과제 인정 여부 확인에서 구현 첫날의 **스모크 테스트**(SDK로 GPT 채팅·이미지 입력 각 1회)로 바꿨다. Open Decision 6을 닫았다.
+3. 개인 모드의 Summary·채팅 기본값을 `source=manual`에서 **`source=actual`**(실제 보관 자료 수)로 바꿨다. `CRUD → 요약 → AI 답변` 시연은 표본 모드에서 검증한다(A24).
+4. AI 환경변수를 `.env.example`과 같게 `OPENAI_API_KEY`·`AI_PROVIDER_BASE_URL`·`AI_PROVIDER_MODEL`로 맞췄다.
+
 ## Open Decisions
 
 다음은 사용자의 최종 선택이 필요한 사항이다. 선택 전에는 한 방향을 확정 요구사항으로 표시하지 않는다.
@@ -503,4 +512,3 @@ Milestone A의 제출 가능 상태와 Milestone B의 최종 MVP 완료를 별�
 3. **모바일 스크린샷 삭제 확인:** 파일명·요약·판단 이유만으로 승인할지, 삭제 직전 썸네일 수준의 확인을 추가할지. 원본 전체 뷰어는 MVP 필수로 확정하지 않았다.
 4. **채팅에 실제 `received_count` 주입:** C16은 승인 자료만 채팅에 참고하도록 한다. 미승인 자료의 접수 건수 합계도 답변 문맥에 허용할지는 아직 결정되지 않았다. 결정 전에는 `source=actual`의 `received_count`를 채팅에서 제외한다.
 5. **AI 분석 제외 자료의 메타데이터:** 보관 승인한 제외 자료의 사용자 입력 제목·파일명·날짜만 채팅 근거로 허용할지(본문·이미지는 계속 제외), 채팅에서 완전히 제외할지.
-6. **과제 조건과 Codisay 사용의 충돌 시 선택:** 제공 문서와 과제 평가 기준을 확인했는데 Codisay 경로가 GPT API·`openai` 패키지·API 키 요구를 충족하지 못한다면, 과제 측의 사용 인정 가능성을 확인할지 또는 사용자 승인 후 Provider 범위를 바꿀지 결정한다. 실제 명칭·규격·호환성은 §12의 사실 확인 항목이다.
