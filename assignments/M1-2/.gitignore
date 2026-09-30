@@ -1,0 +1,12 @@
+# Local secrets and service account files
+.env
+.env.*
+!.env.example
+secrets/
+
+# Local build and runtime files
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
