@@ -8,6 +8,7 @@
 | 과제 | 주제 | 폴더 |
 |---|---|---|
 | A1-1 | Python & Git 기초 — 나만의 프롬프트 관리 프로그램 | [assignments/A1-1](assignments/A1-1) |
+| A1-2 | Python 응용 — API 활용 국내 여행지 추천 프로그램 | [assignments/A1-2](assignments/A1-2) |
 | A1-3 | LAPIS 향 큐레이터 서비스 | [assignments/a1-3](assignments/a1-3) |
 | B1-1 | 브랜드 기획 | [assignments/B1-1](assignments/B1-1) |
 | B1-2 | 브랜드 홈페이지 | [assignments/B1-2](assignments/B1-2) |
