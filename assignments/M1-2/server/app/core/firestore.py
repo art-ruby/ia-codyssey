@@ -157,9 +157,14 @@ class Store(Protocol):
                expected_version: int, changes: Mapping[str, Any]) -> dict: ...
 
     def list(self, ctx: RequestContext, collection: str, limit: int = 20,
-             cursor: str | None = None) -> Page: ...
+             cursor: str | None = None, descending: bool = False) -> Page: ...
 
     def delete(self, ctx: RequestContext, collection: str, doc_id: str) -> None: ...
+
+    # 여러 문서를 한 번에 만든다. 하나라도 이미 있으면 아무것도 만들지 않는다(원자적).
+    # items: [(collection, data, doc_id 또는 None)]
+    def create_many(self, ctx: RequestContext,
+                    items: list[tuple[str, Mapping[str, Any], str | None]]) -> list[dict]: ...
 
     # 중복 요청 기록(requests.py 전용). 소유자 단위로 키를 둔다.
     # 기록이 없거나 완료 기록이 now_iso 기준으로 만료됐으면 record로 원자적으로 차지하고 None,
@@ -223,16 +228,30 @@ class MemoryStore:
             doc["updated_at"] = now_utc()
             return copy.deepcopy(doc)
 
-    def list(self, ctx, collection, limit=20, cursor=None):
+    def create_many(self, ctx, items):
+        prepared = []
+        for collection, data, doc_id in items:
+            _check_collection(collection)
+            prepared.append((collection, _new_doc(ctx, data, _new_id(doc_id))))
+        with self._lock:
+            if any(doc["id"] in self._docs[col] for col, doc in prepared):
+                raise VersionConflict(0)
+            for col, doc in prepared:
+                self._docs[col][doc["id"]] = doc
+        return [copy.deepcopy(doc) for _, doc in prepared]
+
+    def list(self, ctx, collection, limit=20, cursor=None, descending=False):
         _check_collection(collection)
         size = _page_size(limit)
         docs = sorted(
             (d for d in self._docs[collection].values() if _owned(d, ctx)),
             key=lambda d: (d["created_at"], d["id"]),
+            reverse=descending,
         )
         if cursor:
             after = decode_cursor(cursor)
-            docs = [d for d in docs if (d["created_at"], d["id"]) > after]
+            docs = [d for d in docs if ((d["created_at"], d["id"]) < after if descending
+                                        else (d["created_at"], d["id"]) > after)]
         page = [copy.deepcopy(d) for d in docs[: size + 1]]
         has_more = len(page) > size
         page = page[:size]
@@ -343,18 +362,35 @@ class FirestoreStore:
 
         return run(self._db.transaction())
 
-    def list(self, ctx, collection, limit=20, cursor=None):
-        from google.cloud.firestore_v1 import FieldFilter
+    def create_many(self, ctx, items):
+        from google.api_core.exceptions import AlreadyExists
+
+        batch = self._db.batch()
+        docs = []
+        for collection, data, doc_id in items:
+            ref = self._ref(collection, _new_id(doc_id))
+            doc = _new_doc(ctx, data, ref.id)
+            batch.create(ref, doc)  # 일괄 쓰기: 모두 성공하거나 모두 실패한다.
+            docs.append(doc)
+        try:
+            batch.commit()
+        except AlreadyExists:
+            raise VersionConflict(0) from None
+        return docs
+
+    def list(self, ctx, collection, limit=20, cursor=None, descending=False):
+        from google.cloud.firestore_v1 import FieldFilter, Query
         from google.cloud.firestore_v1.field_path import FieldPath
 
         _check_collection(collection)
         size = _page_size(limit)
+        direction = Query.DESCENDING if descending else Query.ASCENDING
         query = (
             self._db.collection(collection)
             .where(filter=FieldFilter("owner_id", "==", ctx.owner_id))
             .where(filter=FieldFilter("mode", "==", ctx.mode))
-            .order_by("created_at")
-            .order_by(FieldPath.document_id())
+            .order_by("created_at", direction=direction)
+            .order_by(FieldPath.document_id(), direction=direction)
         )
         if cursor:
             created_at, doc_id = decode_cursor(cursor)

@@ -92,6 +92,21 @@ p { color: var(--muted); }
 .row-actions { display: flex; gap: 6px; flex: none; }
 .empty-row { color: var(--muted); }
 .tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 6px; background: #edf3f1; color: #547371; font-size: 11px; font-weight: 700; }
+.tag.mint { background: var(--mint); color: #19766b; }
+.tag.amber { background: var(--amber-bg); color: var(--amber); }
+
+/* 받은 자료 목록 */
+.material-list { list-style: none; padding: 0; margin: 12px 0; }
+.material-list > li { border-top: 1px solid #e7eeeb; padding: 12px 0; }
+.material-list > li:first-child { border-top: 0; }
+.material-head { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); }
+.material-head strong { overflow-wrap: anywhere; }
+.material-head:hover strong { text-decoration: underline; }
+.temp-title { margin-left: 6px; font-size: 11px; color: var(--muted); }
+.material-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.material-meta .tag { margin-left: 0; }
+.material-meta .url { overflow-wrap: anywhere; min-width: 0; }
+.material-detail { margin-top: 10px; padding: 12px 14px; background: #f8faf9; border-radius: 10px; }
 @media (max-width: 520px) {
   .project-view { flex-direction: column; }
 }

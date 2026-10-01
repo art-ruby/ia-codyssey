@@ -11,7 +11,7 @@
   - [x] **T02.03** 10개 메뉴와 모바일 공통 화면
   - [x] **T02.04** 프로젝트·관심 분야·자료 모드 설정
 - [ ] **Phase 03. URL·텍스트 접수와 보관 승인 — MVP**
-  - [ ] **T03.01** URL·텍스트 입력·저장·상세 수정
+  - [x] **T03.01** URL·텍스트 입력·저장·상세 수정
   - [ ] **T03.02** 동일 URL 확인과 세 가지 선택
   - [ ] **T03.03** 받은 자료·일괄 검토·보관 승인
   - [ ] **T03.04** 나중에 보기·분석 제외·승인 상태 검증
@@ -170,7 +170,7 @@ class RequestContext:
 ```
 
 - 소유자 ID는 인증 토큰에서 얻는다. 브라우저가 보낸 `owner_id`를 신뢰하지 않는다.
-- 프론트는 요청마다 `X-Data-Mode: personal|sample` 헤더로 현재 모드를, 변경 요청에는 `Idempotency-Key` 헤더로 중복 요청 식별자(`RequestContext.request_id`)를 보낸다. 모드가 없거나 허용 밖이면 422다. **요청에 담긴 모드를 그 요청의 기준으로 삼는다.** T02.04의 서버 설정 모드는 다음 접속 시 복원할 마지막 사용 모드일 뿐이며, 창이 여러 개여도 각 요청은 자기 모드의 자료만 다룬다. 수정·승인에는 `expected_version`을 포함한다. 묶음 승인은 각 자료의 ID·버전·선택 작업을 유지한다.
+- 프론트는 요청마다 `X-Data-Mode: personal|sample` 헤더로 현재 모드를, 변경 요청에는 `Idempotency-Key` 헤더로 중복 요청 식별자(`RequestContext.request_id`)를 보낸다. 모드가 없거나 허용 밖이면 422다. **요청에 담긴 모드를 그 요청의 기준으로 삼는다.** 마지막 사용 모드는 브라우저에만 보관하며, 창이 여러 개여도 각 요청은 자기 모드의 자료만 다룬다. 수정·승인에는 `expected_version`을 포함한다. 묶음 승인은 각 자료의 ID·버전·선택 작업을 유지한다.
 - 상태 변경과 승인 기록을 일관되게 저장한다. 같은 요청을 다시 보내면 처음 결과를 돌려주고, 같은 ID로 다른 내용을 보내면 409로 거부한다.
 - HTTP 401: 인증 없음/무효, 403: 인증됐지만 허용 소유자가 아닌 계정, 404: 없거나 다른 소유자의 자료, 422: 잘못된 입력/허용 밖 경로, 409: 버전·상태·이름 충돌. PC 작업의 202는 접수만 의미한다.
 - `SearchPage`는 자료와 다음 커서, 검색한 범위를 포함한다. `Summary`는 PRD §11.2의 출처·모드·기간·일별 값·합계·평균·최소·최대·추세를 포함한다.
@@ -569,12 +569,12 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 2026-10-01 원격 Hermes 연결: 사용자가 Tailscale Funnel을 선택했다. Funnel 공개 대상은 Hermes 포트가 아니라 전용 인증 중계 서버로 제한한다. 로컬 relay(`127.0.0.1:8766`)로 도구 세트 비활성(29개), 잘못된 토큰 401, 경로·쿼리 거부, 합성 텍스트 응답(`gpt-6-luna`, 1,023토큰)을 확인했다. 공개 HTTPS 443의 로컬 중계 연결과 무인증 요청 401도 확인했다. 상세는 `docs/verification.md`. Render 원격 경로는 미검증이다. 설계와 계획은 `docs/superpowers/specs/2026-10-01-tailscale-funnel-hermes-relay-design.md`, `docs/superpowers/plans/2026-10-01-tailscale-funnel-hermes-relay.md`에 있다.
 
-Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는 실제 프로젝트에서 저장소·중복 요청·규칙/색인 배포·클라이언트 직접 접근 거부(REST·웹 SDK)까지 검증했고, 프로젝트·설정 API와 설정 화면은 `docs/verification.md`에 기록했다. 실제 자료 API·배포·Windows 파일 작업은 아직 검증하지 않았다.
+Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는 실제 프로젝트에서 저장소·중복 요청·규칙/색인 배포·클라이언트 직접 접근 거부(REST·웹 SDK)까지 검증했고, 프로젝트·설정 API와 설정 화면은 `docs/verification.md`에 기록했다. T03.01 자료 API와 화면도 검증했다. 배포·Windows 파일 작업은 아직 검증하지 않았다. T02.04의 동시 프로젝트 생성과 기본 프로젝트 해제는 실제 Firestore와 메모리 저장소에서 확인했고, 동시 이름 변경은 메모리 저장소 회귀 테스트로 검증했다.
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T02.04 — 프로젝트·설정 API와 설정 화면, Open Decision 1 결정(`docs/verification.md`) |
-| 다음 Task | T03.01 — URL·텍스트 입력·저장·상세 수정. Open Decision 2의 `save_reason` 분리 결정 적용 |
+| 마지막 완료 Task | T03.01 — 자료 접수·목록·상세 수정 API와 받은 자료 화면(`docs/verification.md`) |
+| 다음 Task | T03.02 — 동일 URL 확인과 세 가지 선택(`url_key`는 T03.01에서 저장 중) |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

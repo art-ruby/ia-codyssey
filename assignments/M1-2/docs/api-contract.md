@@ -79,7 +79,7 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 | `POST /api/projects` | `{"name": 1~50자, "description": 0~500자}` | 201 프로젝트. 같은 이름(대소문자·공백 무시, 비활성 포함)은 **409** `reason: duplicate_name`. 100개 초과 422 |
 | `PUT /api/projects/{id}` | `{"expected_version", "name"?, "description"?, "active"?}` | 200 프로젝트. 버전 불일치 409, 다른 소유자·모드 404 |
 
-프로젝트: `{id, name, description, active, version, created_at, updated_at}`. 삭제 API는 없고 `active: false`로 비활성 처리한다. 자료는 주 프로젝트 `primary_project_id`와 관련 프로젝트 `related_project_ids[]`로 연결한다(Open Decision 1, T03에서 사용).
+프로젝트: `{id, name, description, active, version, created_at, updated_at}`. 삭제 API는 없고 `active: false`로 비활성 처리한다. 이름 중복 검사와 생성·수정은 소유자·모드별로 원자적으로 처리한다. 기본 프로젝트를 비활성화하면 해당 모드 설정의 `default_project_id`를 같은 변경에서 비우고 설정 버전을 올린다. 자료는 주 프로젝트 `primary_project_id`와 관련 프로젝트 `related_project_ids[]`로 연결한다(Open Decision 1, T03에서 사용).
 
 ## 설정 API — PRD 외 추가 (T02.04)
 
@@ -89,3 +89,20 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 | `PUT /api/settings` | `{"expected_version", "interests"[], "activities"[], "default_project_id"?}` | 첫 저장은 `expected_version: 0`. 항목은 한 개 1~50자·최대 20개, 앞뒤 공백 제거·중복 제거. 기본 프로젝트는 같은 모드의 활성 프로젝트여야 하며 아니면 422. 버전 불일치 409 |
 
 설정은 소유자·모드마다 문서 하나다. 현재 자료 모드는 서버에 저장하지 않는다(요청마다 `X-Data-Mode`, 마지막 선택은 브라우저가 기억).
+
+## 자료 API (T03.01, PRD §13)
+
+모두 인증·`X-Data-Mode` 필요. 변경 요청은 `Idempotency-Key` 필요.
+
+| API | 요청 | 응답·규칙 |
+|---|---|---|
+| `POST /api/materials` | `{url?, title?, description?, body?, save_reason?, memo?, primary_project_id?, related_project_ids?}` | 201 자료. URL 또는 제목·설명·본문 중 하나 이상 필요(저장 이유·메모만은 422). URL은 http(s)·호스트 필수. 길이: 제목 200·설명/저장 이유/메모 2,000·본문 20,000자, 넘으면 잘라 저장하지 않고 422(`detail`에 한도). 접수 기록(`intake_records`)이 같은 ID로 원자적으로 함께 생성된다. AI는 호출하지 않는다 |
+| `GET /api/materials?limit=20&cursor=` | — | `{items, next_cursor}`, **최신 접수 순** |
+| `GET /api/materials/{id}` | — | 자료. 다른 소유자·모드 404 |
+| `PUT /api/materials/{id}` | `{expected_version, title?, description?, body?, save_reason?, memo?, primary_project_id?, related_project_ids?}` | 보낸 필드만 수정(null은 비움). `url`은 고칠 수 없다(보내면 422). 내용이 모두 비게 되면 422. 버전 불일치 409 |
+
+- 응답 자료: `{id, source_type(url|text), url, title, description, body, save_reason, memo, primary_project_id, related_project_ids, review_status, analysis_status, copy_status, lifecycle, ai_excluded, registered_at, storage_approved_at, trashed_at, version, created_at, updated_at, display_title, title_source}`.
+- `analysis_status`: URL만 있으면 `link_only`(링크만 저장됨·본문 미확인), 제목·설명·본문이 있으면 `awaiting_start`(사용자가 분석을 시작하기 전).
+- `display_title`·`title_source`: 제목이 없으면 화면용으로 도메인(`url`) 또는 설명·본문 앞부분(`text`)을 보여주며 저장하지 않는다. 실제 페이지 제목이라고 주장하지 않는다.
+- 프로젝트 참조는 같은 모드의 활성 프로젝트만 허용(422).
+- 요청 형식 오류(422)의 `detail`은 한국어 안내 문장이고, `errors`에는 위치·종류만 있으며 입력값은 되돌려 보내지 않는다.
