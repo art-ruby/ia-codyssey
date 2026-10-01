@@ -1,6 +1,6 @@
 """Firebase ID 토큰 검증과 단일 소유자 확인.
 
-판정 순서: 토큰 없음·무효 401 → 인증 설정 누락 503 → 소유자 아님 403 → 모드 없음·허용 밖 422.
+판정 순서: 토큰 없음·무효 401 → 인증 설정 누락·검증 인증서 조회 실패 503 → 소유자 아님 403 → 모드 없음·허용 밖 422.
 헤더는 FastAPI 매개변수 대신 직접 읽는다. 매개변수로 선언하면 FastAPI가 인증보다
 먼저 422를 내서, 로그인하지 않은 요청이 401이 아닌 422를 받게 되기 때문이다.
 """
@@ -22,6 +22,10 @@ FIREBASE_APP_NAME = "ai-secretary"
 
 class InvalidToken(Exception):
     """토큰이 없거나, 형식이 틀리거나, 만료·위조되었다."""
+
+
+class VerifierUnavailable(Exception):
+    """검증용 공개 인증서를 가져오지 못해 토큰의 유효 여부를 판정할 수 없다."""
 
 
 def firebase_verifier(settings: Settings) -> TokenVerifier:
@@ -50,8 +54,11 @@ def firebase_verifier(settings: Settings) -> TokenVerifier:
         try:
             return auth.verify_id_token(token, app=app)
         except (ValueError, auth.InvalidIdTokenError, auth.ExpiredIdTokenError,
-                auth.RevokedIdTokenError, auth.CertificateFetchError) as exc:
+                auth.RevokedIdTokenError) as exc:
             raise InvalidToken(type(exc).__name__) from None
+        except auth.CertificateFetchError:
+            # 토큰 문제가 아니라 Google 인증서 조회 장애다. 401로 바꾸면 재로그인만 반복하게 된다.
+            raise VerifierUnavailable from None
 
     return verify
 
@@ -85,6 +92,9 @@ def get_context(request: Request) -> RequestContext:
         claims = verify(token.strip())
     except InvalidToken:
         raise _unauthorized() from None
+    except VerifierUnavailable:
+        # 내부 오류 내용은 응답에 넣지 않는다.
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "인증 확인을 일시적으로 할 수 없습니다") from None
 
     owner_uid = request.app.state.settings.get("OWNER_UID")
     if not owner_uid:

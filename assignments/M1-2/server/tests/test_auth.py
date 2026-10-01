@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.auth import InvalidToken, firebase_verifier
+from app.core.auth import InvalidToken, VerifierUnavailable, firebase_verifier
 from app.core.config import ConfigError, load_settings
 from app.main import create_app
 
@@ -74,6 +74,17 @@ def test_missing_firebase_config_is_503_not_open():
     res = get_me(c, "Bearer owner-token")
 
     assert res.status_code == 503
+
+
+def test_certificate_fetch_failure_is_503_not_401():
+    def unavailable(token):
+        raise VerifierUnavailable
+
+    c = TestClient(create_app(load_settings({"OWNER_UID": OWNER}), verify_token=unavailable))
+    res = get_me(c, "Bearer owner-token")
+
+    assert res.status_code == 503
+    assert "WWW-Authenticate" not in res.headers
 
 
 def test_service_account_errors_do_not_echo_content():
