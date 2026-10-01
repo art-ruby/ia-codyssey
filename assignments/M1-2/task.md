@@ -12,7 +12,7 @@
   - [x] **T02.04** 프로젝트·관심 분야·자료 모드 설정
 - [ ] **Phase 03. URL·텍스트 접수와 보관 승인 — MVP**
   - [x] **T03.01** URL·텍스트 입력·저장·상세 수정
-  - [ ] **T03.02** 동일 URL 확인과 세 가지 선택
+  - [x] **T03.02** 동일 URL 확인과 세 가지 선택
   - [ ] **T03.03** 받은 자료·일괄 검토·보관 승인
   - [ ] **T03.04** 나중에 보기·분석 제외·승인 상태 검증
 - [ ] **Phase 04. AI 분석과 개인 중요도 — MVP**
@@ -573,8 +573,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T03.01 — 자료 접수·목록·상세 수정 API와 받은 자료 화면(`docs/verification.md`) |
-| 다음 Task | T03.02 — 동일 URL 확인과 세 가지 선택(`url_key`는 T03.01에서 저장 중) |
+| 마지막 완료 Task | T03.02 — 같은 URL 409와 세 가지 선택, URL별 예약, T03.01 리뷰 결함 4건 수정(`docs/verification.md`) |
+| 다음 Task | T03.03 — 받은 자료·일괄 검토·보관 승인 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

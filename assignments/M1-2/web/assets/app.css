@@ -123,3 +123,11 @@ p { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* 같은 URL 선택 */
+.dup-panel { margin-top: 14px; padding: 12px 14px; border: 1px solid #ead7b8; background: #fffaf2; border-radius: 10px; }
+.dup-list { list-style: none; padding: 0; margin: 8px 0 10px; }
+.dup-list li { padding: 8px 0; border-top: 1px solid #f0e4cf; }
+.dup-list li:first-child { border-top: 0; }
+.dup-meta { font-size: 12px; color: var(--muted); }
+.dup-list .row-actions { margin-top: 6px; flex-wrap: wrap; }

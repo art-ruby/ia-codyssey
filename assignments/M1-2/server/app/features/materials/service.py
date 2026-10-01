@@ -1,26 +1,39 @@
-"""자료(URL·텍스트) 접수·조회·수정 — T03.01, PRD §6.1·§9.
+"""자료(URL·텍스트) 접수·조회·수정 — T03.01·T03.02, PRD §6.1·§9.
 
 - 자료와 접수 기록(`intake_records`, 접수 건수 집계용)을 한 번의 원자적 쓰기로 함께 만든다.
 - 입력만으로 AI를 호출하지 않는다. 첫 분석 상태는 URL만 있으면 `link_only`(본문 미확인),
   제목·설명·본문 중 하나라도 있으면 `awaiting_start`(사용자가 분석을 시작하기 전)다.
-- 원래 URL은 출처로 보존하며 고칠 수 없다. 비교용 키(`url_key`)는 호스트 대소문자·기본 포트만
-  정규화한다(T03.02의 같은 URL 확인에 쓴다).
+- 원래 URL은 출처로 보존하며 고칠 수 없다. 같은 URL 판정은 비교 키(`url_key`)로 한다(url_keys.py).
 - 제목이 없으면 화면용 임시 제목을 만들지만 저장하지 않고, `title_source`로 출처를 밝힌다.
+
+같은 URL(T03.02, docs/decisions.md):
+- 같은 소유자·모드에 같은 비교 키의 자료가 있으면 만들지 않고 DuplicateUrl(409)로 기존 자료를 알린다.
+- 사용자가 고른 뒤 다시 보낸다: `save_separately`는 새 자료(접수 기록 +1), `add_memo`는 기존 자료의
+  메모 끝에 날짜와 함께 덧붙인다(본문은 그대로, 접수 기록 없음). `기존 자료 열기`는 서버 요청이 없다.
+- 동시에 같은 URL을 처음 등록하면 URL별 예약 문서(`url_index`)를 자료와 같은 일괄 쓰기로 만들어 하나만
+  성공시킨다. 예약은 동시 등록 방지용일 뿐이며 판정은 자료 검색으로 한다. 예약이 가리키는 자료가 없으면
+  (영구 삭제 뒤 정리되지 않은 경우) 예약을 지우고 한 번 다시 시도한다. 영구 삭제(T05.03)는 그 자료를
+  가리키는 예약도 함께 지운다. 예약이 없는 기존 자료(T03.01에 만든 것)는 자료 검색으로 판정되므로
+  따로 채울 필요가 없다.
 """
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from app.core.context import RequestContext
-from app.core.firestore import Page, Store, now_utc
-from app.features.materials.schemas import CONTENT_FIELDS
+from app.core.errors import NoChange
+from app.core.firestore import NotFound, Page, Store, VersionConflict, now_utc
+from app.features.materials.schemas import CONTENT_FIELDS, LIMITS
+from app.features.materials.url_keys import url_index_id, url_key  # noqa: F401  (url_key: 기존 import 호환)
 from app.features.projects import service as projects
 
 COLLECTION = "materials"
 INTAKE = "intake_records"
-DEFAULT_PORTS = {"http": 80, "https": 443}
+URL_INDEX = "url_index"
+SEOUL = timezone(timedelta(hours=9))
 TEXT_FIELDS = ("title", "description", "body", "save_reason", "memo")
 EDITABLE = TEXT_FIELDS + ("primary_project_id", "related_project_ids")
 PUBLIC_FIELDS = (
@@ -29,26 +42,36 @@ PUBLIC_FIELDS = (
     "lifecycle", "ai_excluded", "registered_at", "storage_approved_at", "trashed_at",
     "version", "created_at", "updated_at",
 )
+DUPLICATE_FIELDS = ("id", "display_title", "title_source", "registered_at", "review_status",
+                    "analysis_status", "lifecycle", "version")
 
 
-class InvalidProjectReference(Exception):
+class InvalidProjectReference(NoChange):
     """연결하려는 프로젝트가 없거나 비활성이다(422)."""
 
 
-class NoContent(Exception):
+class NoContent(NoChange):
     """수정 결과 URL과 제목·설명·본문이 모두 비게 된다(422)."""
 
 
-def url_key(url: str) -> str:
-    """안전한 정규화만 한다: 스킴·호스트 소문자, 기본 포트 제거. 경로·쿼리·조각은 그대로 둔다."""
-    parts = urlsplit(url)
-    scheme = parts.scheme.lower()
-    host = (parts.hostname or "").lower()
-    if parts.port and parts.port != DEFAULT_PORTS.get(scheme):
-        host = f"{host}:{parts.port}"
-    userinfo = parts.netloc.rpartition("@")[0]
-    netloc = f"{userinfo}@{host}" if userinfo else host
-    return urlunsplit((scheme, netloc, parts.path, parts.query, parts.fragment))
+class DuplicateUrl(NoChange):
+    """같은 URL의 자료가 이미 있다(409). existing: 화면에 보여줄 기존 자료 요약."""
+
+    def __init__(self, existing: list[dict]):
+        super().__init__("duplicate_url")
+        self.existing = existing
+
+
+class InvalidDuplicateTarget(NoChange):
+    """메모를 더할 대상이 없거나 같은 URL의 자료가 아니다(422)."""
+
+
+class TrashedTarget(NoChange):
+    """휴지통에 있는 자료에는 메모를 더할 수 없다(409, 복원 후 가능)."""
+
+
+class MemoTooLong(NoChange):
+    """덧붙인 뒤 메모가 한도를 넘는다(422)."""
 
 
 def _has_content(doc: dict) -> bool:
@@ -78,12 +101,18 @@ def _check_projects(store: Store, ctx: RequestContext, primary: str | None, rela
             raise InvalidProjectReference()
 
 
-def create_material(store: Store, ctx: RequestContext, data: dict[str, Any]) -> dict:
-    _check_projects(store, ctx, data.get("primary_project_id"), data.get("related_project_ids"))
+def _same_url(store: Store, ctx: RequestContext, key: str) -> list[dict]:
+    return store.find(ctx, COLLECTION, "url_key", key, limit=10)
+
+
+def _summaries(docs: list[dict]) -> list[dict]:
+    return [{k: v for k, v in public(d).items() if k in DUPLICATE_FIELDS} for d in docs]
+
+
+def _new_material_doc(data: dict[str, Any], now: str) -> dict:
     url = data.get("url")
-    now = now_utc()
     fields = {name: data.get(name) or "" for name in TEXT_FIELDS}
-    doc = {
+    return {
         "source_type": "url" if url else "text",
         "url": url,
         "url_key": url_key(url) if url else None,
@@ -99,12 +128,76 @@ def create_material(store: Store, ctx: RequestContext, data: dict[str, Any]) -> 
         "storage_approved_at": None,
         "trashed_at": None,
     }
+
+
+def _insert(store: Store, ctx: RequestContext, doc: dict, reserve_key: str | None) -> dict:
+    """자료 + 접수 기록(+ 처음 등록이면 URL 예약)을 한 번에 만든다. 예약 충돌이면 VersionConflict."""
     material_id = uuid.uuid4().hex
-    material, _ = store.create_many(ctx, [
+    items = [
         (COLLECTION, doc, material_id),
-        (INTAKE, {"material_id": material_id, "received_at": now}, material_id),
-    ])
-    return public(material)
+        (INTAKE, {"material_id": material_id, "received_at": doc["registered_at"]}, material_id),
+    ]
+    if reserve_key:
+        items.append((URL_INDEX, {"url_key": reserve_key, "material_id": material_id},
+                      url_index_id(ctx.owner_id, ctx.mode, reserve_key)))
+    return store.create_many(ctx, items)[0]
+
+
+def _create_first(store: Store, ctx: RequestContext, doc: dict, key: str) -> dict:
+    for _ in range(2):
+        existing = _same_url(store, ctx, key)
+        if existing:
+            raise DuplicateUrl(_summaries(existing))
+        try:
+            return _insert(store, ctx, doc, key)
+        except VersionConflict:
+            # 동시에 같은 URL이 먼저 예약됐다. 자료가 보이면 중복으로 알리고,
+            # 예약만 남아 있으면(가리키는 자료가 영구 삭제됨) 예약을 지우고 한 번 다시 시도한다.
+            existing = _same_url(store, ctx, key)
+            if existing:
+                raise DuplicateUrl(_summaries(existing)) from None
+            try:
+                store.delete(ctx, URL_INDEX, url_index_id(ctx.owner_id, ctx.mode, key))
+            except NotFound:
+                pass
+    raise DuplicateUrl(_summaries(_same_url(store, ctx, key)))
+
+
+def _add_memo(store: Store, ctx: RequestContext, key: str, data: dict[str, Any]) -> dict:
+    try:
+        target = store.get(ctx, COLLECTION, data["target_id"])
+    except NotFound:
+        raise InvalidDuplicateTarget() from None
+    if target.get("url_key") != key:
+        raise InvalidDuplicateTarget()
+    if target.get("lifecycle") != "active":
+        raise TrashedTarget()
+    stamp = datetime.now(SEOUL).date().isoformat()
+    line = f"[{stamp} 추가] {data['memo']}"
+    memo = f"{target['memo']}\n\n{line}" if target.get("memo") else line
+    if len(memo) > LIMITS["memo"]:
+        raise MemoTooLong()
+    # 기존 본문·설명은 그대로 둔다. 메모만 덧붙이며 새 접수 기록은 만들지 않는다.
+    return store.update(ctx, COLLECTION, target["id"], data["target_version"], {"memo": memo})
+
+
+def create_material(store: Store, ctx: RequestContext, data: dict[str, Any]) -> tuple[int, dict]:
+    """(HTTP 상태, 응답 본문). 새 자료는 201, 기존 자료에 메모를 더하면 200."""
+    action = data.get("duplicate_action")
+    url = data.get("url")
+    key = url_key(url) if url else None
+    if action == "add_memo":
+        updated = _add_memo(store, ctx, key, data)
+        return 200, {**public(updated), "duplicate_action": "add_memo"}
+
+    _check_projects(store, ctx, data.get("primary_project_id"), data.get("related_project_ids"))
+    doc = _new_material_doc(data, now_utc())
+    if not key:
+        return 201, public(_insert(store, ctx, doc, None))
+    if action == "save_separately":
+        # 사용자가 같은 URL을 따로 저장하겠다고 고른 경우만 새 자료·접수 기록을 만든다.
+        return 201, {**public(_insert(store, ctx, doc, None)), "duplicate_action": "save_separately"}
+    return 201, public(_create_first(store, ctx, doc, key))
 
 
 def list_materials(store: Store, ctx: RequestContext, limit: int = 20, cursor: str | None = None) -> dict:

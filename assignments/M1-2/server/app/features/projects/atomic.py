@@ -5,21 +5,22 @@ import copy
 import hashlib
 import uuid
 
+from app.core.errors import NoChange
 from app.core.context import RequestContext
 from app.core.firestore import (FirestoreStore, MemoryStore, NotFound, VersionConflict,
                                 _check_doc_id, _new_doc, _owned, _user_fields,
                                 _valid_doc_id, now_utc)
 
 
-class DuplicateProjectName(Exception):
+class DuplicateProjectName(NoChange):
     pass
 
 
-class TooManyProjects(Exception):
+class TooManyProjects(NoChange):
     pass
 
 
-class InvalidDefaultProject(Exception):
+class InvalidDefaultProject(NoChange):
     pass
 
 

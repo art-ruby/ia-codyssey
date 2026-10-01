@@ -106,3 +106,21 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 - `display_title`·`title_source`: 제목이 없으면 화면용으로 도메인(`url`) 또는 설명·본문 앞부분(`text`)을 보여주며 저장하지 않는다. 실제 페이지 제목이라고 주장하지 않는다.
 - 프로젝트 참조는 같은 모드의 활성 프로젝트만 허용(422).
 - 요청 형식 오류(422)의 `detail`은 한국어 안내 문장이고, `errors`에는 위치·종류만 있으며 입력값은 되돌려 보내지 않는다.
+
+## 같은 URL 처리 (T03.02)
+
+`POST /api/materials`에 같은 URL(비교 키: 스킴·호스트 소문자, 기본 포트 제거, IPv6 대괄호 유지, 경로·쿼리 보존)의 자료가 같은 소유자·모드에 있으면:
+
+```json
+409 {"detail": "같은 URL의 자료가 이미 있습니다…", "reason": "duplicate_url",
+     "existing": [{"id", "display_title", "title_source", "registered_at", "review_status", "analysis_status", "lifecycle", "version"}]}
+```
+
+사용자 선택 후 다시 보내는 요청(새 `Idempotency-Key`):
+
+| 선택 | 요청에 더할 값 | 결과 |
+|---|---|---|
+| 별도 저장 | `"duplicate_action": "save_separately"` | 201 새 자료(+접수 기록) |
+| 메모 추가 | `"duplicate_action": "add_memo", "target_id", "target_version", "memo"` | 200 기존 자료(메모만 덧붙음). 대상 없음·다른 URL 422, 휴지통 409 `trashed`, 버전 불일치 409, 2,000자 초과 422 |
+
+`POST /api/materials`의 응답 상태는 결과에 따라 201(새 자료) 또는 200(메모 추가)이며, 같은 키로 다시 보내면 처음 상태와 본문을 그대로 돌려준다. URL 포트가 숫자가 아니거나 0~65535 밖이면 422다. 쓰기 전에 거부된 요청(404·409·422)은 같은 키로 다시 보낼 수 있다.

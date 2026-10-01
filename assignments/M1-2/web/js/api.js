@@ -7,12 +7,13 @@ const GIVE_UP_AFTER_MS = 90000; // 무료 서버의 첫 연결은 오래 걸릴 
 
 // kind: auth(401) | forbidden(403) | unavailable(503) | network(연결 실패·시간 초과) | http(그 외)
 export class ApiError extends Error {
-  constructor(kind, status, detail, retry) {
+  constructor(kind, status, detail, retry, data = null) {
     super(detail || kind);
     this.kind = kind;
     this.status = status;
     this.detail = detail;
     this.retry = retry; // 같은 요청을 같은 Idempotency-Key로 다시 보내는 함수
+    this.data = data; // 오류 응답 본문(예: 같은 URL 409의 기존 자료 목록)
   }
 }
 
@@ -83,7 +84,7 @@ export function request(path, { mode, method = "GET", body } = {}) {
     }
     if (!response.ok) {
       const detail = data && typeof data.detail === "string" ? data.detail : `HTTP ${response.status}`;
-      throw new ApiError(classify(response.status), response.status, detail, send);
+      throw new ApiError(classify(response.status), response.status, detail, send, data);
     }
     return data;
   }

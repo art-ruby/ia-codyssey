@@ -30,10 +30,23 @@ function el(tag, attrs = {}, ...children) {
 
 function field(name, label, kind, rows) {
   const input = kind === "textarea"
-    ? el("textarea", { rows: String(rows || 3), maxlength: String(LIMITS[name]), "data-field": name })
-    : el("input", { type: name === "url" ? "url" : "text", maxlength: String(LIMITS[name]), "data-field": name });
+    ? el("textarea", { rows: String(rows || 3), "data-field": name })
+    : el("input", { type: name === "url" ? "url" : "text", "data-field": name });
   return el("label", {}, el("span", { text: label }), input);
 }
+
+// 입력창에 maxlength를 두지 않는다(붙여 넣은 내용이 조용히 잘리지 않게). 보내기 전에 서버와 같은 문구로 알린다.
+const LABELS = { url: "URL", title: "제목", description: "설명", body: "본문", save_reason: "저장 이유", memo: "메모" };
+function overLimit(data) {
+  for (const [name, value] of Object.entries(data)) {
+    if (LIMITS[name] && value.length > LIMITS[name]) {
+      return `${LABELS[name]}은(는) ${LIMITS[name]}자까지 입력할 수 있습니다 (지금 ${value.length}자)`;
+    }
+  }
+  return null;
+}
+
+const LIFECYCLE = { active: "", trash: "휴지통" };
 
 function readFields(root) {
   const data = {};
@@ -101,7 +114,7 @@ export function renderInbox(root, ctx) {
       statusTag(material),
       el("span", { text: SEOUL.format(new Date(material.registered_at)) }),
       material.url ? el("span", { class: "url", text: material.url }) : null);
-    const li = el("li", {}, head, meta);
+    const li = el("li", { "data-id": material.id }, head, meta);
     head.addEventListener("click", () => toggleDetail(li, head, material));
     return li;
   }
@@ -124,6 +137,11 @@ export function renderInbox(root, ctx) {
     li.append(detail);
 
     save.addEventListener("click", async () => {
+      const tooLong = overLimit(readFields(detail));
+      if (tooLong) {
+        status.textContent = tooLong;
+        return;
+      }
       save.disabled = true;
       status.textContent = "저장하는 중…";
       try {
@@ -163,14 +181,92 @@ export function renderInbox(root, ctx) {
       : "접수했습니다. 분석은 자료를 검토할 때 직접 시작합니다.";
   }
 
+  // ── 같은 URL(T03.02): 기존 자료 열기 / 메모 추가 / 별도 저장 ──
+  const dupPanel = el("div", { class: "dup-panel", hidden: "" });
+  form.insertBefore(dupPanel, form.querySelector(".form-actions"));
+
+  async function openExisting(id) {
+    if (!items.some((m) => m.id === id)) {
+      try {
+        items = [await guarded(api(`/api/materials/${encodeURIComponent(id)}`)), ...items];
+        renderList();
+      } catch (error) {
+        fail(error, formStatus, () => openExisting(id));
+        return;
+      }
+    }
+    const li = list.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+    if (li && !li.querySelector(".material-detail")) li.querySelector(".material-head").click();
+    li?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  async function chooseDuplicate(body, extra, onDone) {
+    formStatus.textContent = "처리하는 중…";
+    try {
+      onDone(await guarded(api("/api/materials", { method: "POST", body: { ...body, ...extra } })));
+    } catch (error) {
+      fail(error, formStatus, () => error.retry().then(onDone).catch((e) => fail(e, formStatus)));
+    }
+  }
+
+  function showDuplicate(body, existing) {
+    dupPanel.hidden = false;
+    const rows = existing.map((m) => {
+      const label = LIFECYCLE[m.lifecycle] ?? m.lifecycle;
+      const open = el("button", { class: "button secondary small", type: "button", text: "기존 자료 열기" });
+      const memo = el("button", { class: "button secondary small", type: "button", text: "이 자료에 메모 추가" });
+      if (m.lifecycle !== "active") memo.disabled = true;
+      open.addEventListener("click", () => openExisting(m.id));
+      memo.addEventListener("click", () => {
+        // 409 안내 뒤에 메모를 적을 수 있으므로 누르는 순간의 입력값을 읽는다.
+        const memoText = form.querySelector('[data-field="memo"]').value.trim();
+        if (!memoText) {
+          formStatus.textContent = "메모 칸에 덧붙일 내용을 적은 뒤 다시 누르세요. 기존 본문은 바뀌지 않습니다.";
+          return;
+        }
+        chooseDuplicate({ url: body.url, memo: memoText },
+          { duplicate_action: "add_memo", target_id: m.id, target_version: m.version }, (updated) => {
+            items = items.map((x) => (x.id === updated.id ? updated : x));
+            renderList();
+            for (const input of form.querySelectorAll("[data-field]")) input.value = "";
+            dupPanel.hidden = true;
+            formStatus.textContent = "기존 자료에 메모를 더했습니다. 새 자료는 만들지 않았습니다.";
+          });
+      });
+      return el("li", {},
+        el("strong", { text: m.display_title || "(제목 없음)" }),
+        el("span", { class: "dup-meta", text: ` · ${SEOUL.format(new Date(m.registered_at))} 접수${label ? ` · ${label}` : ""}` }),
+        el("div", { class: "row-actions" }, open, memo));
+    });
+    const separate = el("button", { class: "button secondary small", type: "button", text: "새 자료로 따로 저장" });
+    separate.addEventListener("click", () => chooseDuplicate(body, { duplicate_action: "save_separately" }, (created) => {
+      dupPanel.hidden = true;
+      afterCreate(created);
+    }));
+    dupPanel.replaceChildren(
+      el("p", { class: "field-note", text: "같은 URL의 자료가 이미 있습니다. 어떻게 할지 고르세요." }),
+      el("ul", { class: "dup-list" }, ...rows), separate);
+    formStatus.textContent = "";
+  }
+
   async function send() {
     const data = readFields(form);
     const body = Object.fromEntries(Object.entries(data).filter(([, v]) => v.trim()));
+    const tooLong = overLimit(data);
+    if (tooLong) {
+      formStatus.textContent = tooLong;
+      return;
+    }
+    dupPanel.hidden = true;
     submit.disabled = true;
     formStatus.textContent = "접수하는 중…";
     try {
       afterCreate(await guarded(api("/api/materials", { method: "POST", body })));
     } catch (error) {
+      if (error.kind === "http" && error.status === 409 && error.data?.reason === "duplicate_url") {
+        showDuplicate(body, error.data.existing);
+        return;
+      }
       // 연결이 끊겨 결과를 모를 때는 같은 Idempotency-Key로 다시 보내 중복 접수를 막는다.
       fail(error, formStatus, () => error.retry().then(afterCreate).catch((e) => fail(e, formStatus)));
     } finally {

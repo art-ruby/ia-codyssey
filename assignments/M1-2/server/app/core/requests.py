@@ -8,6 +8,7 @@
 - 기록은 Firestore `idempotency`에 남아 서버를 다시 시작해도 유지된다. 완료 기록만 `expire_at`이 지나면 새 요청으로 본다.
 
 처리 중에 서버가 죽거나 handler가 예외를 내면 기록이 `processing`으로 남아 같은 키는 계속 409다.
+단, 쓰기 전 거부(`NoChange`: 404·409·422)는 기록을 지워 같은 키로 다시 시도할 수 있다.
 실제로 작업이 끝났는지 모르므로 자동으로 다시 실행하지 않는다.
 """
 from __future__ import annotations
@@ -19,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from app.core.context import RequestContext
+from app.core.errors import NoChange
 from app.core.firestore import Store
 
 IDEMPOTENCY_TTL = timedelta(days=1)
@@ -88,7 +90,12 @@ def run_idempotent(store: Store, ctx: RequestContext, method: str, path: str, bo
             return Result(existing["status_code"], existing["body"], replayed=True)
         raise IdempotencyConflict("in_progress")
 
-    result = handler()
+    try:
+        result = handler()
+    except NoChange:
+        # 쓰기 전에 거부된 요청(404·409·422)은 바뀐 것이 없으므로 기록을 지워 같은 키로 다시 판단하게 한다.
+        store.release_key(rid)
+        raise
     finished_at = clock()
     store.finish_key(rid, {
         "state": "done",

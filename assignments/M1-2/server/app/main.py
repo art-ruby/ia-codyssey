@@ -21,7 +21,8 @@ from app.core.firestore import InvalidCursor, NotFound, Store, VersionConflict
 from app.core.requests import IdempotencyConflict, IdempotencyKeyRequired
 from app.features.materials.routes import router as materials_router
 from app.features.materials.schemas import LIMITS
-from app.features.materials.service import InvalidProjectReference, NoContent
+from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
+                                            MemoTooLong, NoContent, TrashedTarget)
 from app.features.projects.routes import router as projects_router
 from app.features.projects.service import DuplicateProjectName, TooManyProjects
 from app.features.settings.routes import router as settings_router
@@ -136,6 +137,24 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     @app.exception_handler(NoContent)
     async def no_content(_, __):
         return _error(422, "URL 또는 제목·설명·본문 중 하나 이상이 남아 있어야 합니다")
+
+    @app.exception_handler(DuplicateUrl)
+    async def duplicate_url(_, exc: DuplicateUrl):
+        return _error(409, "같은 URL의 자료가 이미 있습니다. 기존 자료 열기·메모 추가·별도 저장 중에서 고르세요",
+                      reason="duplicate_url", existing=exc.existing)
+
+    @app.exception_handler(TrashedTarget)
+    async def trashed_target(_, __):
+        return _error(409, "휴지통에 있는 자료에는 메모를 더할 수 없습니다. 복원한 뒤 다시 시도하세요",
+                      reason="trashed")
+
+    @app.exception_handler(InvalidDuplicateTarget)
+    async def invalid_duplicate_target(_, __):
+        return _error(422, "메모를 더할 자료가 없거나 같은 URL의 자료가 아닙니다")
+
+    @app.exception_handler(MemoTooLong)
+    async def memo_too_long(_, __):
+        return _error(422, "메모를 더하면 2000자를 넘습니다. 기존 메모를 줄이거나 별도로 저장하세요")
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_, exc: RequestValidationError):

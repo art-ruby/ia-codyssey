@@ -23,12 +23,14 @@ from typing import Any, Mapping, Protocol
 
 from app.core.config import ConfigError, Settings
 from app.core.context import RequestContext
+from app.core.errors import NoChange
 
 FIREBASE_APP_NAME = "ai-secretary"
 
 # MVP에서 쓰는 컬렉션. PC 관련 컬렉션은 확장 단계에서 추가한다.
 COLLECTIONS = frozenset(
-    {"materials", "intake_records", "settings", "projects", "data", "conversations", "idempotency"}
+    {"materials", "intake_records", "settings", "projects", "data", "conversations", "idempotency",
+     "url_index"}
 )
 # 저장소가 관리하는 필드. 호출자가 넘긴 값은 무시하고 저장소가 정한다.
 SYSTEM_FIELDS = frozenset({"id", "owner_id", "mode", "version", "created_at", "updated_at"})
@@ -37,11 +39,11 @@ MAX_PAGE_SIZE = 100
 MAX_DOC_ID_BYTES = 1500  # Firestore 문서 ID 한도
 
 
-class NotFound(Exception):
+class NotFound(NoChange):
     """없거나, 다른 소유자·모드의 문서다. 존재 여부를 드러내지 않는다(404)."""
 
 
-class VersionConflict(Exception):
+class VersionConflict(NoChange):
     """기대한 버전과 현재 버전이 다르다(409)."""
 
     def __init__(self, current_version: int):
@@ -161,6 +163,9 @@ class Store(Protocol):
 
     def delete(self, ctx: RequestContext, collection: str, doc_id: str) -> None: ...
 
+    # 같은 소유자·모드에서 field == value인 문서(최대 limit개). 같음 조건만 쓰므로 단일 필드 색인으로 충분하다.
+    def find(self, ctx: RequestContext, collection: str, field: str, value: Any, limit: int = 10) -> list[dict]: ...
+
     # 여러 문서를 한 번에 만든다. 하나라도 이미 있으면 아무것도 만들지 않는다(원자적).
     # items: [(collection, data, doc_id 또는 None)]
     def create_many(self, ctx: RequestContext,
@@ -256,6 +261,12 @@ class MemoryStore:
         has_more = len(page) > size
         page = page[:size]
         return Page(page, encode_cursor(page[-1]) if has_more and page else None)
+
+    def find(self, ctx, collection, field, value, limit=10):
+        _check_collection(collection)
+        docs = [d for d in self._docs[collection].values() if _owned(d, ctx) and d.get(field) == value]
+        docs.sort(key=lambda d: (d["created_at"], d["id"]))
+        return [copy.deepcopy(d) for d in docs[: _page_size(limit)]]
 
     def delete(self, ctx, collection, doc_id):
         _check_collection(collection)
@@ -399,6 +410,21 @@ class FirestoreStore:
         has_more = len(docs) > size
         docs = docs[:size]
         return Page(docs, encode_cursor(docs[-1]) if has_more and docs else None)
+
+    def find(self, ctx, collection, field, value, limit=10):
+        from google.cloud.firestore_v1 import FieldFilter
+
+        _check_collection(collection)
+        query = (
+            self._db.collection(collection)
+            .where(filter=FieldFilter("owner_id", "==", ctx.owner_id))
+            .where(filter=FieldFilter("mode", "==", ctx.mode))
+            .where(filter=FieldFilter(field, "==", value))
+            .limit(_page_size(limit))
+        )
+        docs = [s.to_dict() for s in query.stream()]
+        docs.sort(key=lambda d: (d["created_at"], d["id"]))
+        return docs
 
     def delete(self, ctx, collection, doc_id):
         self.get(ctx, collection, doc_id)  # 소유권 확인. 남의 문서면 NotFound.

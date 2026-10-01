@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 
 from app.core.auth import get_context
 from app.core.context import RequestContext
@@ -14,14 +15,14 @@ from app.features.materials.schemas import MaterialCreate, MaterialUpdate
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, responses={200: {"description": "같은 URL 자료에 메모를 더함"}, 409: {"description": "같은 URL 자료가 있음"}})
 def create_material(body: MaterialCreate, ctx: RequestContext = Depends(get_context),
-                    store: Store = Depends(get_store)) -> dict:
+                    store: Store = Depends(get_store)):
     payload = body.model_dump()
-    return run_idempotent(
-        store, ctx, "POST", "/api/materials", payload,
-        lambda: Result(201, service.create_material(store, ctx, payload)),
-    ).body
+    # 새 자료는 201, 같은 URL 자료에 메모를 더하면 200이다. 다시 보낸 요청도 처음 상태 코드를 그대로 쓴다.
+    result = run_idempotent(store, ctx, "POST", "/api/materials", payload,
+                            lambda: Result(*service.create_material(store, ctx, payload)))
+    return JSONResponse(result.body, status_code=result.status_code)
 
 
 @router.get("")

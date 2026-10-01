@@ -66,8 +66,8 @@ export function renderSettings(root, ctx) {
 
   // ── 프로젝트 ──
   const projectList = el("ul", { class: "project-list" });
-  const newName = el("input", { type: "text", maxlength: "50", placeholder: "프로젝트 이름", "aria-label": "새 프로젝트 이름" });
-  const newDesc = el("input", { type: "text", maxlength: "500", placeholder: "설명(선택)", "aria-label": "새 프로젝트 설명" });
+  const newName = el("input", { type: "text", placeholder: "프로젝트 이름", "aria-label": "새 프로젝트 이름" });
+  const newDesc = el("input", { type: "text", placeholder: "설명(선택)", "aria-label": "새 프로젝트 설명" });
   const addBtn = el("button", { class: "button primary small", type: "button", text: "추가" });
   const projectStatus = el("p", { class: "form-status", role: "status" });
   let projects = [];
@@ -110,8 +110,8 @@ export function renderSettings(root, ctx) {
 
     toggle.addEventListener("click", () => saveProject(project, { active: !project.active }));
     edit.addEventListener("click", () => {
-      const name = el("input", { type: "text", maxlength: "50", value: project.name, "aria-label": "프로젝트 이름" });
-      const desc = el("input", { type: "text", maxlength: "500", value: project.description || "", "aria-label": "프로젝트 설명" });
+      const name = el("input", { type: "text", value: project.name, "aria-label": "프로젝트 이름" });
+      const desc = el("input", { type: "text", value: project.description || "", "aria-label": "프로젝트 설명" });
       const save = el("button", { class: "button primary small", type: "button", text: "저장" });
       const cancel = el("button", { class: "button secondary small", type: "button", text: "취소" });
       row.replaceChildren(el("div", { class: "inline-form" }, name, desc, save, cancel));

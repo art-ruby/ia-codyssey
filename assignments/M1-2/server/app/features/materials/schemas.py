@@ -5,9 +5,11 @@
 """
 from __future__ import annotations
 
-from urllib.parse import urlsplit
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.features.materials.url_keys import check_url
 
 # PRD §6.1 권장 길이. 저장 이유는 설명·메모와 같은 2,000자(Open Decision 2).
 LIMITS = {
@@ -20,16 +22,6 @@ LIMITS = {
 }
 MAX_RELATED_PROJECTS = 20
 CONTENT_FIELDS = ("title", "description", "body")
-
-
-def check_url(value: str) -> str:
-    """HTTP(S)이고 호스트가 있는 주소만 받는다. 원래 문자열은 그대로 보존한다."""
-    if any(ch.isspace() for ch in value):
-        raise ValueError("URL에 공백을 넣을 수 없습니다")
-    parts = urlsplit(value)
-    if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
-        raise ValueError("URL은 http:// 또는 https://로 시작하는 주소여야 합니다")
-    return value
 
 
 class _Fields(BaseModel):
@@ -54,6 +46,10 @@ class _Fields(BaseModel):
 
 class MaterialCreate(_Fields):
     url: str | None = Field(None, max_length=LIMITS["url"])
+    # 같은 URL 안내(409) 뒤 사용자의 선택(T03.02). 처음 접수할 때는 보내지 않는다.
+    duplicate_action: Literal["save_separately", "add_memo"] | None = None
+    target_id: str | None = None
+    target_version: int | None = Field(None, ge=1)
 
     @field_validator("url")
     @classmethod
@@ -62,6 +58,12 @@ class MaterialCreate(_Fields):
 
     @model_validator(mode="after")
     def has_content(self):
+        if self.duplicate_action is not None and not self.url:
+            raise ValueError("같은 URL 선택은 URL이 있는 접수에서만 쓸 수 있습니다")
+        if self.duplicate_action == "add_memo":
+            if not (self.target_id and self.target_version and self.memo):
+                raise ValueError("메모 추가에는 대상 자료·버전과 메모가 필요합니다")
+            return self
         # URL 또는 제목·설명·본문 중 하나 이상(PRD §6.1). 저장 이유·메모만으로는 자료가 아니다.
         if not self.url and not any(getattr(self, f) for f in CONTENT_FIELDS):
             raise ValueError("URL 또는 제목·설명·본문 중 하나 이상을 입력하세요")
