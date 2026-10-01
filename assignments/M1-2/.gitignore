@@ -11,3 +11,4 @@ __pycache__/
 node_modules/
 dist/
 .pytest_cache/
+web/js/config.js

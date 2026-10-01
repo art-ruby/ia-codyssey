@@ -169,9 +169,9 @@ class RequestContext:
 ```
 
 - 소유자 ID는 인증 토큰에서 얻는다. 브라우저가 보낸 `owner_id`를 신뢰하지 않는다.
-- 프론트는 요청마다 현재 모드와 `request_id`를 보낸다. **요청에 담긴 모드를 그 요청의 기준으로 삼는다.** T02.04의 서버 설정 모드는 다음 접속 시 복원할 마지막 사용 모드일 뿐이며, 창이 여러 개여도 각 요청은 자기 모드의 자료만 다룬다. 수정·승인에는 `expected_version`을 포함한다. 묶음 승인은 각 자료의 ID·버전·선택 작업을 유지한다.
+- 프론트는 요청마다 `X-Data-Mode: personal|sample` 헤더로 현재 모드를, 변경 요청에는 `Idempotency-Key` 헤더로 중복 요청 식별자(`RequestContext.request_id`)를 보낸다. 모드가 없거나 허용 밖이면 422다. **요청에 담긴 모드를 그 요청의 기준으로 삼는다.** T02.04의 서버 설정 모드는 다음 접속 시 복원할 마지막 사용 모드일 뿐이며, 창이 여러 개여도 각 요청은 자기 모드의 자료만 다룬다. 수정·승인에는 `expected_version`을 포함한다. 묶음 승인은 각 자료의 ID·버전·선택 작업을 유지한다.
 - 상태 변경과 승인 기록을 일관되게 저장한다. 같은 요청을 다시 보내면 처음 결과를 돌려주고, 같은 ID로 다른 내용을 보내면 409로 거부한다.
-- HTTP 401: 인증 없음/무효, 404: 없거나 다른 소유자의 자료, 422: 잘못된 입력/허용 밖 경로, 409: 버전·상태·이름 충돌. PC 작업의 202는 접수만 의미한다.
+- HTTP 401: 인증 없음/무효, 403: 인증됐지만 허용 소유자가 아닌 계정, 404: 없거나 다른 소유자의 자료, 422: 잘못된 입력/허용 밖 경로, 409: 버전·상태·이름 충돌. PC 작업의 202는 접수만 의미한다.
 - `SearchPage`는 자료와 다음 커서, 검색한 범위를 포함한다. `Summary`는 PRD §11.2의 출처·모드·기간·일별 값·합계·평균·최소·최대·추세를 포함한다.
 - `AnalysisState`는 상태·자료 버전·실제 분석 범위·구조화 결과·오류 분류를 포함한다. `ChatResult`는 답변·검증된 출처·숫자 출처·저장된 대화/메시지 ID를 포함한다.
 - 상세 API 요청/응답 예시는 구현 때 `docs/api-contract.md`와 FastAPI Swagger에 맞춰 기록한다. 이 문서의 권장 계약만으로 미구현 API를 사용 가능하다고 표시하지 않는다.
@@ -222,17 +222,17 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ### T02.01 단일 소유자 로그인과 서버 인증
 
-- **파일:** 생성 `server/app/core/auth.py`, `web/js/auth.js`, `server/tests/test_auth.py`; 수정 `server/app/main.py`, `.env.example`.
-- **작업:** Firebase Authentication을 권장 구현안으로 구성하고 허용 소유자를 서버에서 제한한다. 토큰 검증과 소유자 확인을 API 공통 의존성으로 둔다. 서버 Admin SDK 사용은 클라이언트 보안 규칙을 우회할 수 있으므로 서비스 계층에서도 소유권을 확인한다.
-- **산출/연결:** 인증된 `RequestContext`. 프론트 설정은 공개 인증 값만 사용한다.
-- **완료/검증:** `test_auth.py`에서 미로그인/무효 토큰 401, 다른 소유자의 조회·수정 404를 확인한다. 실제 로그인 1회와 로그아웃 후 데이터 차단을 확인한다. A16의 웹 범위에 대응한다.
+- **파일:** 생성 `server/app/core/auth.py`, `server/app/core/context.py`, `web/login.html`, `web/js/auth.js`, `server/tests/test_auth.py`, `docs/api-contract.md`; 수정 `server/app/main.py`, `server/app/core/config.py`, `.env.example`.
+- **작업:** Firebase Authentication의 **Google 로그인**으로 구성한다. 서버는 `Authorization: Bearer <ID 토큰>`을 Admin SDK로 검증하고 `uid == OWNER_UID`인 소유자만 허용한다. 토큰 검증 함수는 주입 가능하게 두어 테스트에서 실제 Firebase 없이 대체한다. 서비스 계정은 `FIREBASE_SERVICE_ACCOUNT_JSON`에 JSON 문자열로 넣고, 형식 오류 메시지에 내용을 출력하지 않는다. 요청 헤더 `X-Data-Mode: personal|sample`과 `Idempotency-Key`로 `RequestContext`를 만든다. 보호된 확인용 API `GET /api/me`(소유자 UID·현재 모드 반환)를 추가하고 `docs/api-contract.md`에 PRD 외 추가 API로 기록한다. Admin SDK는 클라이언트 보안 규칙을 우회하므로 서비스 계층에서도 소유권을 확인한다.
+- **산출/연결:** 인증 공통 의존성과 `RequestContext`. 최소 로그인 페이지(`web/login.html`)는 Google 로그인·로그아웃·`/api/me` 호출만 제공하며, 웹 화면 통합은 T02.03에서 한다. 프론트에는 공개 인증 값(`apiKey`, `authDomain`, `projectId`)만 전달한다.
+- **완료/검증:** `test_auth.py`에서 토큰 없음·무효 토큰 **401**, 인증됐지만 `OWNER_UID`가 아닌 계정 **403**, `X-Data-Mode` 없음·허용 밖 값 **422**, 소유자 정상 통과를 확인한다. 다른 소유자 자료를 숨기는 404는 자료 API가 생기는 T02.02에서 검증한다. Firebase 프로젝트 준비 후 실제 Google 로그인 1회로 `/api/me` 200을 확인하고, 로그아웃 직후 브라우저가 토큰을 보내지 않아 401이 되는지 확인한다. Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며 MVP는 토큰 폐기(`check_revoked`)를 요구하지 않는다. 실제 로그인 확인 전에는 단위 테스트 통과만으로 이 Task를 체크하지 않는다. A16의 웹 범위에 대응한다.
 
 ### T02.02 Firestore 저장 구조·버전·중복 요청 처리
 
 - **파일:** 생성 `server/app/core/firestore.py`, `server/app/core/requests.py`, `server/tests/test_request_consistency.py`, `docs/api-contract.md`.
 - **작업:** PRD §9의 자료·접수 기록·설정·프로젝트·숫자 기록·대화를 소유자와 모드로 격리한다. 자료 변경은 현재 버전 확인 후 처리한다. 요청 ID와 내용 요약값을 저장해 재전송과 ID 오용을 구분한다. PC 관련 컬렉션은 확장 단계에서 생성한다. 데이터 접근은 서버 Admin SDK로만 하므로 **Firestore 보안 규칙은 클라이언트 읽기·쓰기를 전면 거부**하고 규칙 파일(`firestore.rules`)을 배포한다. 서버 로그에는 요청·작업 ID·상태·오류 분류만 남기고 자료 원문·토큰·비밀키를 기록하지 않는다(PRD §14).
 - **산출/연결:** 데이터 접근 경계, 페이지 커서 규칙, 상태 변경의 원자성/재시도 규칙. AI 호출은 DB 트랜잭션 내부에 넣지 않는다.
-- **완료/검증:** 같은 요청 두 번에 자료가 하나만 생기고, 이전 버전의 수정과 같은 ID의 다른 요청은 409가 되는지 검증한다. 서버 재시작 후에도 중복 여부가 유지되어야 한다. 브라우저의 Firebase SDK로 Firestore를 직접 읽기·쓰기하면 거부되는지 확인한다(A16 웹 범위).
+- **완료/검증:** 같은 요청 두 번에 자료가 하나만 생기고, 이전 버전의 수정과 같은 ID의 다른 요청은 409가 되는지 검증한다. 서버 재시작 후에도 중복 여부가 유지되어야 한다. 브라우저의 Firebase SDK로 Firestore를 직접 읽기·쓰기하면 거부되는지 확인한다(A16 웹 범위). T02.01에서 옮겨온 검증: 다른 소유자·다른 모드의 자료 조회·수정은 존재를 숨기는 404다.
 
 ### T02.03 10개 메뉴와 모바일 공통 화면
 
@@ -560,10 +560,10 @@ T01.01~T01.03을 완료했다. Phase 02 이후 구현 Task와 Firestore 연결·
 | 항목 | 현재 기록 |
 |---|---|
 | 마지막 완료 Task | T01.03 — Codyssey GPT 텍스트 스모크 호출, 성공 기록 `f47126c1` |
-| 다음 Task | T02.01 — 단일 소유자 로그인과 서버 인증 |
+| 다음 Task | T02.01 진행 중 — 코드·단위 테스트 완료, 실제 Google 로그인 확인 대기(Firebase 프로젝트·서비스 계정·웹 공개 설정·`OWNER_UID` 필요, 절차는 `docs/api-contract.md`) |
 | 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
-| 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. |
+| 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01(부분): `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인은 미검증 |
 | 결정 확인이 필요한 항목 | Open Decisions 1·2는 해당 입력/저장 구조 확정 전에 확인. 3은 확장 단계, 4·5는 보수적인 기존 규칙 적용 |
 | 외부 준비 확인 | T01.02~03에서 Python 환경과 실제 AI 설정, T02.01~02에서 Firebase 프로젝트·인증 접근 가능 여부 확인 |
 
