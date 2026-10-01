@@ -5,7 +5,7 @@
   - [x] **T01.02** Python 환경·환경변수·프로젝트 기본 실행 구성
   - [x] **T01.03** Codyssey 프록시 GPT 텍스트 호출 검증
 - [ ] **Phase 02. 인증·데이터 기반·웹 공통 화면 — MVP**
-  - [ ] **T02.01** 단일 소유자 로그인과 서버 인증
+  - [x] **T02.01** 단일 소유자 로그인과 서버 인증
   - [ ] **T02.02** Firestore 저장 구조·버전·중복 요청 처리
   - [ ] **T02.03** 10개 메뉴와 모바일 공통 화면
   - [ ] **T02.04** 프로젝트·관심 분야·자료 모드 설정
@@ -559,8 +559,8 @@ T01.01~T01.03을 완료했다. Phase 02 이후 구현 Task와 Firestore 연결·
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T01.03 — Codyssey GPT 텍스트 스모크 호출, 성공 기록 `f47126c1` |
-| 다음 Task | T02.01 진행 중 — 코드·단위 테스트 완료, 실제 Google 로그인 확인 대기(Firebase 프로젝트·서비스 계정·웹 공개 설정·`OWNER_UID` 필요, 절차는 `docs/api-contract.md`) |
+| 마지막 완료 Task | T02.01 — Google 로그인·서버 인증·`/api/me`, 실제 로그인 200·로그아웃 401 확인(`docs/verification.md`) |
+| 다음 Task | T02.02 — Firestore 저장 구조·버전·중복 요청 처리. Firebase 프로젝트 `ai-secretary-b5a7c`에서 Firestore 데이터베이스 생성이 필요하다 |
 | 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01(부분): `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인은 미검증 |

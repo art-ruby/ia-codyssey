@@ -29,3 +29,17 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 코드 리뷰에서 발견한 응답 종료 판정도 보완했다. 이제 본문이 있어도 `finish_reason`이 `stop`이 아니면 실패로 처리한다. `stop`, `length`, `content_filter`를 모의 응답으로 검증했고, 수정한 스크립트의 실제 Codyssey 재호출도 `finish_reason=stop`, 종료 코드 `0`으로 끝났다.
 
 MVP 서버 실행 경로는 PRD §12에 따라 Codyssey 프록시를 사용한다. 서버용 `.env`는 Codyssey 설정이며, 별도 Hermes 설정은 `.env.hermes`로 Git에서 제외해 보관한다. 실제 Adapter 구현에서는 `Settings.ai_max_output_tokens`와 `Settings.ai_timeout_seconds`를 사용해야 한다.
+
+## T02.01 — 단일 소유자 Google 로그인과 서버 인증
+
+**상태: 통과.** 2026-10-01.
+
+- Firebase 프로젝트 `ai-secretary-b5a7c`(Spark). Google 로그인 사용 설정, 승인 도메인 `localhost` 기본 포함, 웹 앱 `ai-secretary-web` 등록. Google Analytics·Firebase의 Gemini는 끈 상태로 생성.
+- 서비스 계정 키는 `.env`의 `FIREBASE_SERVICE_ACCOUNT_JSON`(한 줄 JSON)에만 저장했다. 키 내용은 출력·기록하지 않았다. 웹 공개 설정은 Git 제외 파일 `web/js/config.js`.
+- `python -m pytest server/tests -q`: **27 passed**(401 6종, 인증 전 모드 미검사, 403, `OWNER_UID` 누락 503, 422 4종, 소유자 통과 2종, Firebase 미설정 503, 서비스 계정 내용 미노출).
+- 실제 브라우저(`http://localhost:5500/login.html` → API `:8000`, CORS `http://localhost:5500`):
+  - 로그인 전 `GET /api/me` → HTTP 401.
+  - Google 로그인 후 `GET /api/me`(`X-Data-Mode: personal`) → HTTP 200, `owner_id`가 로그인 UID와 일치.
+  - 로그아웃 후 `GET /api/me` → HTTP 401(서버 로그로 확인).
+- 확인한 제한: 정적 서버를 `127.0.0.1`에만 바인딩하면 `localhost`가 IPv6(`::1`)로 해석되는 브라우저에서 접속되지 않았다. `python -m http.server 5500 --bind ::`로 IPv4·IPv6 모두 응답한다.
+- Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는 토큰 폐기를 요구하지 않는다(미검증 범위 아님, 결정 사항).
