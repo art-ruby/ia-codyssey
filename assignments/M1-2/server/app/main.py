@@ -8,15 +8,24 @@ import logging
 import time
 import uuid
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.auth import TokenVerifier, get_context
-from app.core.config import ConfigError, Settings, load_settings
+from app.core.config import Settings, load_settings
 from app.core.context import RequestContext
-from app.core.firestore import FirestoreStore, InvalidCursor, NotFound, Store, VersionConflict
+from app.core.deps import get_store  # noqa: F401  (기존 테스트가 app.main에서 가져온다)
+from app.core.firestore import InvalidCursor, NotFound, Store, VersionConflict
 from app.core.requests import IdempotencyConflict, IdempotencyKeyRequired
+from app.features.materials.routes import router as materials_router
+from app.features.materials.schemas import LIMITS
+from app.features.materials.service import InvalidProjectReference, NoContent
+from app.features.projects.routes import router as projects_router
+from app.features.projects.service import DuplicateProjectName, TooManyProjects
+from app.features.settings.routes import router as settings_router
+from app.features.settings.service import InvalidDefaultProject
 
 # 요청 로그: 메서드·경로 템플릿·상태·소요 시간·요청 ID만 남긴다. 본문·토큰·쿼리 값은 남기지 않는다(PRD §14).
 request_log = logging.getLogger("ai_secretary.request")
@@ -27,15 +36,31 @@ if not request_log.handlers:
     request_log.setLevel(logging.INFO)
 
 
-def get_store(request: Request) -> Store:
-    """기능 라우터의 저장소 의존성. 첫 사용 때 Firestore에 연결한다."""
-    state = request.app.state
-    if state.store is None:
-        try:
-            state.store = FirestoreStore.from_settings(state.settings)
-        except ConfigError as exc:
-            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, f"저장소 설정 오류: {exc}") from None
-    return state.store
+FIELD_NAMES = {
+    "url": "URL", "title": "제목", "description": "설명", "body": "본문", "save_reason": "저장 이유",
+    "memo": "메모", "name": "이름", "interests": "관심 분야", "activities": "활동 분야",
+    "expected_version": "버전", "related_project_ids": "관련 프로젝트",
+}
+
+
+def _validation_message(errors: list[dict]) -> str:
+    """첫 오류를 한국어 안내로 바꾼다. 길이 초과는 한도를 함께 알린다(PRD §6.1: 조용히 자르지 않는다)."""
+    if not errors:
+        return "입력 내용을 확인하세요"
+    first = errors[0]
+    field = next((str(p) for p in reversed(first.get("loc", ())) if isinstance(p, str) and p != "body"), "")
+    label = FIELD_NAMES.get(field, field or "입력")
+    kind = first.get("type", "")
+    limit = (first.get("ctx") or {}).get("max_length")
+    if kind == "string_too_long":
+        return f"{label}은(는) {limit or LIMITS.get(field, '')}자까지 입력할 수 있습니다"
+    if kind == "too_long":
+        return f"{label}은(는) {limit}개까지 넣을 수 있습니다"
+    if kind == "extra_forbidden":
+        return f"{label}은(는) 보낼 수 없는 항목입니다"
+    if kind == "value_error":
+        return str(first.get("msg", "")).removeprefix("Value error, ") or "입력 내용을 확인하세요"
+    return f"{label} 입력 형식을 확인하세요"
 
 
 def _error(code: int, detail: str, **extra) -> JSONResponse:
@@ -91,6 +116,36 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     @app.exception_handler(InvalidCursor)
     async def invalid_cursor(_, __):
         return _error(422, "페이지 커서가 올바르지 않습니다")
+
+    @app.exception_handler(DuplicateProjectName)
+    async def duplicate_project(_, __):
+        return _error(409, "같은 이름의 프로젝트가 이미 있습니다", reason="duplicate_name")
+
+    @app.exception_handler(TooManyProjects)
+    async def too_many_projects(_, __):
+        return _error(422, "프로젝트는 100개까지 만들 수 있습니다")
+
+    @app.exception_handler(InvalidDefaultProject)
+    async def invalid_default_project(_, __):
+        return _error(422, "기본 프로젝트는 활성 상태인 내 프로젝트여야 합니다")
+
+    @app.exception_handler(InvalidProjectReference)
+    async def invalid_project_reference(_, __):
+        return _error(422, "연결할 프로젝트는 활성 상태인 내 프로젝트여야 합니다")
+
+    @app.exception_handler(NoContent)
+    async def no_content(_, __):
+        return _error(422, "URL 또는 제목·설명·본문 중 하나 이상이 남아 있어야 합니다")
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(_, exc: RequestValidationError):
+        # 사용자가 이해할 수 있는 안내를 detail로 준다. 입력값(input)은 응답에 되돌려 보내지 않는다.
+        errors = [{"loc": [str(p) for p in e.get("loc", ())], "type": e.get("type")} for e in exc.errors()]
+        return _error(422, _validation_message(exc.errors()), errors=errors)
+
+    app.include_router(projects_router)
+    app.include_router(settings_router)
+    app.include_router(materials_router)
 
     if settings.allowed_origins:
         app.add_middleware(

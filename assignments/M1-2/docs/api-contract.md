@@ -64,7 +64,28 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 ## 로컬 로그인 확인 방법
 
 1. Firebase 콘솔에서 Authentication → Google 로그인을 켜고, 웹 앱을 등록한다.
-2. `web/js/config.example.js`를 `web/js/config.js`로 복사해 공개 설정(`apiKey`, `authDomain`, `projectId`)과 API 주소를 채운다.
+2. `.env`에 공개 웹 설정(`API_BASE_URL`, `FIREBASE_WEB_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`)을 넣고 `node web/scripts/build-config.mjs`로 `web/js/config.js`를 생성한다.
 3. 서버 `.env`에 `FIREBASE_SERVICE_ACCOUNT_JSON`(JSON 문자열)과 `ALLOWED_ORIGINS=http://localhost:5500`을 넣고 서버를 실행한다.
-4. `web` 폴더에서 `python -m http.server 5500`으로 정적 서버를 띄우고 `http://localhost:5500/login.html`을 연다. Firebase 승인된 도메인에 `localhost`가 있어야 한다.
+4. `web` 폴더에서 `python -m http.server 5500 --bind ::`로 정적 서버를 띄우고 `http://localhost:5500/`(앱) 또는 `/login.html`(인증 점검용)을 연다. Firebase 승인된 도메인에 `localhost`가 있어야 한다.
 5. 첫 로그인 화면의 UID를 `.env`의 `OWNER_UID`에 넣고 서버를 다시 시작한 뒤 `/api/me`가 200인지, 로그아웃 후 401인지 확인한다.
+
+## 프로젝트 API (T02.04, PRD §13)
+
+모두 인증·`X-Data-Mode` 필요. 변경 요청은 `Idempotency-Key` 필요. 프로젝트는 소유자·모드별로 따로 관리된다.
+
+| API | 요청 | 응답·규칙 |
+|---|---|---|
+| `GET /api/projects?include_inactive=false` | — | `{"items": [프로젝트]}`. 기본은 활성만 |
+| `POST /api/projects` | `{"name": 1~50자, "description": 0~500자}` | 201 프로젝트. 같은 이름(대소문자·공백 무시, 비활성 포함)은 **409** `reason: duplicate_name`. 100개 초과 422 |
+| `PUT /api/projects/{id}` | `{"expected_version", "name"?, "description"?, "active"?}` | 200 프로젝트. 버전 불일치 409, 다른 소유자·모드 404 |
+
+프로젝트: `{id, name, description, active, version, created_at, updated_at}`. 삭제 API는 없고 `active: false`로 비활성 처리한다. 자료는 주 프로젝트 `primary_project_id`와 관련 프로젝트 `related_project_ids[]`로 연결한다(Open Decision 1, T03에서 사용).
+
+## 설정 API — PRD 외 추가 (T02.04)
+
+| API | 요청 | 응답·규칙 |
+|---|---|---|
+| `GET /api/settings` | — | `{interests[], activities[], default_project_id, version, saved}`. 저장 전에는 `saved: false`, `version: 0`과 모드별 기본값(개인: PRD §1의 관심·활동 분야, 표본: 빈 값) |
+| `PUT /api/settings` | `{"expected_version", "interests"[], "activities"[], "default_project_id"?}` | 첫 저장은 `expected_version: 0`. 항목은 한 개 1~50자·최대 20개, 앞뒤 공백 제거·중복 제거. 기본 프로젝트는 같은 모드의 활성 프로젝트여야 하며 아니면 422. 버전 불일치 409 |
+
+설정은 소유자·모드마다 문서 하나다. 현재 자료 모드는 서버에 저장하지 않는다(요청마다 `X-Data-Mode`, 마지막 선택은 브라우저가 기억).
