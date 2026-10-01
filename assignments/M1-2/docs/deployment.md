@@ -56,7 +56,7 @@ $bytes = New-Object byte[] 32
 이 PC에서 중계 서버가 실행 중이고 로컬 테스트를 통과한 뒤에만 실행한다.
 
 ```powershell
-& "$env:ProgramFiles\Tailscale\tailscale.exe" funnel 8766
+& "$env:ProgramFiles\Tailscale\tailscale.exe" funnel --bg 8766
 ```
 
 Tailscale CLI가 Funnel 활성화를 위한 웹 승인 절차를 열 수 있다. 승인 후 CLI가 출력하는 `https://<device>.<tailnet>.ts.net` 주소를 기록한다. `8766`은 이 PC의 로컬 중계 대상 포트이며, 외부 HTTPS는 Tailscale이 지원하는 공개 포트로 제공한다. 인증서와 DNS 준비 조건이 맞지 않으면 CLI 안내를 따른다.
@@ -70,7 +70,7 @@ Tailscale CLI가 Funnel 활성화를 위한 웹 승인 절차를 열 수 있다.
 공개 연결을 끌 때는 활성화한 설정을 끈다.
 
 ```powershell
-& "$env:ProgramFiles\Tailscale\tailscale.exe" funnel 8766 off
+& "$env:ProgramFiles\Tailscale\tailscale.exe" funnel --https=443 off
 ```
 
 Funnel은 인터넷에 공개되는 기능이다. AI API 경로는 중계 토큰으로 보호하지만, 토큰을 외부에 노출하면 누구든 허용된 호출을 시도할 수 있다. 테스트·사용이 끝나면 Funnel을 끄고, 토큰이 노출됐다고 의심되면 새 토큰으로 교체한다.
@@ -87,7 +87,7 @@ PC, Hermes, Tailscale 또는 중계 서버가 꺼져 있으면 Render의 AI 요�
 ## 현재 검증 결과와 남은 항목
 
 - 로컬 Hermes의 `GET /v1/toolsets`와 텍스트 채팅은 T01.04에서 통과했고, 현재 선택된 경로는 `openai-codex` / `gpt-6-luna`다. 기록은 [verification.md](verification.md)에 있다.
-- Tailscale Funnel을 활성화했다. `funnel status --json`에서 공개 HTTPS 443이 로컬 `127.0.0.1:8766`으로 연결됨을 확인했고, 공개 주소의 무인증 `GET /v1/toolsets`는 HTTP 401이었다. 공개 주소는 `https://win11-01.tailf062fb.ts.net`이다. 인증된 Render 왕복 호출은 아직 검증하지 않았다.
+- Tailscale Funnel을 `--bg`로 활성화했다. `funnel status --json`에서 공개 HTTPS 443이 로컬 `127.0.0.1:8766`으로 연결됨을 확인했고, 공개 주소의 무인증 `GET /v1/toolsets`는 HTTP 401이었다. 공개 주소는 `https://win11-01.tailf062fb.ts.net`이다. 인증된 Render 왕복 호출은 아직 검증하지 않았다.
 - 로컬 중계 테스트와 Render에서 실제로 수행한 왕복 요청만 `docs/verification.md`에 결과를 기록한다.
 
 참고 문서: [Tailscale Funnel 안내](https://tailscale.com/docs/features/tailscale-funnel), [Funnel CLI](https://tailscale.com/docs/reference/tailscale-cli/funnel)
