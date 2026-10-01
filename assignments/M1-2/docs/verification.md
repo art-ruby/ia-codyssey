@@ -13,6 +13,8 @@
 
 **상태: 실제 호출 전. A25 미통과.** M1-1 구현은 Codyssey 프록시 주소와 OpenAI 호환 요청 형식을 보여주지만, 현재 작업 환경에서 프록시 API 키와 사용할 GPT 모델명은 확인되지 않았다. 로컬 `.env`의 값은 별도 Hermes 연결용이므로 Codyssey 호출 결과가 아니다.
 
+2026-10-01 M1-1 재확인: `submission/src/config.py`의 프록시 주소는 `https://copa.codyssey.kr/v1`이고 기존 번역 모델은 `gemini-3-flash`다. `submission/src/translate.py`는 Bearer 인증으로 `/chat/completions`를 호출한다. 확인한 M1-1 `.env`에는 비어 있는 YouTube 키만 있으며 `OPENAI_API_KEY`는 없다. 인증 없이 `GET /v1/models`를 요청하면 HTTP 401이므로 GPT 모델명도 추측하지 않는다.
+
 `server/scripts/smoke_ai.py`는 `M1-2/.env.codyssey`만 읽고 프록시 주소가 `https://copa.codyssey.kr/v1`인지 확인한다. 기본 파일에는 주소만 넣어 두었다. API 키를 채팅이나 Git에 올리지 말고 `.env.codyssey`의 `OPENAI_API_KEY`에 직접 입력한다. `AI_PROVIDER_MODEL`에는 실제 프록시에서 제공되는 GPT 모델명을 넣는다. 모델을 모르면 키를 입력한 뒤 먼저 목록을 요청한다.
 
 ```powershell
