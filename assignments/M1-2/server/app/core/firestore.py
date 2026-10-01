@@ -101,9 +101,14 @@ def _check_collection(name: str) -> None:
 
 def _valid_doc_id(doc_id: str) -> bool:
     """Firestore가 단일 문서 ID로 받는 값인가. `/`가 있으면 하위 컬렉션 경로가 되므로 거부한다."""
+    if not isinstance(doc_id, str):
+        return False
+    try:
+        size = len(doc_id.encode())
+    except UnicodeError:
+        return False
     return (
-        isinstance(doc_id, str)
-        and 0 < len(doc_id.encode()) <= MAX_DOC_ID_BYTES
+        0 < size <= MAX_DOC_ID_BYTES
         and "/" not in doc_id
         and doc_id not in (".", "..")
         and not (doc_id.startswith("__") and doc_id.endswith("__"))
@@ -125,7 +130,9 @@ def _new_id(doc_id: str | None) -> str:
 
 
 def _expired(record: Mapping[str, Any], now_iso: str) -> bool:
-    return record.get("expire_at", "") <= now_iso
+    # 결과가 불확실한 processing 기록은 만료로 다시 차지할 수 없다.
+    expire_at = record.get("expire_at")
+    return record.get("state") == "done" and isinstance(expire_at, str) and expire_at <= now_iso
 
 
 def _user_fields(data: Mapping[str, Any]) -> dict:
@@ -155,7 +162,7 @@ class Store(Protocol):
     def delete(self, ctx: RequestContext, collection: str, doc_id: str) -> None: ...
 
     # 중복 요청 기록(requests.py 전용). 소유자 단위로 키를 둔다.
-    # 기록이 없거나 now_iso 기준으로 만료됐으면 record로 원자적으로 차지하고 None,
+    # 기록이 없거나 완료 기록이 now_iso 기준으로 만료됐으면 record로 원자적으로 차지하고 None,
     # 아니면 기존 기록을 돌려준다.
     def claim_key(self, record_id: str, record: Mapping[str, Any], now_iso: str) -> dict | None: ...
 

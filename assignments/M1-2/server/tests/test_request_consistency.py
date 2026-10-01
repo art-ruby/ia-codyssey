@@ -78,7 +78,7 @@ def test_list_pages_with_cursor_and_isolation():
     assert sorted(seen) == sorted(ids) and len(seen) == 5
 
 
-@pytest.mark.parametrize("bad_id", ["", "a/b", "a/b/c", ".", "..", "__x__", "x" * 1501])
+@pytest.mark.parametrize("bad_id", ["", "a/b", "a/b/c", ".", "..", "__x__", "x" * 1501, "\ud800"])
 def test_malformed_doc_id_is_not_found(bad_id):
     store = MemoryStore()
 
@@ -114,6 +114,7 @@ def test_valid_cursor_round_trips():
     raw_cursor({"t": "2026-10-01T09:00:00+09:00", "id": "abc"}),       # UTC 아님
     raw_cursor({"t": 1727740800, "id": "abc"}),                        # 문자열 아님
     raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": "a/b"}),       # / 포함 ID
+    raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": "\ud800"}),    # 유효하지 않은 Unicode
     raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": ""}),
     raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": 7}),
 ])
@@ -122,11 +123,12 @@ def test_bad_cursor_is_rejected(cursor):
         MemoryStore().list(ME, "data", cursor=cursor)
 
 
-def test_bad_cursor_is_422_over_http():
+@pytest.mark.parametrize("doc_id", ["a/b", "\ud800"])
+def test_bad_cursor_is_422_over_http(doc_id):
     # 목록 API(T02.04~)가 같은 방식으로 InvalidCursor를 422로 바꾼다.
     client, _ = http_client()
 
-    res = client.get("/test/items", params={"cursor": raw_cursor({"t": "x", "id": "a/b"})}, headers=headers())
+    res = client.get("/test/items", params={"cursor": raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": doc_id})}, headers=headers())
 
     assert res.status_code == 422
 
@@ -183,18 +185,36 @@ def test_missing_or_invalid_key_is_rejected(key):
                        lambda: Result(200, {}))
 
 
-def test_failed_handler_releases_key_for_retry():
+def test_failed_handler_after_write_blocks_same_key_retry():
     store, calls = MemoryStore(), []
 
     def failing():
         calls.append(1)
-        raise ValueError("validation failed")
+        store.create(ME, "materials", {"title": "saved"})
+        raise RuntimeError("response failed after write")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         run_idempotent(store, ME, "POST", "/p", {}, failing)
-    result = run_idempotent(store, ME, "POST", "/p", {}, lambda: Result(201, {"ok": True}))
+    with pytest.raises(IdempotencyConflict) as err:
+        run_idempotent(store, ME, "POST", "/p", {}, make_create(store, ME, calls))
 
-    assert result.status_code == 201 and not result.replayed and len(calls) == 1
+    assert err.value.reason == "in_progress"
+    assert len(store.list(ME, "materials").items) == 1 and len(calls) == 1
+
+
+def test_failure_saving_completed_response_blocks_same_key_retry():
+    class FinishFails(MemoryStore):
+        def finish_key(self, record_id, changes):
+            raise RuntimeError("response record failed")
+
+    store = FinishFails()
+    with pytest.raises(RuntimeError):
+        run_idempotent(store, ME, "POST", "/p", {}, make_create(store, ME, []))
+    with pytest.raises(IdempotencyConflict) as err:
+        run_idempotent(store, ME, "POST", "/p", {}, make_create(store, ME, []))
+
+    assert err.value.reason == "in_progress"
+    assert len(store.list(ME, "materials").items) == 1
 
 
 def test_in_progress_request_is_conflict_not_rerun():
@@ -228,7 +248,7 @@ def test_record_survives_restart_and_expires():
 
 def test_expired_key_is_reclaimed_in_one_step():
     store = MemoryStore()
-    old = {"fingerprint": "a", "state": "processing", "expire_at": "2026-10-01T00:00:00+00:00"}
+    old = {"fingerprint": "a", "state": "done", "expire_at": "2026-10-01T00:00:00+00:00"}
     new = {"fingerprint": "b", "state": "processing", "expire_at": "2026-10-03T00:00:00+00:00"}
     store.claim_key("r", old, "2026-09-30T00:00:00+00:00")
 
@@ -236,6 +256,15 @@ def test_expired_key_is_reclaimed_in_one_step():
     assert store.claim_key("r", new, "2026-10-02T00:00:00+00:00") is None                  # 만료 후 차지
     # 직후 같은 만료 키로 온 두 번째 요청은 새 기록을 보고, 덮어쓰지 못한다.
     assert store.claim_key("r", old, "2026-10-02T00:00:00+00:00")["fingerprint"] == "b"
+
+
+def test_expired_processing_key_is_not_reclaimed():
+    store = MemoryStore()
+    old = {"fingerprint": "a", "state": "processing", "expire_at": "2026-10-01T00:00:00+00:00"}
+    new = {"fingerprint": "b", "state": "processing", "expire_at": "2026-10-03T00:00:00+00:00"}
+    store.claim_key("r", old, "2026-09-30T00:00:00+00:00")
+
+    assert store.claim_key("r", new, "2026-10-02T00:00:00+00:00")["fingerprint"] == "a"
 
 
 # ── HTTP 응답 코드 연결 ────────────────────────────────────────────
