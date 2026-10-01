@@ -18,7 +18,7 @@ import json
 import threading
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Protocol
 
 from app.core.config import ConfigError, Settings
@@ -68,13 +68,30 @@ def encode_cursor(doc: Mapping[str, Any]) -> str:
     return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
 
 
+def _is_utc_iso(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return False
+    return parsed.utcoffset() == timedelta(0)
+
+
 def decode_cursor(cursor: str) -> tuple[str, str]:
+    """encode_cursor가 만든 값만 받는다. 형식이 하나라도 틀리면 InvalidCursor(422)."""
     try:
         padded = cursor + "=" * (-len(cursor) % 4)
-        data = json.loads(base64.urlsafe_b64decode(padded.encode()))
-        return str(data["t"]), str(data["id"])
-    except (ValueError, KeyError, TypeError):
+        # validate=True: 허용 밖 문자를 조용히 버리지 않고 오류로 본다.
+        data = json.loads(base64.b64decode(padded.encode(), altchars=b"-_", validate=True))
+    except (ValueError, TypeError, AttributeError):
         raise InvalidCursor("cursor") from None
+    if not isinstance(data, dict):
+        raise InvalidCursor("cursor")
+    created_at, doc_id = data.get("t"), data.get("id")
+    if not _is_utc_iso(created_at) or not _valid_doc_id(doc_id):
+        raise InvalidCursor("cursor")
+    return created_at, doc_id
 
 
 def _check_collection(name: str) -> None:

@@ -1,3 +1,5 @@
+import base64
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -7,7 +9,8 @@ from fastapi.testclient import TestClient
 from app.core.auth import get_context
 from app.core.config import load_settings
 from app.core.context import RequestContext
-from app.core.firestore import InvalidCursor, MemoryStore, NotFound, VersionConflict
+from app.core.firestore import (InvalidCursor, MemoryStore, NotFound, VersionConflict, decode_cursor,
+                                encode_cursor)
 from app.core.requests import (IdempotencyConflict, IdempotencyKeyRequired, Result,
                                run_idempotent)
 from app.main import create_app, get_store
@@ -88,9 +91,44 @@ def test_malformed_doc_id_is_not_found(bad_id):
         store.create(ME, "materials", {}, doc_id=bad_id)
 
 
-def test_bad_cursor_is_rejected():
+def raw_cursor(payload) -> str:
+    raw = payload if isinstance(payload, str) else json.dumps(payload)
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+
+def test_valid_cursor_round_trips():
+    doc = {"created_at": "2026-10-01T00:00:00.123456+00:00", "id": "abc123"}
+
+    assert decode_cursor(encode_cursor(doc)) == (doc["created_at"], "abc123")
+
+
+@pytest.mark.parametrize("cursor", [
+    "not-a-cursor!!",                                                  # Base64 허용 밖 문자
+    "eyJ0Ijo",                                                         # 잘린 Base64
+    raw_cursor("not json"),
+    raw_cursor(["2026-10-01T00:00:00+00:00", "abc"]),                  # 객체가 아님
+    raw_cursor({"id": "abc"}),                                         # t 누락
+    raw_cursor({"t": "2026-10-01T00:00:00+00:00"}),                    # id 누락
+    raw_cursor({"t": "yesterday", "id": "abc"}),                       # 시각 아님
+    raw_cursor({"t": "2026-10-01T00:00:00", "id": "abc"}),             # 시간대 없음
+    raw_cursor({"t": "2026-10-01T09:00:00+09:00", "id": "abc"}),       # UTC 아님
+    raw_cursor({"t": 1727740800, "id": "abc"}),                        # 문자열 아님
+    raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": "a/b"}),       # / 포함 ID
+    raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": ""}),
+    raw_cursor({"t": "2026-10-01T00:00:00+00:00", "id": 7}),
+])
+def test_bad_cursor_is_rejected(cursor):
     with pytest.raises(InvalidCursor):
-        MemoryStore().list(ME, "data", cursor="not-a-cursor!!")
+        MemoryStore().list(ME, "data", cursor=cursor)
+
+
+def test_bad_cursor_is_422_over_http():
+    # 목록 API(T02.04~)가 같은 방식으로 InvalidCursor를 422로 바꾼다.
+    client, _ = http_client()
+
+    res = client.get("/test/items", params={"cursor": raw_cursor({"t": "x", "id": "a/b"})}, headers=headers())
+
+    assert res.status_code == 422
 
 
 # ── 중복 요청 처리 ─────────────────────────────────────────────────
@@ -212,6 +250,11 @@ def http_client():
     def create_item(body: dict, ctx: RequestContext = Depends(get_context), s=Depends(get_store)):
         return run_idempotent(s, ctx, "POST", "/test/items", body,
                               lambda: Result(201, s.create(ctx, "materials", body))).body
+
+    @app.get("/test/items")
+    def list_items(cursor: str | None = None, ctx: RequestContext = Depends(get_context), s=Depends(get_store)):
+        page = s.list(ctx, "materials", cursor=cursor)
+        return {"items": page.items, "next_cursor": page.next_cursor}
 
     @app.get("/test/items/{item_id}")
     def read_item(item_id: str, ctx: RequestContext = Depends(get_context), s=Depends(get_store)):

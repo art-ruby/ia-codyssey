@@ -555,11 +555,11 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ## 5. 세션 종료 기록과 다음 시작점
 
-T01.01~T01.03을 완료했다. Phase 02 이후 구현 Task와 Firestore 연결·배포·Windows 파일 작업은 아직 검증하지 않았다.
+Phase 01(T01.01~T01.03)과 T02.01·T02.02를 완료했다. Firestore는 실제 프로젝트에서 저장소·중복 요청·규칙/색인 배포·클라이언트 직접 접근 거부(REST·웹 SDK)까지 검증했다. Phase 02는 T02.03·T02.04가 남아 미완료이며, 실제 자료 API·배포·Windows 파일 작업은 아직 검증하지 않았다.
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T02.02 — Firestore 저장소·중복 요청·규칙/색인 배포(`docs/verification.md`). T02.01은 최신 코드로 브라우저 재확인 완료 |
+| 마지막 완료 Task | T02.02 — Firestore 저장소·중복 요청·규칙/색인 배포·커서 검증·SDK 직접 접근 거부(`docs/verification.md`). T02.01은 최신 코드로 브라우저 재확인 완료 |
 | 다음 Task | T02.03 — 10개 메뉴와 모바일 공통 화면 |
 | 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |

@@ -52,8 +52,9 @@ MVP 서버 실행 경로는 PRD §12에 따라 Codyssey 프록시를 사용한�
 
 **상태: 통과.** 2026-10-01.
 
-- `python -m pytest server/tests -q`: **54 passed**(소유자·모드 격리, 시스템 필드는 서버가 지정, 버전 409, 커서 페이지·잘못된 커서 422, 중복 요청: 같은 내용 재전송·다른 내용 409·키 없음 422·처리 중 409·실패 후 재시도·재시작 후 유지·1일 만료, HTTP 404/409/422 연결).
-- 실제 Firestore(`server/scripts/check_firestore.py`, 임시 소유자 ID 사용 후 삭제): 새 저장소 인스턴스(재시작 흉내)에서 같은 키 요청이 재전송되고 작업은 1회만 실행, 다른 모드 조회 404 대상, 이전 버전 수정 거부(현재 버전 2), 목록 조회 1건, 정리 완료.
+- `python -m pytest server/tests -q`: **68 passed**(소유자·모드 격리, 시스템 필드는 서버가 지정, 버전 409, 커서 페이지·정상 커서 왕복·잘못된 커서 13종 422(Base64 오류·객체 아님·필드 누락·UTC 아닌 시각·`/` 포함 ID 등), 형식이 틀린 문서 ID 404, 중복 요청: 같은 내용 재전송·다른 내용 409·키 없음 422·처리 중 409·실패 후 재시도·재시작 후 유지·1일 만료, HTTP 404/409/422 연결).
+- 실제 Firestore(`server/scripts/check_firestore.py`, 임시 소유자 ID 사용, 종료 코드 0): 새 저장소 인스턴스(재시작 흉내)에서 같은 키 요청이 재전송되고 작업은 1회만 실행, 다른 모드 조회 404 대상, 이전 버전 수정 거부(현재 버전 2). 임시 자료 2건을 페이지 크기 1로 조회해 1페이지 다음 커서 있음 → 2페이지는 다른 자료 1건·다음 커서 없음. 목록 오류도 실패로 판정하며, 성공 여부와 관계없이 자료 2건과 중복 요청 기록을 지운다(`cleaned_up: true`).
 - `firestore.rules`(전면 거부)·`firestore.indexes.json`(복합 색인 6개)을 `firebase deploy --only firestore`로 배포. 색인 생성 완료 전에는 목록 조회가 `FailedPrecondition`이었고 생성 후 정상.
-- 클라이언트 직접 접근: 공개 웹 API 키로 Firestore REST 읽기·쓰기 모두 HTTP 403 `PERMISSION_DENIED`.
+- 클라이언트 직접 접근(REST): 공개 웹 API 키로 Firestore REST 읽기·쓰기 모두 HTTP 403 `PERMISSION_DENIED`.
+- 클라이언트 직접 접근(Firebase 웹 SDK 10.12.2, 일회성 브라우저 콘솔 확인, 시험 페이지는 만들지 않음): `http://localhost:5500/login.html`에서 `getDoc`·`setDoc`·`getDocs`를 실행했다. 로그아웃 상태에서 읽기·쓰기 `permission-denied`, 소유자 Google 로그인 상태(같은 토큰으로 `/api/me` 200)에서 읽기·쓰기·목록 모두 `permission-denied`.
 - HTTP 수준의 404/409/422는 시험용 라우트로 확인했다. 실제 자료 API에서의 확인은 T02.04·T03.01에서 이어진다.
