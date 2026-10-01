@@ -1,9 +1,9 @@
 # AI Secretary — Phase·Task 실행 목록
 
-- [ ] **Phase 01. 개발 기준과 AI 연결 검증 — MVP**
+- [x] **Phase 01. 개발 기준과 AI 연결 검증 — MVP**
   - [x] **T01.01** 최신 PRD·작업 경로·미결정 사항 확인
   - [x] **T01.02** Python 환경·환경변수·프로젝트 기본 실행 구성
-  - [ ] **T01.03** Codyssey 프록시 GPT 텍스트 호출 검증
+  - [x] **T01.03** Codyssey 프록시 GPT 텍스트 호출 검증
 - [ ] **Phase 02. 인증·데이터 기반·웹 공통 화면 — MVP**
   - [ ] **T02.01** 단일 소유자 로그인과 서버 인증
   - [ ] **T02.02** Firestore 저장 구조·버전·중복 요청 처리
@@ -555,15 +555,15 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ## 5. 세션 종료 기록과 다음 시작점
 
-T01.01(문서·경로 확인)과 T01.02(서버 기본 구성)를 완료했다. 구현 Task는 모두 미완료이며 실제 AI 호출·Firestore 연결·배포·Windows 파일 작업을 검증한 기록은 없다.
+T01.01~T01.03을 완료했다. Phase 02 이후 구현 Task와 Firestore 연결·배포·Windows 파일 작업은 아직 검증하지 않았다.
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T01.02 — `server/` 기본 구성, `/health`, 설정 객체(`app.core.config`), 커밋 `424961b8` |
-| 다음 Task | T01.03 — `server/scripts/smoke_ai.py`와 `docs/verification.md` 준비. 실제 호출에는 Codyssey 프록시 키와 제공되는 GPT 모델명이 필요하다. 현재 `.env`는 별도 로컬 Hermes 연동용이며 `.env.codyssey`는 키·모델명이 비어 있다. Process/User/Machine 환경변수와 M1-1 로컬 `.env`에서도 Codyssey 키를 확인하지 못했다 |
-| 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, T01.01·T01.02 커밋 `424961b8` |
-| T01.03 준비 커밋 범위 | `server/scripts/smoke_ai.py`, `docs/verification.md`, `.env.example`의 공개 프록시 주소, 이 세션 기록. 로컬 `.env`·`.env.codyssey`는 Git 제외 대상 |
-| 실제 실행 결과 | T01.01 확인 완료. T01.02: Python 3.11.9 `.venv`에 의존성 설치, `pytest server/tests -q` 7 passed, 키 없이 uvicorn 기동 후 `/health` 200(`ai`·`firebase` missing 보고, 값 미노출)·`/docs` 200, `git check-ignore`로 `.env`·`.venv`·캐시 제외 확인. 서비스 기능 테스트는 미실행 |
+| 마지막 완료 Task | T01.03 — Codyssey GPT 텍스트 스모크 호출, 커밋 `94af8d50` 기반 |
+| 다음 Task | T02.01 — 단일 소유자 로그인과 서버 인증 |
+| 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
+| 현재 변경 파일 | 이 세션의 T01.03 완료 기록 및 체크 상태 |
+| 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. |
 | 결정 확인이 필요한 항목 | Open Decisions 1·2는 해당 입력/저장 구조 확정 전에 확인. 3은 확장 단계, 4·5는 보수적인 기존 규칙 적용 |
 | 외부 준비 확인 | T01.02~03에서 Python 환경과 실제 AI 설정, T02.01~02에서 Firebase 프로젝트·인증 접근 가능 여부 확인 |
 
