@@ -12,3 +12,5 @@ node_modules/
 dist/
 .pytest_cache/
 web/js/config.js
+# 루트 .gitignore의 *temp* 패턴이 template까지 제외하므로 다시 포함한다.
+!web/js/config.template.js

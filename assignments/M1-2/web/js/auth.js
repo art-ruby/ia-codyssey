@@ -12,7 +12,7 @@ import {
 
 const config = window.AI_SECRETARY_CONFIG;
 if (!config || !config.firebase || !config.firebase.apiKey) {
-  throw new Error("web/js/config.js가 없거나 Firebase 공개 설정이 비어 있습니다 (config.example.js 참고)");
+  throw new Error("web/js/config.js가 없거나 Firebase 공개 설정이 비어 있습니다 (`node web/scripts/build-config.mjs`로 생성)");
 }
 
 const auth = getAuth(initializeApp(config.firebase));

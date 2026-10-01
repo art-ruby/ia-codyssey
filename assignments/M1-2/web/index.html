@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Secretary</title>
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <p class="boot" id="boot">로그인 상태를 확인하는 중입니다…</p>
+
+  <!-- 로그인 화면: 로그인하지 않았거나 인증이 끝났을 때 -->
+  <main class="login" id="login-view" hidden>
+    <div class="login-card">
+      <span class="brand-mark" aria-hidden="true">✳</span>
+      <h1>AI Secretary</h1>
+      <p>내가 모은 자료를 이해하고 다시 찾게 돕는 개인 비서입니다.</p>
+      <button class="button primary" id="login-btn" type="button">Google 계정으로 로그인</button>
+      <p class="login-message" id="login-message" role="alert"></p>
+    </div>
+  </main>
+
+  <!-- 앱 화면 -->
+  <div class="shell" id="app-view" hidden>
+    <div class="scrim" id="scrim"></div>
+    <aside class="sidebar" id="sidebar" aria-label="전체 메뉴">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><div><strong>AI Secretary</strong><small>나를 위한 정보 비서</small></div></div>
+      <nav id="nav" aria-label="화면 전환"></nav>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div class="crumb">
+          <button class="menu-toggle" id="menu-toggle" type="button" aria-label="메뉴 열기" aria-expanded="false" aria-controls="sidebar">☰</button>
+          <strong id="current-title"></strong>
+        </div>
+        <div class="top-actions">
+          <span class="sample-badge" id="sample-badge" hidden>표본 자료</span>
+          <label class="mode"><span>자료</span>
+            <select id="mode-select" aria-label="자료 모드">
+              <option value="personal">개인</option>
+              <option value="sample">표본</option>
+            </select>
+          </label>
+          <span class="user" id="user-email"></span>
+          <button class="button secondary small" id="logout-btn" type="button">로그아웃</button>
+        </div>
+      </header>
+      <div class="banner" id="banner" role="status" hidden>
+        <span id="banner-text"></span>
+        <button class="button secondary small" id="banner-retry" type="button" hidden>다시 시도</button>
+      </div>
+      <main class="content" id="screen" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
