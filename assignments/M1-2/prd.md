@@ -1,6 +1,6 @@
 # AI Secretary — MVP·확장 단계 제품 요구사항 명세서
 
-- 버전: v1.10 · task.md 검토 반영본
+- 버전: v1.11 · Hermes 로컬 AI 경로 반영
 - 작성일: 2026-10-01
 - 작업 위치: `M1-2`
 - 근거: [사용자 시나리오](ai-secretary/AI_SECRETARY_SCENARIO.md), [단일 파일 목업](mockup/index.html), 과제에서 제공된 별도 요구사항 문서. API 구현 참고 자료는 M1-1 작업에서 확인한 호출 방식이며, 해당 참고 코드는 현재 `main`에 포함하지 않는다.
@@ -268,7 +268,7 @@ MVP에서 웹 자료를 휴지통으로 옮길 때는 사용자가 승인한 자
 |---|---|
 | 사용자 설정 | owner_id, 관심 분야, 활동 분야, 기본 프로젝트, 설정 버전 |
 | 프로젝트 | id, owner_id, 이름, 설명, 활성 여부 |
-| materials / 자료 | id, owner_id, mode, source_type, 원래 URL·비교용 키, 제목, 설명, 입력 본문, 추출 본문, 메모, 종류, 프로젝트 참조, AI 분석 제외, AI 제안·사용자 최종 중요도, 이유, 분석 범위, 각 상태, 버전, registered_at, storage_approved_at(보관 승인 시각. 이름 변경·이동·삭제 승인은 `제안·작업`의 승인 스냅샷에, 휴지통 이동은 보관 수명 상태와 `trashed_at`에 기록. 파일 사본의 휴지통 시각은 `클라우드 사본.trash_at`), trashed_at |
+| materials / 자료 | id, owner_id, mode, source_type, 원래 URL·비교용 키, 제목, 설명, 입력 본문, 추출 본문, 저장 이유 `save_reason`(Open Decision 2 결정), 메모, 종류, 주 프로젝트 `primary_project_id`·관련 프로젝트 `related_project_ids[]`(Open Decision 1 결정), AI 분석 제외, AI 제안·사용자 최종 중요도, 이유, 분석 범위, 각 상태, 버전, registered_at, storage_approved_at(보관 승인 시각. 이름 변경·이동·삭제 승인은 `제안·작업`의 승인 스냅샷에, 휴지통 이동은 보관 수명 상태와 `trashed_at`에 기록. 파일 사본의 휴지통 시각은 `클라우드 사본.trash_at`), trashed_at |
 | 로컬 파일 연결 | device_id, root_id, 상대 경로, 현재 이름, 확장자, size_bytes, mtime, hash, 파일 버전, 마지막 확인 시각 |
 | data / 숫자 기록 | id, owner_id, mode, date, metric_type, value, memo, origin=수기/표본, 버전. 실제 자동 지표는 저장하지 않고 조회 시 집계한다(§11). |
 | 접수 기록 | id, owner_id, mode, material_id, received_at. 활성·휴지통 자료의 접수 이력에 사용한다. 자료를 영구 삭제하면 연결된 접수 기록도 제거한다. |
@@ -279,7 +279,7 @@ MVP에서 웹 자료를 휴지통으로 옮길 때는 사용자가 승인한 자
 | conversations | id, owner_id, mode, 제목, 생성·수정 시각, messages 또는 메시지 하위 컬렉션 |
 | 메시지 | 역할, 본문, 생성 시각, request_id, 출처 자료 ID·버전, 당시 숫자 요약, 처리 상태 |
 
-시간은 UTC로 저장하고 화면은 Asia/Seoul 기준으로 표시한다. 파일 수정일, 접수일, 보관 승인일을 혼동하지 않는다. “지난달 저장한 자료”는 승인일로 찾는다. 프로젝트 참조의 복수 확장 방식과 `save_reason` 분리는 Open Decisions에 둔다. 대량 추출 텍스트는 DB 문서 크기 한도를 검증하고 필요하면 분할한다.
+시간은 UTC로 저장하고 화면은 Asia/Seoul 기준으로 표시한다. 파일 수정일, 접수일, 보관 승인일을 혼동하지 않는다. “지난달 저장한 자료”는 승인일로 찾는다. 프로젝트 참조와 `save_reason` 분리는 Open Decisions 1·2의 결정에 따른다. 대량 추출 텍스트는 DB 문서 크기 한도를 검증하고 필요하면 분할한다.
 
 ## 10. 검색·AI 답변·대화 기록
 
@@ -337,19 +337,19 @@ MVP에서 웹 자료를 휴지통으로 옮길 때는 사용자가 승인한 자
 | Firebase Firestore | MVP: `materials`, 숫자용 `data`, 설정, 대화·웹 자료 승인/휴지통 상태. 영속 PC 작업 큐와 실행 기록은 확장 단계 |
 | 비공개 Cloud Storage (확장 단계) | 승인된 원본 사본과 한시적인 분석 파일. MVP는 URL·텍스트만 다루므로 사용하지 않는다. 휴지통은 앱의 논리 상태로 관리 |
 | Windows 연결 프로그램 (확장 단계) | 승인 폴더 확인, 로컬 텍스트 추출·가능한 OCR·해시 계산, 승인된 업로드·파일 작업과 로컬 실행 기록 |
-| AI Provider Adapter | FastAPI가 호출하는 분석·분류·중요도 제안·답변 인터페이스. 이번 MVP Provider는 Codyssey 프록시 |
+| AI Provider Adapter | FastAPI가 호출하는 분석·분류·중요도 제안·답변 인터페이스. MVP 로컬 실행 경로는 Hermes API |
 
-Web → FastAPI → AI Provider Adapter → **Codyssey 프록시** → 분석·분류·중요 이유·관련 프로젝트 제안·채팅을 MVP의 기본 실행 경로로 둔다. Adapter는 `analyze_material()`, `classify_material()`, `suggest_importance()`, `answer_question()`의 책임을 가진다.
+Web → FastAPI → AI Provider Adapter → **Hermes API** → 모델 → 분석·분류·중요 이유·관련 프로젝트 제안·채팅을 MVP의 기본 실행 경로로 둔다. Adapter는 `analyze_material()`, `classify_material()`, `suggest_importance()`, `answer_question()`의 책임을 가진다.
 
-[확정 요구사항] 이번 MVP의 AI 실행 경로로 **Codyssey 프록시**(`https://copa.codyssey.kr/v1`) 한 가지를 선택했다. OpenAI API 직접 호출이나 Codex CLI·Claude Code CLI를 대체 실행 경로로 구현하지 않는다. Adapter는 향후 교체 가능성을 위한 경계일 뿐이다.
+[확정 요구사항] 이번 MVP의 AI 실행 경로를 **Hermes API**로 변경했다. 로컬에서는 `http://127.0.0.1:8642/v1`에 서버 간 통신으로 연결하며 브라우저에 Hermes 키를 전달하지 않는다. Hermes `api_server`의 도구 세트는 비활성으로 유지한다. Adapter는 호출 직전에 이를 확인하고 도구가 켜졌거나 확인할 수 없으면 실패 처리한다.
 
-[미검증] 이 선택은 확정이지만 호환성은 아직 검증되지 않았다. M1-1에서 확인된 것은 `urllib` 직접 HTTP 호출(OpenAI 형식의 `/chat/completions`)과 Gemini 모델 사용뿐이다. Python `openai` SDK 호환과 사용할 GPT 모델명은 A25에서 확인한다. 이미지 입력은 확장 단계 A27에서 검증하며, Rate Limit·사용량·비용은 별도 제공 자료나 실제 응답으로 확인한 범위만 기록한다.
+[검증 결과] 로컬 Hermes의 OpenAI 호환 API에서 Python `openai` SDK로 `provider=openai-codex`, `model=gpt-6-luna` 텍스트 응답이 정상 종료됐다(T01.04). 같은 날 Hermes의 Claude 구독 경로는 upstream 429로 실패했다. Codyssey `gpt-5-mini`는 과거 T01.03의 별도 검증 결과이며 현재 기본 경로가 아니다. 이미지 입력은 확장 단계 A27에서 확인한다.
 
-[권장 구현안] 과제 조건(GPT API, `openai` 패키지, API 키)은 다음 방식으로 충족한다. Python `openai` SDK의 `OpenAI(base_url=<프록시 주소>, api_key=<OPENAI_API_KEY>)`로 프록시를 호출하고, 채팅·분석 모델은 프록시가 제공하는 **GPT 계열 모델**로 설정한다. 키는 `OPENAI_API_KEY`, 주소·모델은 `AI_PROVIDER_BASE_URL`·`AI_PROVIDER_MODEL` 환경변수로 관리한다(`.env.example`과 동일).
+[권장 구현안] Python `openai` SDK의 `OpenAI(base_url=<Hermes 주소>, api_key=<Hermes API 서버 키>)`와 요청별 `provider=openai-codex`, `model=gpt-6-luna`를 사용한다. 환경변수는 `OPENAI_API_KEY`(Hermes API 서버 키), `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_MODEL`, `AI_PROVIDER_ROUTE`다. Hermes가 내부 구독 경로를 선택하므로 이 키를 모델 제공사의 직접 API 키라고 설명하지 않는다. 과제의 API 사용 조건 충족 여부는 제출 전에 별도로 확인한다.
 
-근거는 M1-1 작업에서 사용한 구현 방식이다. 해당 코드는 같은 프록시에 `/chat/completions`로 Bearer 인증·`model`·`messages`를 보내고 `choices[0].message.content`를 읽었다. 설정 주석은 이 프록시가 OpenAI 규격으로 GPT·Gemini·Claude를 제공한다고 적고 있다. 다만 M1-1은 `urllib`로 직접 호출했고 번역용 모델(`gemini-3-flash`)을 썼으므로, SDK 호환성과 GPT 모델명은 A25 텍스트 스모크 테스트로 확인한다. 이미지 입력 경로는 A27에서 검증한다.
+Hermes의 `/v1/models`는 에이전트 이름을 반환하므로 내부 모델 목록으로 해석하지 않는다. 사용 가능한 구독 경로와 모델은 `/api/model/options`에서 확인하고 요청에 둘 다 명시한다. T01.03의 Codyssey 기록은 과거 검증 증거로 보존한다.
 
-**구현 첫날 확인:** A25로 프록시의 GPT 모델명과 Python `openai` SDK 텍스트 호출을 검증한다. Rate Limit·사용량·비용과 이미지 입력 지원 여부는 제공 자료나 실제 응답으로 확인 가능한 범위를 기록하되 A25의 통과 조건으로 삼지 않는다. MVP 텍스트 호출이 실패하면 A25 미통과로 처리하고 Provider를 임의로 바꾸지 않은 채 결과와 선택지를 사용자에게 제시한다. 과제에 열거된 Python 패키지(fastapi, uvicorn, firebase-admin, openai, python-dotenv)와 Pydantic 검증은 제출 시 확인한다. **확장 단계(A27):** PC 연결 프로그램에서 텍스트를 추출하고, FastAPI는 사용자가 AI 분석을 승인한 범위만 Provider에 전달한다. 이미지·스캔 PDF의 OCR은 PC에서 가능한 범위를 우선 검증하고 실제 Provider의 이미지 입력 가능 여부를 확인한다. **이미지 입력이 지원되지 않으면** 로컬 OCR로 추출한 텍스트만 Provider에 보내고, 해당 자료의 분석 범위에 `텍스트만 분석 · 화면 구성 미분석`을 표시한다. 스크린샷의 작업용·정보성 분류도 텍스트 근거만으로 판단하며 확신이 낮으면 `판단 보류`로 둔다. Render 무료 인스턴스에서 전체 OCR을 수행한다고 전제하지 않는다. 파서·OCR·Windows 파일 작업 라이브러리는 실제 표본으로 선택한다.
+**구현 검증:** A25는 현재 Hermes 경로에서 도구 비활성 확인과 Python `openai` SDK 텍스트 호출로 판정한다. HTTP 200이라도 `finish_reason=error`나 빈 응답은 실패다. Rate Limit·사용량·비용과 이미지 입력 지원 여부는 확인 범위만 기록하고 A25 통과 조건으로 삼지 않는다. 과제의 Python 패키지와 Pydantic 검증은 제출 시 확인한다. **확장 단계(A27):** PC 연결 프로그램에서 텍스트를 추출하고, FastAPI는 사용자가 AI 분석을 승인한 범위만 Provider에 전달한다. 이미지·스캔 PDF의 OCR은 PC에서 가능한 범위를 우선 검증하고 실제 Provider의 이미지 입력 가능 여부를 확인한다. **이미지 입력이 지원되지 않으면** 로컬 OCR로 추출한 텍스트만 Provider에 보내고, 해당 자료의 분석 범위에 `텍스트만 분석 · 화면 구성 미분석`을 표시한다. 스크린샷의 작업용·정보성 분류도 텍스트 근거만으로 판단하며 확신이 낮으면 `판단 보류`로 둔다. Render 무료 인스턴스에서 전체 OCR을 수행한다고 전제하지 않는다. 파서·OCR·Windows 파일 작업 라이브러리는 실제 표본으로 선택한다.
 
 브라우저와 클라우드 서버는 PC 파일을 직접 조작하지 않는다. 연결 프로그램이 인증된 HTTPS 연결로 작업을 가져오고 결과를 보고한다. PC에 외부 공개 포트를 열지 않는다. 로그인은 Firebase Authentication 같은 단일 소유자 인증을 권장한다.
 
@@ -386,7 +386,7 @@ Web → FastAPI → AI Provider Adapter → **Codyssey 프록시** → 분석·�
 | GET /api/trash · POST /api/trash/{id}/restore | 클라우드 휴지통 목록과 복원 |
 | DELETE /api/trash/{id} | 별도 영구 삭제 확인 값과 버전 검증 후 제거 |
 | GET /api/materials/{id}/original | (확장 단계) 보관 완료·활성 사본의 인증된 다운로드 |
-| POST /api/chat | 유효 승인 자료 검색 + 현재 모드의 `/api/data/summary` 기본 요약(개인 `actual`, 표본 `sample`) → AI Provider(Codyssey 프록시) → 대화 자동 저장 |
+| POST /api/chat | 유효 승인 자료 검색 + 현재 모드의 `/api/data/summary` 기본 요약(개인 `actual`, 표본 `sample`) → AI Provider(Hermes API) → 대화 자동 저장 |
 | POST /api/conversations | 새 대화 또는 사용자 대화 저장, 클라이언트가 임의 AI 출처를 주입하지 못하게 검증 |
 | GET /api/conversations | 현재 모드의 대화 목록 |
 | GET /api/conversations/{id} | 전체 메시지와 현재 출처 상태 |
@@ -399,12 +399,12 @@ Web → FastAPI → AI Provider Adapter → **Codyssey 프록시** → 분석·�
 ## 14. 비기능 요구사항 [확정 요구사항·초기 가설]
 
 - 키는 서버 환경변수로 관리한다. 프론트에는 공개 API 주소와 공개 인증 설정만 전달한다. CORS는 실제 허용 도메인으로 제한한다.
-- 서버에 필요한 비밀은 Firebase 서비스 계정, 실제 AI Provider 인증 정보이고, 확장 단계에서 저장소 연결 정보가 추가된다. AI 설정은 `OPENAI_API_KEY`(Codyssey 프록시 키), `AI_PROVIDER_BASE_URL`(프록시 주소), `AI_PROVIDER_MODEL`(GPT 계열 모델명)이다. 모델명과 SDK 호환성은 §12·A25 스모크 테스트로 확정한다.
+- 서버에 필요한 비밀은 Firebase 서비스 계정과 Hermes API 서버 키이고, 확장 단계에서 저장소 연결 정보가 추가된다. AI 설정은 `OPENAI_API_KEY`(Hermes API 서버 키), `AI_PROVIDER_BASE_URL`(Hermes 주소), `AI_PROVIDER_MODEL`(선택 모델), `AI_PROVIDER_ROUTE`(구독 경로)다. 구독 계정 자격증명은 Hermes 호스트에서만 관리한다.
 - 로컬 실제 키는 `M1-2/.env`에만 두고 커밋하지 않는다. `M1-2/.env.example`에는 변수 이름과 빈 예시 값만 보관한다. `M1-2/.gitignore`는 `.env`, `.env.*`를 제외하고 `.env.example`만 허용하며 서비스 계정 원본 파일을 둘 `secrets/`도 제외한다. Render·Vercel에는 필요한 값을 각 서비스 환경변수로 입력하고, 프론트에는 `API_BASE_URL`과 공개 인증 설정만 전달한다. 기존 M1-1의 `.env` 값은 이 문서나 예시 파일로 복사하지 않는다.
 - M1-1의 `.env.example`에는 YouTube 키만 있고 자체 `.gitignore`는 `.env`를 제외한다. 따라서 M1-1의 파일은 M1-2 환경변수의 완전한 목록으로 취급하지 않는다. 배포 전에는 `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON` 또는 키 경로, `API_BASE_URL`, `ALLOWED_ORIGINS`의 실제 사용 위치와 과제 요구를 README에 대응시킨다.
 - 바닐라 프론트에서 API_BASE_URL을 빌드/배포 설정으로 주입하는 방법을 README에 명시한다. 브라우저가 서버 환경변수를 직접 읽는다고 가정하지 않는다.
 - 입력과 문서 내용을 안전한 텍스트로 렌더링한다. HTML·매크로·설치파일·코드 실행을 분석 기능에 포함하지 않는다.
-- [초기 가설] 일별 AI Provider 요청 50회, 출력 1,500토큰 상당, 요청 시간 60초를 검토 시작값으로 둔다. Codyssey 프록시가 제공하는 제한과 계량 단위를 확인해 실제 설정을 정한다. **20개 분석 묶음과 50회 호출은 별개**다. `파일 20개 = AI 1회`로 계산하지 않는다. 한 자료를 여러 번 호출하면 실제 Codyssey 프록시 요청 횟수를 모두 기록하고 분석·채팅에 공통 사용량을 표시한다.
+- [초기 가설] 일별 AI Provider 요청 50회, 출력 1,500토큰 상당을 검토 시작값으로 둔다. 로컬 Hermes 호출 시간은 우선 120초로 설정하고 실제 응답 시간을 측정한다. **20개 분석 묶음과 50회 호출은 별개**다. `파일 20개 = AI 1회`로 계산하지 않는다. 한 자료를 여러 번 호출하면 실제 Hermes API 요청 횟수를 모두 기록하고 분석·채팅에 공통 사용량을 표시한다.
 - 비용이 발생할 수 있는 AI 분석은 파일·묶음별 전송 범위, 예상 요청 수(알 수 없으면 추정 불가), 현재 사용량과 과금 가능성을 보여준 뒤 사용자가 시작한다. 제공 문서에 비용 정보가 없다면 금액을 지어내지 않는다. 질문 제출은 채팅 호출 시작 의사로 처리하되 사용량과 제한을 입력 화면에 표시한다.
 - 한도 도달 또는 Provider Rate Limit 발생 시 남은 자료는 `AI 분석 대기`로 유지한다. 실패·분실로 처리하지 않고 `사용량 37/50 · 남은 요청 13 · 대기 자료 42건`처럼 요청과 파일 건수를 구분해 표시한다. 재개는 사용자가 선택하며 일자 변경만으로 무한 자동 호출하지 않는다.
 - 파일 전송·OCR·AI 분석은 별도 단계 진행률을 표시한다. 긴 작업은 요청 연결이 종료되어도 상태 조회가 가능해야 한다.
@@ -442,7 +442,7 @@ Web → FastAPI → AI Provider Adapter → **Codyssey 프록시** → 분석·�
 | A22 | 묶음 스크린샷에서 작업 종료와 선택 파일을 확인하기 전에는 삭제 승인 단계로 진행할 수 없다. `아직 작업 중`과 제외 파일은 실행 대상이 아니다. |
 | A23 | 실제 Provider 요청 수를 사용량으로 기록한다. 한도 도달 후 남은 자료는 실패가 아닌 분석 대기 상태로 유지되며 사용량·대기 건수를 구분해 보여준다. |
 | A24 | Milestone A에서 Firestore 숫자 CRUD, Summary, 승인 자료 기반 AI Chat, Conversation 저장·불러오기, Render/Vercel 배포·Swagger·제출 화면·모바일 웹 사용을 검증한다. 표본 모드에서 `kept_count` 기록 수정 → 기본 Summary 변화 → 같은 질문의 AI 숫자 답변 변화를 확인하고, 답변은 가상 기록임을 밝힌다. 개인 모드에서는 자료를 보관 승인·휴지통 이동한 뒤 채팅의 실제 보관 수가 바뀌는지 확인한다. |
-| A25 | **스모크 테스트(MVP):** Python `openai` SDK로 Codyssey 프록시(`base_url`)에 GPT 모델 텍스트 채팅 1회를 호출한다. 응답 형식·사용 모델명을 기록하고 Adapter 계약을 통과하면 Milestone A의 AI 경로 조건을 충족한 것으로 본다. 오류·한도 응답은 실제 관찰했거나 별도로 재현한 경우에만 기록한다. 이미지 입력 지원 여부는 확인 가능한 범위에서 기록하되 MVP 통과 조건이 아니다. |
+| A25 | **스모크 테스트(MVP):** Hermes API의 도구 세트 비활성을 확인하고 Python `openai` SDK로 명시한 구독 경로·GPT 모델의 텍스트 채팅을 1회 호출한다. 실제 응답 모델·정상 종료·비어 있지 않은 응답을 확인한다. 오류·한도 응답은 실제 관찰했거나 별도로 재현한 경우에만 기록한다. 이미지 입력은 MVP 통과 조건이 아니다. |
 | A26 | (MVP) 웹 자료를 휴지통으로 옮기면 보관함·검색·새 채팅 문맥에서 제외되고 `kept_count`가 줄어든다. 복원하면 다시 포함된다. 영구 삭제는 별도 확인 뒤 본문·검색용 데이터·접수 기록을 제거하며 실패를 완료로 표시하지 않는다. |
 | A27 | (확장 단계) Provider의 이미지 입력을 1회 검증한다. 지원하지 않으면 연결 프로그램의 로컬 OCR 텍스트만 보내는 대체 경로를 1회 검증하고 분석 범위에 `텍스트만 분석 · 화면 구성 미분석`을 표시한다. |
 
@@ -458,15 +458,15 @@ MVP 인수 기준은 A01·A02·A13(웹 자료 범위)·A14~A19·A23~A26이다. A
 
 ### Milestone A — MVP·과제 제출 가능 상태
 
-웹 URL·텍스트 입력 → Firestore `materials` 저장 → 검토·보관 승인 → AI Provider Adapter(Codyssey 프록시) 분석·채팅 → 근거 자료 표시·대화 자동 저장까지 한 흐름으로 구현한다. 제출 시연은 **표본 모드**에서 진행한다. 별도 `data`의 날짜·값·메모 CRUD, 100건 이상 표본, 지표별 Summary, 대화 목록·불러오기·삭제, Render API·Swagger, Vercel 웹, 모바일 웹 사용, README와 제출 화면을 완료한다. 과제의 필수 API와 요약·채팅·배포를 이 지점에서 검증한다. A25 스모크 테스트는 Milestone A의 첫 작업으로 수행하고, 통과 전에는 `과제 제출 가능`으로 판정하지 않는다. PC 파일 연결과 클라우드 원본 사본에 의존하지 않아도 이 흐름이 동작해야 한다.
+웹 URL·텍스트 입력 → Firestore `materials` 저장 → 검토·보관 승인 → AI Provider Adapter(Hermes API) 분석·채팅 → 근거 자료 표시·대화 자동 저장까지 한 흐름으로 구현한다. 제출 시연은 **표본 모드**에서 진행한다. 별도 `data`의 날짜·값·메모 CRUD, 100건 이상 표본, 지표별 Summary, 대화 목록·불러오기·삭제, Render API·Swagger, Vercel 웹, 모바일 웹 사용, README와 제출 화면을 완료한다. 로컬 Hermes의 `127.0.0.1`은 Render에서 접근할 수 없으므로 배포 전에 인증된 원격 경로(인터넷 구간은 HTTPS 또는 같은 Render 네트워크의 내부 경로)와 구독 사용 가능성을 별도 검증한다. 이 경로가 준비되지 않으면 배포·MVP 완료로 표시하지 않는다. 과제의 API 사용 조건도 별도 확인한다. PC 파일 연결과 클라우드 원본 사본에 의존하지 않아도 이 흐름이 동작해야 한다.
 
 ### Milestone B — 확장 단계: PC 파일 정리
 
 Windows 연결 프로그램과 허용 폴더 등록, 버튼을 누르는 수동 확인, 스크린샷 묶음 정리, Downloads 파일 분석·이름 제안·이동·새 폴더 생성, Windows 휴지통 삭제, 모바일 승인, 승인 원본의 클라우드 사본, PC·클라우드 연동 삭제, 부분 실패 복구·작업 기록·되돌리기, 최종 인수 검증을 완료한다. PC 파일 실제 변경은 Milestone B의 승인·버전·경로 검증을 통과한 경우에만 실행한다.
 
-Milestone A 완료를 MVP 완료로, Milestone B 완료를 확장 단계 완료로 별도 표시한다. MVP 완료를 PC 정리를 포함한 전체 개인 비서 기능 완료로 소개하지 않는다. 확장 단계는 MVP 제출 뒤 착수하며 MVP 완료 조건이 아니다. 가장 높은 기술 위험은 모바일에서 승인한 PC 파일 작업, Office·PDF 추출 범위, PC·클라우드 연동 삭제다. Milestone A 진행 중 작은 표본으로 이 위험과 Codyssey 프록시의 실제 규격·비용을 확인하되, PC 위험 때문에 과제 제출 기능 구현을 뒤로 미루지 않는다.
+Milestone A 완료를 MVP 완료로, Milestone B 완료를 확장 단계 완료로 별도 표시한다. MVP 완료를 PC 정리를 포함한 전체 개인 비서 기능 완료로 소개하지 않는다. 확장 단계는 MVP 제출 뒤 착수하며 MVP 완료 조건이 아니다. 가장 높은 기술 위험은 Hermes의 배포 경로, 모바일에서 승인한 PC 파일 작업, Office·PDF 추출 범위, PC·클라우드 연동 삭제다. Milestone A 진행 중 작은 표본으로 이 위험과 Hermes 구독 경로의 제한·비용을 확인한다.
 
-구현 착수 시 확인할 기술 항목은 Codyssey 프록시 규격·Rate Limit·파일 입력 가능 여부, Firestore 검색 에디션·전략, Cloud Storage 요금제·버킷 지역·예상 용량, 연결 프로그램 배포·Windows 휴지통 라이브러리, 구형 Office 호환성, OCR 위치, [초기 가설]의 한도 수치다. 검증이 어려워도 사용자 확정 기능을 임의로 완료 처리하거나 확장 단계에서 삭제하지 않는다. 범위 변경이 필요하면 실제 검증 결과와 대안을 제시한다.
+구현 착수 시 확인할 기술 항목은 Hermes의 원격 배포·인증·도구 제한·구독 사용 가능성, Firestore 검색 에디션·전략, Cloud Storage 요금제·버킷 지역·예상 용량, 연결 프로그램 배포·Windows 휴지통 라이브러리, 구형 Office 호환성, OCR 위치, [초기 가설]의 한도 수치다. 검증이 어려워도 사용자 확정 기능을 임의로 완료 처리하거나 확장 단계에서 삭제하지 않는다. 범위 변경이 필요하면 실제 검증 결과와 대안을 제시한다.
 
 ## 17. 목업에서 다음에 반영할 차이
 
@@ -482,6 +482,8 @@ Milestone A 완료를 MVP 완료로, Milestone B 완료를 확장 단계 완료�
 10. 이름 변경·이동 되돌리기, AI 분석 제외, Provider 사용량·대기 상태를 화면에 표시한다.
 
 이번 산출물은 PRD다. 이 목록은 후속 목업·구현 작업에 적용할 변경 명세이며 현재 HTML에 반영되었다는 뜻이 아니다.
+
+아래 버전별 항목은 당시의 결정 기록이다. 현재 실행 경로와 완료 조건은 위 본문 및 v1.11을 따른다.
 
 ## v1.1 주요 변경사항
 
@@ -561,12 +563,18 @@ Milestone A 완료를 MVP 완료로, Milestone B 완료를 확장 단계 완료�
 1. §17 1번 항목을 MVP(`확장 단계 예정` 표시)와 확장 단계(연결·확인·승인 상태)로 나눠 §3.1과 일치시켰다.
 2. `materials`에 웹 자료 휴지통 시각 `trashed_at`을 추가하고 파일 사본의 `trash_at`과 구분했다.
 
+## v1.11 주요 변경사항
+
+1. 사용자 선택에 따라 MVP AI 경로를 Codyssey에서 Hermes API로 바꿨다. 로컬 구독 경로 `openai-codex`와 `gpt-6-luna` 텍스트 호출을 확인했다.
+2. Hermes API의 도구 세트가 비활성일 때만 자료를 전송하도록 하고, HTTP 200의 오류 종료도 실패로 처리한다.
+3. 로컬 `127.0.0.1` 경로는 Render 배포에서 사용할 수 없으므로 원격 연결·인증·구독 사용 가능성을 배포 전 확인 대상으로 남겼다.
+
 ## Open Decisions
 
 다음은 사용자의 최종 선택이 필요한 사항이다. 선택 전에는 한 방향을 확정 요구사항으로 표시하지 않는다.
 
-1. **한 자료와 여러 프로젝트의 관계:** 현재 주 프로젝트 하나를 보여주는 UI에서 `project_ids[]`와 `primary_project + related_projects` 중 어느 관계를 원하는지. 저장 구조는 나중에 복수 연결로 확장할 수 있게 설계한다.
-2. **저장 이유와 메모:** `save_reason`을 별도로 입력받을지, 기존 `memo` 안에서 구분할지. “왜 저장했는가”가 다른 메모와 섞이지 않도록 기존 입력을 보존한다.
+1. **한 자료와 여러 프로젝트의 관계:** ✅ 2026-10-01 결정 — 주 프로젝트 하나(`primary_project_id`) + 관련 프로젝트 여러 개(`related_project_ids[]`). 상세는 `docs/decisions.md`.
+2. **저장 이유와 메모:** ✅ 2026-10-01 결정 — 별도 필드 `save_reason`(선택, 2,000자). 메모는 나중 생각용. 상세는 `docs/decisions.md`.
 3. **모바일 스크린샷 삭제 확인:** 파일명·요약·판단 이유만으로 승인할지, 삭제 직전 썸네일 수준의 확인을 추가할지. 원본 전체 뷰어는 MVP 필수로 확정하지 않았다.
 4. **채팅에 실제 `received_count` 주입:** C16은 승인 자료만 채팅에 참고하도록 한다. 미승인 자료의 접수 건수 합계도 답변 문맥에 허용할지는 아직 결정되지 않았다. 결정 전에는 `source=actual`의 `received_count`를 채팅에서 제외한다.
 5. **AI 분석 제외 자료의 메타데이터:** 보관 승인한 제외 자료의 사용자 입력 제목·파일명·날짜만 채팅 근거로 허용할지(본문·이미지는 계속 제외), 채팅에서 완전히 제외할지.

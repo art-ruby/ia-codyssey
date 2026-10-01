@@ -4,11 +4,12 @@
   - [x] **T01.01** 최신 PRD·작업 경로·미결정 사항 확인
   - [x] **T01.02** Python 환경·환경변수·프로젝트 기본 실행 구성
   - [x] **T01.03** Codyssey 프록시 GPT 텍스트 호출 검증
-- [ ] **Phase 02. 인증·데이터 기반·웹 공통 화면 — MVP**
+  - [x] **T01.04** Hermes 로컬 API·도구 제한·GPT 텍스트 호출 검증
+- [x] **Phase 02. 인증·데이터 기반·웹 공통 화면 — MVP**
   - [x] **T02.01** 단일 소유자 로그인과 서버 인증
   - [x] **T02.02** Firestore 저장 구조·버전·중복 요청 처리
-  - [ ] **T02.03** 10개 메뉴와 모바일 공통 화면
-  - [ ] **T02.04** 프로젝트·관심 분야·자료 모드 설정
+  - [x] **T02.03** 10개 메뉴와 모바일 공통 화면
+  - [x] **T02.04** 프로젝트·관심 분야·자료 모드 설정
 - [ ] **Phase 03. URL·텍스트 접수와 보관 승인 — MVP**
   - [ ] **T03.01** URL·텍스트 입력·저장·상세 수정
   - [ ] **T03.02** 동일 URL 확인과 세 가지 선택
@@ -97,8 +98,8 @@
 
 | PRD 항목 | 결정이 필요한 시점 | 결정 전 적용할 기준 |
 |---|---|---|
-| Open Decision 1: 복수 프로젝트 관계 | T02.04 데이터 구조 확정 전 | 사용자 선택을 한 질문씩 확인한다. 현재 주 프로젝트 표시를 유지하고 원본 참조를 보존하며 복수 관계 UI를 확정하지 않는다. |
-| Open Decision 2: 저장 이유와 메모 | T03.01 입력 구조 확정 전 | 기존 사용자의 입력을 보존한다. 별도 필드/입력칸 여부를 확인하고, 결정 없이 저장 이유를 버리거나 합쳐 덮어쓰지 않는다. |
+| Open Decision 1: 복수 프로젝트 관계 | ✅ 결정됨(2026-10-01) | 주 프로젝트 `primary_project_id` + 관련 프로젝트 `related_project_ids[]`. MVP 화면은 주 프로젝트만 고른다(`docs/decisions.md`). |
+| Open Decision 2: 저장 이유와 메모 | ✅ 결정됨(2026-10-01) | 별도 필드 `save_reason`(선택, 2,000자), 메모는 나중 생각용(`docs/decisions.md`). |
 | Open Decision 3: 모바일 삭제 썸네일 | T09.05 검토 화면 확정 전 | MVP에 영향 없음. 확장 단계에서 파일명·요약·이유만으로 충분한지 확인한다. |
 | Open Decision 4: 실제 접수 수의 채팅 사용 | T07.01 | 결정 전 `source=actual`의 `received_count`는 채팅 문맥에서 제외한다. UI의 접수 통계 조회까지 금지하는 의미는 아니다. |
 | Open Decision 5: 분석 제외 자료의 메타데이터 | T05.04·T07.01 | 결정 전 해당 자료는 채팅에서 완전히 제외한다. 제목·파일명만 보내는 우회도 만들지 않는다. |
@@ -213,8 +214,14 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 - **선행:** T01.02. **파일:** 생성 `server/scripts/smoke_ai.py`, `docs/verification.md`.
 - **작업:** `OPENAI_API_KEY`, `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_MODEL`을 환경변수에서 읽어 Python `openai` SDK로 GPT 텍스트 1회를 호출한다. 모델명·응답 형태·SDK 버전·실제 성공 여부를 기록한다. 이미지 지원·비용·한도 정보는 확인한 범위와 미확인 범위를 분리한다.
-- **산출/연결:** T04.01이 사용할 검증된 텍스트 호출 방식. Provider를 자동으로 다른 서비스로 바꾸지 않는다.
-- **완료/검증:** `.\.venv\Scripts\python.exe server/scripts/smoke_ai.py`로 A25를 확인한다. 키·원문을 로그로 남기지 않는다. 오류/한도 응답은 실제 관찰한 경우에만 기록한다. A25 성공은 이미지 기능 검증을 의미하지 않는다.
+- **산출/연결:** 당시 Codyssey 호출 방식의 검증 기록. 현재 기본 경로는 T01.04에서 선택한 Hermes다.
+- **완료/검증:** `server/scripts/smoke_ai.py`의 과거 성공 결과를 보존한다. 현재 A25 판정은 T01.04의 Hermes 경로를 사용한다.
+
+### T01.04 Hermes 로컬 API·도구 제한·GPT 텍스트 호출 검증
+
+- **선행:** T01.02, T01.03의 과거 기록 보존. **파일:** 생성 `server/app/features/analysis/provider.py`, `server/scripts/smoke_hermes.py`; 수정 `server/app/core/config.py`, `.env.example`, `prd.md`, `docs/verification.md`.
+- **작업:** 서버 `.env`를 로컬 Hermes API로 전환하고, 구독 경로와 모델을 요청마다 명시한다. Hermes `api_server`의 도구 세트가 전부 꺼져 있는지 호출 직전에 확인한다. Claude 구독 경로가 한도 오류일 때 임의로 다시 호출하거나 자동 전환하지 않는다.
+- **완료/검증:** Python `openai` SDK로 `provider=openai-codex`, `model=gpt-6-luna` 텍스트 응답이 정상 종료되고 내용이 비어 있지 않아야 한다. `finish_reason=error`·도구 활성·도구 조회 실패를 실패로 처리한다. 키·원문·오류 본문을 기록하지 않는다. 전체 분석 및 채팅 API는 T04.01·T07.02가 구현한다.
 
 ## Phase 02. 인증·데이터 기반·웹 공통 화면
 
@@ -282,12 +289,13 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ## Phase 04. AI 분석과 개인 중요도
 
-**범위:** MVP. **선행:** T01.03 통과, Phase 03. **종료 조건:** 입력된 내용만 사용자 요청으로 분석하고, 사용자 최종 판단과 호출량을 정확하게 유지한다.
+**범위:** MVP. **선행:** T01.04 통과, Phase 03. **종료 조건:** 입력된 내용만 사용자 요청으로 분석하고, 사용자 최종 판단과 호출량을 정확하게 유지한다.
 
 ### T04.01 AI Adapter와 구조화 분석 결과
 
 - **파일:** 생성 `server/app/features/analysis/provider.py`, `server/app/features/analysis/schemas.py`, `server/app/features/analysis/prompts.py`, `server/tests/test_analysis_contract.py`.
 - **작업:** `analyze_material`, `classify_material`, `suggest_importance`, `answer_question` 책임을 Adapter 안에 둔다. 한 분석 응답에서 여러 결과를 얻어도 되며 메서드 개수가 호출 횟수를 의미하지 않는다. 제목 제안·2~3문장 요약·중요 이유·중요도·프로젝트·확인 범위·불확실성·권장 행동을 검증한다.
+- **현재 기반:** T01.04에서 Hermes 텍스트 호출과 도구 제한 검사만 먼저 구현했다. 구조화 분석, 프롬프트, 결과 검증과 실제 자료 연결은 이 Task에서 계속한다.
 - **산출/연결:** 검증된 분석 결과와 Provider 오류 분류. URL-only 자료는 본문을 가져오지 않고 링크 상태를 유지한다. 자료 속 명령은 실행 지시로 해석하지 않는다.
 - **완료/검증:** 누락 필드·잘못된 중요도·존재하지 않는 프로젝트·근거 없는 본문 주장·지시문 삽입 표본을 가짜 응답으로 검사한다. 사용자 최종 값을 AI 필드와 분리한다.
 
@@ -301,7 +309,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 ### T04.03 AI 사용량·한도·전송 범위 표시
 
 - **파일:** 생성 `server/app/features/analysis/usage.py`, `server/tests/test_ai_usage.py`; 수정 API 응답·분석 확인 화면·채팅 공통 사용량 영역.
-- **작업:** Provider에 실제 보낸 요청마다 사용량을 기록하고 분석·채팅이 같은 일별 한도를 사용하게 한다. PRD 초깃값 50회/일·출력 1,500토큰 상당·60초는 검증 가능한 설정으로 둔다. 요청 예약과 실제 전송을 구분하여 동시 요청의 한도 초과를 막고, 실제 전송된 실패/429 요청도 기록한다. 묶음 20개와 AI 1회를 같은 것으로 세지 않는다.
+- **작업:** Provider에 실제 보낸 요청마다 사용량을 기록하고 분석·채팅이 같은 일별 한도를 사용하게 한다. PRD 초깃값 50회/일·출력 1,500토큰 상당과 로컬 Hermes 요청 시간 120초를 검증 가능한 설정으로 둔다. 요청 예약과 실제 전송을 구분하여 동시 요청의 한도 초과를 막고, 실제 전송된 실패/429 요청도 기록한다. 묶음 20개와 AI 1회를 같은 것으로 세지 않는다.
 - **산출/연결:** 현재 사용량·남은 한도·분석 대기 자료 수·전송 범위 안내. 확인되지 않은 가격은 금액을 만들어 표시하지 않는다.
 - **완료/검증:** 한도 직전 동시 요청, 429, 타임아웃, 날짜 변경, 사용자 재개를 검사한다. 초과분은 분석 대기로 남고 일자 변경만으로 호출되지 않는다. A23에 대응한다.
 
@@ -420,8 +428,10 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ### T08.02 Render API·Vercel 웹 배포
 
-- **파일:** 생성 `render.yaml`, `web/vercel.json`, `docs/deployment.md`; 수정 T02.03에서 만든 `web/scripts/build-config.mjs`와 서버 CORS 설정.
+- **파일:** 생성 `render.yaml`, `web/vercel.json`, `docs/deployment.md`, `server/app/hermes_relay.py`, `server/scripts/run_hermes_relay.py`; 수정 T02.03에서 만든 `web/scripts/build-config.mjs`, 서버 CORS 설정, Provider 연결 설정.
 - **작업:** 배포 전 실제 호스팅 설정과 과금 여부를 확인한다. 저장소 루트가 `ia-codyssey`이므로 Vercel Root Directory는 `assignments/M1-2/web`, Render Root Directory는 `assignments/M1-2/server`로 지정하고 `vercel.json`은 지정한 Vercel 프로젝트 루트인 `web/` 안에 둔다. Render Blueprint가 하위 폴더의 `render.yaml`을 읽을 수 있는지 확인하고, 불가하면 대시보드 설정으로 대신하고 그 절차를 `docs/deployment.md`에 기록한다. Render에 비밀 설정, Vercel에 공개 API 주소·공개 인증 설정을 구분한다. 빌드 시 공개 값만 `web/js/config.js`로 생성하며 브라우저가 서버 환경변수를 읽는다고 가정하지 않는다. 허용 Origin을 실제 도메인으로 제한한다.
+- **Hermes 배포 선행 조건:** 로컬 `127.0.0.1:8642`는 Render에서 접근할 수 없다. 선택한 외부 경로는 Tailscale Funnel이다. Funnel에는 Hermes 포트가 아니라 별도 loopback 중계 서버(`127.0.0.1:8766`)를 연결하고, 전용 Bearer 토큰과 두 경로 allowlist를 적용한다. PC·Hermes·Tailscale이 켜져 있어야 동작한다. Render에서 실제 호출을 확인하기 전에는 배포 완료로 체크하지 않는다.
+- **현재 확인:** `docs/deployment.md`에 Funnel 경로와 비밀 설정·운영 순서를 기록했다. 중계 서버 로컬 구현·검증을 통과했고 공개 HTTPS에서 무인증 401을 확인했다. Render 왕복은 미검증이다.
 - **산출/연결:** 실제 웹 주소·API 주소·Swagger 주소, 배포 재현 절차. 기본 경로와 정적 파일 경로를 배포 설정에 맞춘다.
 - **완료/검증:** HTTPS 웹에서 인증된 API와 Swagger가 동작하고 잘못된 Origin 요청을 허용하지 않는지 확인한다. 접근권한/설정이 없어 배포하지 못하면 배포 미완료로 기록한다. A17에 대응한다.
 
@@ -549,19 +559,23 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 | A22 스크린샷 작업 종료·일부 선택 | 확장 | T09.05, T10.01 |
 | A23 실제 AI 요청량·한도 대기 | MVP | T04.03 |
 | A24 과제 API·표본 CRUD→요약→답변·모바일 | MVP | T06.04, T07.04, T08.01~04 |
-| A25 GPT 텍스트 SDK 스모크 테스트 | MVP | T01.03 |
+| A25 GPT 텍스트 SDK 스모크 테스트 | MVP | T01.04 (T01.03은 과거 Codyssey 기록) |
 | A26 웹 휴지통·복원·영구 삭제 | MVP | T05.03, T06.02, T08.01 |
 | A27 이미지 입력 또는 OCR 대체 경로 | 확장 | T09.04 |
 
 ## 5. 세션 종료 기록과 다음 시작점
 
-Phase 01(T01.01~T01.03)과 T02.01·T02.02를 완료했다. Firestore는 실제 프로젝트에서 저장소·중복 요청·규칙/색인 배포·클라이언트 직접 접근 거부(REST·웹 SDK)까지 검증했다. Phase 02는 T02.03·T02.04가 남아 미완료이며, 실제 자료 API·배포·Windows 파일 작업은 아직 검증하지 않았다.
+2026-10-01 AI 경로 변경: T01.04에서 Hermes 로컬 API의 `openai-codex` / `gpt-6-luna` 텍스트 응답을 확인하고 서버 `.env`를 전환했다. T04.01의 Adapter에는 텍스트 호출과 도구 비활성 검사만 먼저 들어갔다. 자료 분석·채팅 기능은 아직 구현되지 않았다. 원격 Hermes 배포 경로도 미검증이므로 T08.02 완료 조건으로 남는다. 과거 T01.03 Codyssey 성공 기록은 이력으로 유지한다.
+
+2026-10-01 원격 Hermes 연결: 사용자가 Tailscale Funnel을 선택했다. Funnel 공개 대상은 Hermes 포트가 아니라 전용 인증 중계 서버로 제한한다. 로컬 relay(`127.0.0.1:8766`)로 도구 세트 비활성(29개), 잘못된 토큰 401, 경로·쿼리 거부, 합성 텍스트 응답(`gpt-6-luna`, 1,023토큰)을 확인했다. 공개 HTTPS 443의 로컬 중계 연결과 무인증 요청 401도 확인했다. 상세는 `docs/verification.md`. Render 원격 경로는 미검증이다. 설계와 계획은 `docs/superpowers/specs/2026-10-01-tailscale-funnel-hermes-relay-design.md`, `docs/superpowers/plans/2026-10-01-tailscale-funnel-hermes-relay.md`에 있다.
+
+Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는 실제 프로젝트에서 저장소·중복 요청·규칙/색인 배포·클라이언트 직접 접근 거부(REST·웹 SDK)까지 검증했고, 프로젝트·설정 API와 설정 화면은 `docs/verification.md`에 기록했다. 실제 자료 API·배포·Windows 파일 작업은 아직 검증하지 않았다.
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T02.02 — Firestore 저장소·중복 요청·규칙/색인 배포·커서 검증·SDK 직접 접근 거부(`docs/verification.md`). T02.01은 최신 코드로 브라우저 재확인 완료 |
-| 다음 Task | T02.03 — 10개 메뉴와 모바일 공통 화면 |
-| 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
+| 마지막 완료 Task | T02.04 — 프로젝트·설정 API와 설정 화면, Open Decision 1 결정(`docs/verification.md`) |
+| 다음 Task | T03.01 — URL·텍스트 입력·저장·상세 수정. Open Decision 2의 `save_reason` 분리 결정 적용 |
+| 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |
 | 결정 확인이 필요한 항목 | Open Decisions 1·2는 해당 입력/저장 구조 확정 전에 확인. 3은 확장 단계, 4·5는 보수적인 기존 규칙 적용 |
