@@ -1,6 +1,6 @@
 """T01.03: Codyssey 프록시의 GPT 텍스트 호출을 한 번 검증한다.
 
-기본 설정 파일은 Git에서 제외한 M1-2/.env.codyssey다. 로컬 Hermes용
+기본 설정 파일은 Git에서 제외한 M1-2/.env.codyssey다. 서버용
 M1-2/.env는 읽지 않으며, 주소를 검사해 다른 서비스로 키를 보내지 않는다.
 """
 
@@ -70,6 +70,8 @@ def main() -> int:
         content = choice.message.content if choice else None
         if not isinstance(content, str) or not content.strip():
             raise ValueError("응답의 choices[0].message.content가 비어 있습니다")
+        if choice.finish_reason != "stop":
+            raise ValueError(f"응답이 정상 종료되지 않았습니다: {choice.finish_reason}")
         print(json.dumps({
             "provider": "Codyssey",
             "requested_model": model,
