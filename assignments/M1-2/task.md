@@ -559,10 +559,10 @@ T01.01(문서·경로 확인)과 T01.02(서버 기본 구성)를 완료했다. �
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T01.02 — `server/` 기본 구성, `/health`, 설정 객체(`app.core.config`) |
-| 다음 Task | T01.03 — Codyssey 프록시 키·주소·실제 GPT 모델명이 필요하다. 현재 `.env`의 AI 값은 별도 로컬 Hermes 연동용이므로 A25 검증에 사용할 수 없다. Process/User/Machine 환경변수와 M1-1 로컬 `.env`에서도 Codyssey 키를 확인하지 못했다 |
-| 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, HEAD `465e6728`(= `origin/main`) |
-| T01.01·T01.02 커밋 범위 | `docs/decisions.md`, `server/`(app·tests·requirements·pytest.ini), `.env.example`, `.gitignore`, `task.md`. 로컬 `.env`는 Git 제외 대상 |
+| 마지막 완료 Task | T01.02 — `server/` 기본 구성, `/health`, 설정 객체(`app.core.config`), 커밋 `424961b8` |
+| 다음 Task | T01.03 — `server/scripts/smoke_ai.py`와 `docs/verification.md` 준비. 실제 호출에는 Codyssey 프록시 키와 제공되는 GPT 모델명이 필요하다. 현재 `.env`는 별도 로컬 Hermes 연동용이며 `.env.codyssey`는 키·모델명이 비어 있다. Process/User/Machine 환경변수와 M1-1 로컬 `.env`에서도 Codyssey 키를 확인하지 못했다 |
+| 작업 기준 | PRD v1.10 / `c324ede9` / `m1-2` 브랜치, T01.01·T01.02 커밋 `424961b8` |
+| T01.03 준비 커밋 범위 | `server/scripts/smoke_ai.py`, `docs/verification.md`, `.env.example`의 공개 프록시 주소, 이 세션 기록. 로컬 `.env`·`.env.codyssey`는 Git 제외 대상 |
 | 실제 실행 결과 | T01.01 확인 완료. T01.02: Python 3.11.9 `.venv`에 의존성 설치, `pytest server/tests -q` 7 passed, 키 없이 uvicorn 기동 후 `/health` 200(`ai`·`firebase` missing 보고, 값 미노출)·`/docs` 200, `git check-ignore`로 `.env`·`.venv`·캐시 제외 확인. 서비스 기능 테스트는 미실행 |
 | 결정 확인이 필요한 항목 | Open Decisions 1·2는 해당 입력/저장 구조 확정 전에 확인. 3은 확장 단계, 4·5는 보수적인 기존 규칙 적용 |
 | 외부 준비 확인 | T01.02~03에서 Python 환경과 실제 AI 설정, T02.01~02에서 Firebase 프로젝트·인증 접근 가능 여부 확인 |
