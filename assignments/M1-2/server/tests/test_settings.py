@@ -1,10 +1,14 @@
 import itertools
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import load_settings
+from app.core.context import RequestContext
 from app.core.firestore import MemoryStore
+from app.features.projects.service import DuplicateProjectName, create_project, update_project
 from app.main import create_app
 
 OWNER = "owner-1"
@@ -176,3 +180,75 @@ def test_protected_routes_require_login():
                          ("put", "/api/settings")]:
         res = getattr(c, method)(path, headers={"X-Data-Mode": "personal"})
         assert res.status_code == 401, (method, path)
+
+
+def test_concurrent_project_creation_keeps_name_unique():
+    store = MemoryStore()
+    ctx = RequestContext(OWNER, "sample", None)
+    barrier = threading.Barrier(2)
+
+    def create():
+        barrier.wait(timeout=5)
+        return create_project(store, ctx, "Same Name", "")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(create) for _ in range(2)]
+        outcomes = []
+        for future in futures:
+            try:
+                outcomes.append(future.result())
+            except DuplicateProjectName:
+                outcomes.append("duplicate")
+
+    assert sum(isinstance(outcome, dict) for outcome in outcomes) == 1
+    assert outcomes.count("duplicate") == 1
+
+
+def test_deactivating_default_project_clears_saved_default():
+    c, _ = make_client()
+    project = c.post("/api/projects", json={"name": "Default"}, headers=h()).json()
+    saved = c.put("/api/settings", json={"expected_version": 0,
+        "default_project_id": project["id"]}, headers=h())
+    assert saved.status_code == 200 and saved.json()["version"] == 1
+
+    disabled = c.put(f"/api/projects/{project['id']}", json={"expected_version": 1,
+        "active": False}, headers=h())
+    assert disabled.status_code == 200
+    after = c.get("/api/settings", headers=h(key=False)).json()
+    assert after["default_project_id"] is None
+    assert after["version"] == 2
+
+    c.put(f"/api/projects/{project['id']}", json={"expected_version": 2,
+        "active": True}, headers=h())
+    assert c.get("/api/settings", headers=h(key=False)).json()["default_project_id"] is None
+
+
+def test_concurrent_project_renames_keep_name_unique():
+    store = MemoryStore()
+    ctx = RequestContext(OWNER, "sample", None)
+    first = create_project(store, ctx, "First", "")
+    second = create_project(store, ctx, "Second", "")
+    barrier = threading.Barrier(2)
+
+    def rename(project_id):
+        barrier.wait(timeout=5)
+        return update_project(store, ctx, project_id, 1, {"name": "Shared"})
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(rename, project_id) for project_id in (first["id"], second["id"])]
+        outcomes = []
+        for future in futures:
+            try:
+                outcomes.append(future.result())
+            except DuplicateProjectName:
+                outcomes.append("duplicate")
+    assert sum(isinstance(outcome, dict) for outcome in outcomes) == 1
+    assert outcomes.count("duplicate") == 1
+
+
+def test_invalid_project_ids_keep_existing_error_contract():
+    c, _ = make_client()
+    assert c.put("/api/projects/__bad__", json={"expected_version": 1, "name": "x"},
+                 headers=h()).status_code == 404
+    assert c.put("/api/settings", json={"expected_version": 0,
+        "default_project_id": "__bad__"}, headers=h()).status_code == 422

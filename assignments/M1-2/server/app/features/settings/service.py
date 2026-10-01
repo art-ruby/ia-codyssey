@@ -8,11 +8,9 @@
 """
 from __future__ import annotations
 
-import hashlib
-
 from app.core.context import RequestContext
-from app.core.firestore import NotFound, Store, VersionConflict
-from app.features.projects import service as projects
+from app.core.firestore import NotFound, Store
+from app.features.projects.atomic import InvalidDefaultProject, save_settings, settings_id
 
 COLLECTION = "settings"
 
@@ -22,15 +20,6 @@ PERSONAL_DEFAULTS = {
     "default_project_id": None,
 }
 SAMPLE_DEFAULTS = {"interests": [], "activities": [], "default_project_id": None}
-
-
-class InvalidDefaultProject(Exception):
-    """기본 프로젝트가 없거나 비활성이다(422)."""
-
-
-def settings_id(ctx: RequestContext) -> str:
-    digest = hashlib.sha256(f"{ctx.owner_id}\n{ctx.mode}".encode()).hexdigest()[:40]
-    return f"settings-{digest}"
 
 
 def _public(doc: dict, saved: bool) -> dict:
@@ -53,15 +42,6 @@ def get_settings(store: Store, ctx: RequestContext) -> dict:
 
 def put_settings(store: Store, ctx: RequestContext, expected_version: int, interests: list[str],
                  activities: list[str], default_project_id: str | None) -> dict:
-    if default_project_id is not None and projects.get_active(store, ctx, default_project_id) is None:
-        raise InvalidDefaultProject()
     data = {"interests": interests, "activities": activities, "default_project_id": default_project_id}
-    if expected_version == 0:
-        # 처음 저장. 이미 있으면 store가 VersionConflict(409, 현재 버전 포함)를 낸다.
-        doc = store.create(ctx, COLLECTION, data, doc_id=settings_id(ctx))
-    else:
-        try:
-            doc = store.update(ctx, COLLECTION, settings_id(ctx), expected_version, data)
-        except NotFound:
-            raise VersionConflict(0) from None  # 아직 저장된 설정이 없다: 새로 불러오면 version 0
+    doc = save_settings(store, ctx, expected_version, data)
     return _public(doc, saved=True)

@@ -10,22 +10,10 @@ from typing import Any
 
 from app.core.context import RequestContext
 from app.core.firestore import NotFound, Store
+from app.features.projects.atomic import DuplicateProjectName, TooManyProjects, change_project
 
 COLLECTION = "projects"
-MAX_PROJECTS = 100
 PUBLIC_FIELDS = ("id", "name", "description", "active", "version", "created_at", "updated_at")
-
-
-class DuplicateProjectName(Exception):
-    """같은 이름의 프로젝트가 이미 있다(409)."""
-
-
-class TooManyProjects(Exception):
-    """프로젝트 수 한도를 넘었다(422)."""
-
-
-def name_key(name: str) -> str:
-    return " ".join(name.split()).casefold()
 
 
 def public(doc: dict) -> dict:
@@ -56,28 +44,10 @@ def get_active(store: Store, ctx: RequestContext, project_id: str) -> dict | Non
     return doc if doc.get("active", True) else None
 
 
-def _ensure_unique(docs: list[dict], name: str, exclude_id: str | None = None) -> None:
-    key = name_key(name)
-    if any(d.get("name_key") == key and d.get("id") != exclude_id for d in docs):
-        raise DuplicateProjectName()
-
-
 def create_project(store: Store, ctx: RequestContext, name: str, description: str) -> dict:
-    docs = _all(store, ctx)
-    if len(docs) >= MAX_PROJECTS:
-        raise TooManyProjects()
-    _ensure_unique(docs, name)
-    doc = store.create(ctx, COLLECTION, {
-        "name": name, "name_key": name_key(name), "description": description, "active": True,
-    })
-    return public(doc)
+    return public(change_project(store, ctx, None, None, {"name": name, "description": description}))
 
 
 def update_project(store: Store, ctx: RequestContext, project_id: str, expected_version: int,
                    changes: dict[str, Any]) -> dict:
-    store.get(ctx, COLLECTION, project_id)  # 남의 프로젝트·없는 프로젝트는 NotFound(404)
-    if "name" in changes:
-        _ensure_unique(_all(store, ctx), changes["name"], exclude_id=project_id)
-        changes = {**changes, "name_key": name_key(changes["name"])}
-    doc = store.update(ctx, COLLECTION, project_id, expected_version, changes)
-    return public(doc)
+    return public(change_project(store, ctx, project_id, expected_version, changes))
