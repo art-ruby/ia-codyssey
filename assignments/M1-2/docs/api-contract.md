@@ -8,7 +8,7 @@
 |---|---|---|
 | `Authorization` | 보호된 API | `Bearer <Firebase ID 토큰>` (Google 로그인) |
 | `X-Data-Mode` | 보호된 API | `personal` 또는 `sample`. 요청에 담긴 모드가 그 요청의 기준이다 |
-| `Idempotency-Key` | 변경 요청 | 중복 요청 식별자. 규칙은 T02.02에서 확정 |
+| `Idempotency-Key` | 변경 요청 | 중복 요청 식별자(1~200자). 아래 "중복 요청" 규칙 |
 
 판정 순서와 응답 코드:
 
@@ -19,7 +19,35 @@
 | 3 | 인증됐지만 `OWNER_UID`가 아닌 계정 | 403 |
 | 4 | `X-Data-Mode` 없음·허용 밖 | 422 |
 
-다른 소유자·모드의 자료를 숨기는 404는 자료 API(T02.02~)에서 적용한다. Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는 토큰 폐기를 요구하지 않는다.
+Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는 토큰 폐기를 요구하지 않는다.
+
+## 저장소 규칙 (T02.02, `server/app/core/firestore.py`)
+
+| 상황 | 결과 |
+|---|---|
+| 없거나 다른 소유자·다른 모드의 문서, 형식이 틀린 문서 ID(빈 값·`/` 포함 등) 조회·수정·삭제 | **404** `찾을 수 없습니다` (존재 여부를 드러내지 않음) |
+| 수정 요청의 `expected_version`이 현재 버전과 다름 | **409**, 응답에 `current_version` |
+| 페이지 커서 해석 불가 | **422** |
+| 서버의 Firestore 설정 누락 | **503** |
+
+- 최상위 컬렉션 `materials`, `intake_records`, `settings`, `projects`, `data`, `conversations`, `idempotency`. 문서마다 `owner_id`·`mode`·`version`·`created_at`·`updated_at`(UTC ISO-8601)을 서버가 채우며, 요청 본문의 같은 이름 값은 무시한다.
+- 목록은 `created_at`·문서 ID 순서이며 한 페이지 최대 100건. 다음 페이지는 응답의 불투명 커서로 요청한다.
+- 브라우저의 Firestore 직접 읽기·쓰기는 보안 규칙(`firestore.rules`, `allow read, write: if false`)으로 거부된다. 모든 접근은 서버를 거친다.
+
+## 중복 요청 (T02.02, `server/app/core/requests.py`)
+
+| 상황 | 결과 |
+|---|---|
+| 변경 요청에 `Idempotency-Key` 없음·빈 값·200자 초과 | **422** |
+| 같은 키·같은 내용(모드·메서드·경로·본문) | 처음 응답을 그대로 반환. 작업은 한 번만 실행 |
+| 같은 키·다른 내용 | **409** `reason: different_request` |
+| 같은 키의 첫 요청이 처리 중 | **409** `reason: in_progress` |
+
+- 키는 소유자 단위이며 기록은 Firestore `idempotency`에 저장되어 서버를 다시 시작해도 유지된다. 1일이 지나면 새 요청으로 본다.
+- 작업이 오류로 끝나면 기록을 지워 같은 키로 다시 시도할 수 있다.
+- 처리 중 서버가 멈추면 같은 키는 만료(1일) 전까지 409다. 실제로 끝났는지 모르므로 다시 실행하지 않으며, 새 키로 요청한다.
+- 만료 확인과 새 기록 차지는 한 트랜잭션에서 처리해, 만료된 키로 동시에 들어온 요청도 한 번만 실행된다.
+- 모든 응답에 `X-Request-ID`가 붙고, 서버 로그에는 메서드·경로 템플릿·상태·소요 시간·요청 ID만 남는다.
 
 ## GET /health
 

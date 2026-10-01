@@ -43,3 +43,17 @@ MVP 서버 실행 경로는 PRD §12에 따라 Codyssey 프록시를 사용한�
   - 로그아웃 후 `GET /api/me` → HTTP 401(서버 로그로 확인).
 - 확인한 제한: 정적 서버를 `127.0.0.1`에만 바인딩하면 `localhost`가 IPv6(`::1`)로 해석되는 브라우저에서 접속되지 않았다. `python -m http.server 5500 --bind ::`로 IPv4·IPv6 모두 응답한다.
 - Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는 토큰 폐기를 요구하지 않는다(미검증 범위 아님, 결정 사항).
+
+### T02.01 최신 코드 재확인 — 2026-10-01
+
+리뷰 수정(`auth.py`의 인증서 조회 실패 503, `auth.js`의 모드 필수·로그인 유지) 이후 최신 코드로 브라우저 흐름을 다시 확인했다. 서버 요청 로그: `GET /api/me 200`(11:26:18, Google 로그인 상태, `owner_id`가 로그인 UID와 일치) → 로그아웃 후 `GET /api/me 401`(11:27:36).
+
+## T02.02 — Firestore 저장 구조·버전·중복 요청 처리
+
+**상태: 통과.** 2026-10-01.
+
+- `python -m pytest server/tests -q`: **54 passed**(소유자·모드 격리, 시스템 필드는 서버가 지정, 버전 409, 커서 페이지·잘못된 커서 422, 중복 요청: 같은 내용 재전송·다른 내용 409·키 없음 422·처리 중 409·실패 후 재시도·재시작 후 유지·1일 만료, HTTP 404/409/422 연결).
+- 실제 Firestore(`server/scripts/check_firestore.py`, 임시 소유자 ID 사용 후 삭제): 새 저장소 인스턴스(재시작 흉내)에서 같은 키 요청이 재전송되고 작업은 1회만 실행, 다른 모드 조회 404 대상, 이전 버전 수정 거부(현재 버전 2), 목록 조회 1건, 정리 완료.
+- `firestore.rules`(전면 거부)·`firestore.indexes.json`(복합 색인 6개)을 `firebase deploy --only firestore`로 배포. 색인 생성 완료 전에는 목록 조회가 `FailedPrecondition`이었고 생성 후 정상.
+- 클라이언트 직접 접근: 공개 웹 API 키로 Firestore REST 읽기·쓰기 모두 HTTP 403 `PERMISSION_DENIED`.
+- HTTP 수준의 404/409/422는 시험용 라우트로 확인했다. 실제 자료 API에서의 확인은 T02.04·T03.01에서 이어진다.
