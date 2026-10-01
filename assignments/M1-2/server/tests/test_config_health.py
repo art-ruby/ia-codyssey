@@ -8,6 +8,7 @@ FULL = {
     "OPENAI_API_KEY": "secret-ai-key",
     "AI_PROVIDER_BASE_URL": "https://proxy.example/v1",
     "AI_PROVIDER_MODEL": "gpt-test",
+    "AI_PROVIDER_ROUTE": "openai-codex",
     "FIREBASE_SERVICE_ACCOUNT_JSON": "secret-service-account",
     "OWNER_UID": "owner-1",
 }

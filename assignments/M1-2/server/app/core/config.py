@@ -24,9 +24,10 @@ DEFAULT_AI_TIMEOUT_SECONDS = 60
 
 # 기능 묶음별로 반드시 있어야 하는 변수. /health와 기능별 오류에서 함께 쓴다.
 REQUIRED = {
-    "ai": ("OPENAI_API_KEY", "AI_PROVIDER_BASE_URL", "AI_PROVIDER_MODEL"),
+    "ai": ("OPENAI_API_KEY", "AI_PROVIDER_BASE_URL", "AI_PROVIDER_MODEL", "AI_PROVIDER_ROUTE"),
     "firebase": ("FIREBASE_SERVICE_ACCOUNT_JSON", "OWNER_UID"),
 }
+OPTIONAL = ("HERMES_RELAY_TOKEN",)
 
 
 class ConfigError(ValueError):
@@ -76,7 +77,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     if env is None:
         load_dotenv(ENV_FILE, override=False)
         env = os.environ
-    names = [n for group in REQUIRED.values() for n in group]
+    names = [n for group in REQUIRED.values() for n in group] + list(OPTIONAL)
     values = {n: env.get(n, "").strip() for n in names}
     origins = tuple(o.strip() for o in env.get("ALLOWED_ORIGINS", "").split(",") if o.strip())
     return Settings(
