@@ -29,3 +29,10 @@
 - 요청 헤더: `X-Data-Mode: personal|sample`(없거나 허용 밖이면 422), 중복 요청 식별 `Idempotency-Key`.
 - 서비스 계정: `FIREBASE_SERVICE_ACCOUNT_JSON`에 JSON 문자열로 `.env`와 배포 환경변수에 넣는다.
 - `OWNER_UID`: Firebase에서 Google 로그인을 켠 뒤 첫 로그인으로 UID를 확인해 설정한다. Spark 요금제 무료 한도로 Auth·Firestore를 시험한다.
+
+## Firestore 데이터베이스 — 2026-10-01
+
+- 프로젝트 `ai-secretary-b5a7c`, 데이터베이스 ID `(default)`, **Standard 버전**(Spark 무료 한도), 위치 **`asia-northeast3`(서울)** — 위치는 이후 변경할 수 없다.
+- 프로덕션 모드로 생성: 보안 규칙 `allow read, write: if false`(클라이언트 직접 접근 전면 거부). 서버는 Admin SDK로 접근하므로 규칙을 우회하며, 소유권은 서비스 계층에서 확인한다. T02.02에서 규칙을 `firestore.rules` 파일로 관리한다.
+- 예약 백업은 Blaze 요금제가 필요해 사용하지 않는다.
+- 생성 직후 Admin SDK로 연결 확인: 컬렉션 0개(빈 데이터베이스).
