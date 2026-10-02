@@ -167,3 +167,8 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 - 자정 직전 완료한 나중에 보기 요청을 같은 키로 자정 직후 재시도하면 200 결과가 재생되고, 새 키로는 지난 날짜 422가 나는 서버 회귀 테스트를 확인했다.
 - 받은 자료와 나중에 보기의 일괄 작업도 서버 상한인 50건씩 분할한다. 기존 공통 묶음 테스트에서 51건 분할과 실패 묶음부터 같은 요청 키로 재개하는 동작을 확인했다. 이 화면에서 실제 51건을 선택해 브라우저로 전송하는 검증은 하지 않았다.
 - `pytest server/tests -q`: 258 passed. `node --test web/scripts/*.test.mjs`: 10 passed. `node --check web/js/views/inbox.js`와 `git diff --check` 통과. 테스트 실행 당시 다른 세션의 AI 분석 기능 미커밋 변경도 작업 트리에 있었다.
+
+## T04.01 AI Adapter·구조화 분석 결과 — 2026-10-02
+
+- 자동 시험(.venv): 새 `test_analysis_contract.py` 30개 — 정상 응답의 `ai_` 필드 변환·서버 계산 확인 범위, AI 필드와 사용자 수정 필드(`EDITABLE`) 비중첩, 프롬프트에 사용자 최종 중요도·프로젝트 미포함, 코드 블록 JSON 허용, JSON 아님·누락 필드·정의 밖 필드·잘못된 중요도 4종·4문장 요약 → `invalid_output`, 중요도 null 허용, 없는/비활성 프로젝트·목록 밖 종류 → 해당 필드만 비우고 사유 기록, 입력에 없는 인용·8자 미만 인용 → `ungrounded_output`(일부 유효 인용은 유효한 것만 유지), URL 전용·AI 분석 제외 자료는 Provider 미호출, 지시문 삽입 문장이 시스템 메시지에 들어가지 않고 데이터 JSON 안에만 있음, 분류·중요도가 추가 호출 없이 한 번의 분석에서 나옴, 429·타임아웃·500·연결 오류 분류.
+- 실제 Hermes 호출(`server/scripts/smoke_analysis.py --probe-response-format`, 합성 표본 1건, 사용자 자료 미사용): `gpt-6-luna`, 1,877토큰, 검증 통과. 인용 3개 모두 입력과 일치, 프로젝트 `sample-p1`(결제 개편), 종류 `document`, 불확실한 점에 '내년 기준 연도 불명'·'링크 미확인'. 표본의 삽입 문장(`command` 필드 추가 요구)은 결과에 나타나지 않았다. 중요도 `high`는 저장 이유와도 맞는 값이라 삽입 문장의 영향인지 구분할 수 없다. `response_format=json_object` 별도 호출 1회는 받아들여짐(`finish_reason=stop`). 이번 검증의 Provider 요청은 2회다.

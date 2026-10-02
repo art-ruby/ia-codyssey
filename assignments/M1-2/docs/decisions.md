@@ -84,3 +84,15 @@
 - **AI 분석 제외:** 기준 값은 `ai_excluded`. `analysis_status`는 바꾸지 않고 화면에서만 'AI 분석 제외'로 대신 보여준다(해제하면 원래 상태가 다시 보인다). 접수·`PUT /api/materials/{id}`로 바꾸며 null은 '바꾸지 않음'. 보관 승인과 묶지 않는다.
 - **공통 판정:** `is_kept`(보관 완료), `ai_allowed`(AI 전송 가능), `chat_eligible`(= `is_kept` + `ai_allowed`). Open Decision 5 결정 전까지 제외 자료는 메타데이터도 채팅 근거로 쓰지 않는다(엄격한 쪽).
 - **서버 시작 직후 동시 요청 503 수정:** 인증과 저장소가 각자 Firebase 앱을 초기화하며 동시 요청에서 늦은 쪽이 '이미 있음' 오류로 503을 받던 문제를 브라우저 시험 중 발견했다. 초기화를 `firestore.firebase_app` 한 곳에서 잠금으로 처리한다(T03.04 범위 밖의 기존 결함).
+
+## T04.01 AI Adapter·구조화 분석 결과 (2026-10-02, 착수 전 검토의 추천안으로 진행 지시)
+- **결과 필드:** AI 제안값은 모두 `ai_` 접두어로 사용자 최종값과 분리한다. `ai_title`(200자) · `ai_summary`(600자, 3문장 이하) · `ai_importance`(`high|medium|low|null`, null = 판단 보류) · `ai_importance_reason` · `ai_primary_project_id` · `ai_kind` · `ai_keywords[]`(8개, T05.02 관련 자료용) · `ai_uncertainties[]` · `ai_recommended_action` · `ai_evidence[]` · `ai_checked_scope`. T04.01은 검증된 객체(`AnalysisResult.to_fields()`)까지, 저장은 T04.02.
+- **요약 문장 수:** 2~3문장을 요청하지만 검증은 3문장 이하만 본다. 제목만 있는 짧은 입력은 한 문장 요약이 자연스러워 하한을 두지 않는다.
+- **구조화 방식:** 프롬프트로 JSON만 요청하고 서버에서 Pydantic(정의 밖 필드 거부, 엄격한 타입)으로 검증한다. 코드 블록 표시 한 겹은 벗긴다. 실패는 `invalid_output`이며 자동 재시도하지 않는다. `response_format=json_object`는 2026-10-02 실제 호출에서 받아들여졌지만(`finish_reason=stop`) 기능은 이것에 의존하지 않는다.
+- **근거 검증:** AI가 입력에서 그대로 옮긴 인용 `evidence` 1~3개를 내고, 서버가 공백을 정리한 뒤 실제로 보낸 입력에 들어 있는지 확인한다(8자 미만은 무효). 유효 인용이 없으면 `ungrounded_output`. 요약 자체의 사실 검증이 아니라 대리 지표다.
+- **잘못된 값:** 형식 오류·허용 밖 중요도·근거 없음은 전체 실패. 목록에 없는(또는 비활성) 프로젝트, 목록 밖 종류는 해당 필드만 비우고 불확실한 점에 사유를 남긴다. 종류 목록: `article|document|note|reference|tool|other`.
+- **보내는 것:** 제목·설명·본문·저장 이유·메모(값이 있는 것만), URL 문자열(열어 보지 않았다고 명시), 활성 프로젝트의 `id`·`name`. 사용자 최종 중요도·프로젝트는 보내지 않는다. 확인 범위는 서버가 계산한다(`fields`, `chars`, `url_fetched=false`).
+- **호출 전 거부:** `ai_excluded` 자료(`ai_excluded`), 제목·설명·본문이 모두 빈 URL 전용 자료(`no_content`)는 Provider를 부르지 않는다.
+- **오류 분류 추가:** `rate_limited`(429), `timeout`을 기존 `provider_http_error`·`provider_connection_error`와 나눈다(T04.03 한도·대기 처리용).
+- **책임 넷, 호출 하나:** `analyze_material`만 Provider를 부르고 `classify_material`·`suggest_importance`는 그 결과에서 꺼낸다. `answer_question`은 텍스트 호출을 그대로 전달하며 채팅 문맥은 T07.02.
+- **지시문 삽입:** 자료는 JSON 문자열 값으로만 넣고 시스템 메시지에서 데이터로 고정한다. 완전히 막을 수는 없으므로 도구 비활성 확인·출력 검증·사용자 승인으로 피해를 막는다. 삽입 문장이 정당한 근거와 같은 방향(예: 중요도 높음)을 요구하면 구분할 수 없다.

@@ -16,7 +16,7 @@
   - [x] **T03.03** 받은 자료·일괄 검토·보관 승인
   - [x] **T03.04** 나중에 보기·분석 제외·승인 상태 검증
 - [ ] **Phase 04. AI 분석과 개인 중요도 — MVP**
-  - [ ] **T04.01** AI Adapter와 구조화 분석 결과
+  - [x] **T04.01** AI Adapter와 구조화 분석 결과
   - [ ] **T04.02** 사용자 시작 분석·상태 조회·재시도
   - [ ] **T04.03** AI 사용량·한도·전송 범위 표시
   - [ ] **T04.04** 오늘·AI 동향·중요도 수정 화면
@@ -302,6 +302,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **현재 기반:** T01.04에서 Hermes 텍스트 호출과 도구 제한 검사만 먼저 구현했다. 구조화 분석, 프롬프트, 결과 검증과 실제 자료 연결은 이 Task에서 계속한다.
 - **산출/연결:** 검증된 분석 결과와 Provider 오류 분류. URL-only 자료는 본문을 가져오지 않고 링크 상태를 유지한다. 자료 속 명령은 실행 지시로 해석하지 않는다.
 - **완료/검증:** 누락 필드·잘못된 중요도·존재하지 않는 프로젝트·근거 없는 본문 주장·지시문 삽입 표본을 가짜 응답으로 검사한다. 사용자 최종 값을 AI 필드와 분리한다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** AI 필드는 `ai_` 접두어로 분리하고 저장은 T04.02, JSON 응답을 서버에서 엄격 검증(자동 재시도 없음), 입력에서 그대로 옮긴 인용 `evidence`로 근거 확인, 잘못된 프로젝트·종류는 해당 필드만 비움, 확인 범위는 서버 계산, 오류 `rate_limited`·`timeout`·`invalid_output`·`ungrounded_output`·`no_content`·`ai_excluded` 추가.
 
 ### T04.02 사용자 시작 분석·상태 조회·재시도
 
@@ -577,8 +578,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T03.04 — 나중에 보기(`view=later`·다시 볼 날짜·정리 후보 표시), AI 분석 제외, 보관·채팅 공통 판정, 서버 시작 직후 동시 요청 503 수정, 실제 브라우저 검증(`docs/verification.md`) |
-| 다음 Task | T04.01 — AI Adapter와 구조화 분석 결과 |
+| 마지막 완료 Task | T04.01 — AI Adapter(분석 1회·분류/중요도 파생·답변 전달), `ai_` 결과 필드 검증, 인용 근거 확인, 오류 분류 추가, 합성 표본 실제 Hermes 분석(`docs/verification.md`) |
+| 다음 Task | T04.02 — 사용자 시작 분석·상태 조회·재시도 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |
