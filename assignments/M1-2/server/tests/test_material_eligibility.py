@@ -73,11 +73,12 @@ def test_select_ai_context_keeps_order_and_counts_reasons():
     assert picked.excluded == {"ai_excluded": 1, "trashed": 1, "unapproved": 1}
 
 
-def test_payload_contains_only_user_content_fields():
+def test_payload_contains_only_user_content_and_registered_date():
     material = doc(ai_summary="AI 요약", ai_keywords=["k"], memo="메모", url="https://example.com",
                    analysis_job_id="j", deletion_job_id="d")
     payload = eligibility.ai_payload(material)
-    assert set(payload) <= set(AI_CONTEXT_FIELDS)
+    assert set(AI_CONTEXT_FIELDS) == {"title", "description", "body", "save_reason", "memo", "url", "registered_at"}
+    assert set(payload) <= set(AI_CONTEXT_FIELDS) and "registered_at" in payload
     assert "owner_id" not in payload and "ai_summary" not in payload and "mode" not in payload and "id" not in payload
 
 

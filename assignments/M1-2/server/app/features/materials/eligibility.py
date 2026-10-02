@@ -6,7 +6,8 @@
   Open Decision 5가 정해지기 전까지는 제외 자료의 제목·날짜 같은 메타데이터도 보내지 않는다(엄격한 쪽).
 - `refresh_and_filter`: 질문할 때마다 자료를 다시 읽어 거른다. 이전 대화에 있던 자료가 그사이 삭제·휴지통·
   미승인·제외 상태가 됐으면 다시 보내지 않는다(PRD §11). 새 질문과 과거 대화 문맥 모두 이 함수를 쓴다(T07).
-- `ai_payload`: AI에 보낼 필드는 사용자가 쓴 내용으로 고정한다. 소유자·모드·자료 ID·내부 필드는 보내지 않는다.
+- `ai_payload`: AI에 보낼 필드는 사용자가 쓴 내용과 접수일로 고정한다(날짜 질문에 답하려고 접수일을 포함).
+  소유자·모드·자료 ID·AI 결과·내부 필드는 보내지 않는다.
 """
 from __future__ import annotations
 
@@ -86,5 +87,5 @@ def refresh_and_filter(store: Store, ctx: RequestContext, material_ids: list[str
 
 
 def ai_payload(doc: dict) -> dict:
-    """AI에 보낼 자료 내용. 값이 있는 사용자 입력 필드만."""
+    """AI에 보낼 자료 내용. 값이 있는 사용자 입력 필드와 접수일만."""
     return {name: doc[name] for name in AI_CONTEXT_FIELDS if doc.get(name)}

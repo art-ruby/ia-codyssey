@@ -363,7 +363,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** `material_is_chat_eligible`에 소유자·모드·보관 승인·보관 완료·활성·AI 분석 제외 조건을 모은다. 분석 제외 자료의 제목·메타데이터도 결정 전에는 AI에 보내지 않는다. 일반 보관함에 보일 수 있는 자료와 AI 문맥에 보낼 수 있는 자료의 조건을 구분한다.
 - **산출/연결:** Phase 07의 새 질문·과거 대화 문맥 모두에서 호출할 공통 함수. 관련 후보를 AI에 전달할 때도 동일 제외 조건을 적용한다.
 - **완료/검증:** 한 조건씩 바꾼 표본으로 허용/거부를 확인하고 실제 Provider 요청 캡처에 금지 자료가 없는지 검사한다. A13 웹 범위와 AI 분석 제외 원칙에 대응한다. PRD A21의 파일 검증은 확장 단계에서 추가한다.
-- **착수 전 결정(2026-10-02, `docs/decisions.md`):** `material_is_chat_eligible`+`exclusion_reason`(소유자·모드·활성·승인·보관 완료·AI 분석 제외), `library_visible`과 구분, 질문 때 다시 읽는 `refresh_and_filter`, AI로 보내는 필드는 사용자 입력만(`ai_payload`), 제외 자료는 메타데이터도 보내지 않음.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** `material_is_chat_eligible`+`exclusion_reason`(소유자·모드·활성·승인·보관 완료·AI 분석 제외), `library_visible`과 구분, 질문 때 다시 읽는 `refresh_and_filter`, AI로 보내는 필드는 사용자 입력과 접수일만(`ai_payload`), 제외 자료는 메타데이터도 보내지 않음.
 
 ## Phase 06. 숫자 기록·요약·표본 데이터
 
