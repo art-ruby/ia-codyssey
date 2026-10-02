@@ -48,6 +48,8 @@ Thumbs.db
 *draft*
 *backup*
 *test_data*
+# 위 규칙이 테스트 코드(test_data_crud.py 등)까지 무시하지 않게 되살린다
+!**/tests/test_*.py
 
 # ===== 과제 외 폴더 =====
 /assignments/04*/
