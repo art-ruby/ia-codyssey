@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import time
 
 from fastapi.testclient import TestClient
 
@@ -133,6 +134,7 @@ def test_trash_list_is_newest_trashed_first_and_mode_scoped():
     c, _ = make_client()
     first, second = new(c), new(c)
     trash(c, second)
+    time.sleep(0.02)  # Windows 시계 해상도에서 휴지통에 넣은 시각이 같아지지 않게 한다
     trash(c, first)
     sample = c.post("/api/materials", json={"title": "표본"}, headers=h(mode="sample")).json()
     c.post("/api/reviews/approve", headers=h(mode="sample"),

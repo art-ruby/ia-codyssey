@@ -44,6 +44,7 @@ def list_trash(store: Store, ctx: RequestContext) -> dict:
             if not cursor:
                 break
     truncated = len(docs) > MAX_LISTED
+    docs.sort(key=lambda d: d.get("id", ""))  # 같은 시각이면 ID 순으로 결과를 고정한다
     docs.sort(key=lambda d: d.get("trashed_at") or "", reverse=True)
     return {"items": [_row(d) for d in docs[:MAX_LISTED]], "truncated": truncated}
 
