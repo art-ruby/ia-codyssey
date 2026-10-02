@@ -154,3 +154,25 @@ def search_materials(store: Store, ctx: RequestContext, query: str, filters: Sea
         scope={"scanned": len(docs), "scan_limit": MAX_SCAN, "truncated": truncated,
                "kept_scanned": len(kept), "fields": list(SEARCH_FIELDS)},
     )
+
+
+def rank_materials(store: Store, ctx: RequestContext, terms: list[str], min_hits: int = 1) -> tuple[list[tuple[dict, int]], bool]:
+    """자연어 질문용 순위(T07.01). 같은 검색 대상(보관 완료)·필드에서 검색어가 많이 들어 있는 순 → 최신 접수 → ID.
+
+    `search_materials`는 모든 검색어를 요구해(AND) 질문 문장에는 엄격하다. 여기서는 `min_hits`개 이상 들어 있으면
+    후보로 내고 겹친 수로 줄 세운다. AI 문맥에 넣기 전 자격 필터(eligibility)는 호출하는 쪽에서 다시 한다.
+    """
+    docs, truncated = _scan(store, ctx)
+    norm_terms = [_norm(t) for t in terms if t]
+    ranked = []
+    for doc in docs:
+        if not is_kept(doc):
+            continue
+        text = "\n".join(_norm(doc.get(name) or "") for name in SEARCH_FIELDS)
+        hits = sum(1 for term in norm_terms if term in text)
+        if hits >= min_hits:
+            ranked.append((doc, hits))
+    ranked.sort(key=lambda pair: pair[0].get("id", ""))
+    ranked.sort(key=lambda pair: pair[0].get("registered_at") or "", reverse=True)
+    ranked.sort(key=lambda pair: pair[1], reverse=True)
+    return ranked, truncated
