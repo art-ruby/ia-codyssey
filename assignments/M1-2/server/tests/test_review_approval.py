@@ -272,8 +272,8 @@ def test_approved_material_cannot_move_back_to_review():
     ([], "검토 항목"),
     ([{"material_id": f"m{i}", "expected_version": 1} for i in range(51)], "50"),
     ([{"material_id": "a", "expected_version": 1}, {"material_id": "a", "expected_version": 1}], "두 번"),
-    ([{"material_id": "a", "expected_version": 1, "action": "link"}], "보관 승인(keep)만"),
-    ([{"material_id": "a", "expected_version": 1, "action": "trash"}], "보관 승인(keep)만"),
+    ([{"material_id": "a", "expected_version": 1, "action": "link"}], "관련 자료 판단(link)이 필요"),  # T05.02
+    ([{"material_id": "a", "expected_version": 1, "action": "trash"}], "휴지통 이동은 이후 단계"),  # T05.03 전
     ([{"material_id": "a", "expected_version": 1, "action": "delete"}], "작업"),
     ([{"material_id": "a", "expected_version": 0}], "버전"),
     ([{"material_id": "a", "expected_version": 1, "changes": {"user_importance": "urgent"}}], "중요도"),

@@ -31,7 +31,7 @@ _APP_LOCK = threading.Lock()
 # MVP에서 쓰는 컬렉션. PC 관련 컬렉션은 확장 단계에서 추가한다.
 COLLECTIONS = frozenset(
     {"materials", "intake_records", "settings", "projects", "data", "conversations", "idempotency",
-     "url_index", "ai_usage"}
+     "url_index", "ai_usage", "material_links"}
 )
 # 저장소가 관리하는 필드. 호출자가 넘긴 값은 무시하고 저장소가 정한다.
 SYSTEM_FIELDS = frozenset({"id", "owner_id", "mode", "version", "created_at", "updated_at"})
@@ -165,6 +165,14 @@ class Store(Protocol):
     def transform(self, ctx: RequestContext, collection: str, doc_id: str,
                   fn: Callable[[dict], Mapping[str, Any]]) -> dict: ...
 
+    # 여러 문서를 읽고 확인한 뒤 일부를 쓰는 일을 한 원자적 작업으로 한다(T05.02 관련 자료 판단).
+    # reads: [(collection, doc_id)]. 없거나 다른 소유자·모드의 문서는 None으로 넘긴다.
+    # fn(docs: {(collection, doc_id): dict|None}) -> (writes, result). writes: [(collection, doc_id, 바꿀 필드)]이며
+    # reads에 있는 문서만 쓸 수 있다. 없던 문서는 새로 만들고(version 1), 있던 문서는 version을 1 올린다.
+    # 반환: (result, {(collection, doc_id): 저장된 문서}). Firestore에서는 fn이 다시 불릴 수 있어 부수 효과가 없어야 한다.
+    def run_transaction(self, ctx: RequestContext, reads: list[tuple[str, str]],
+                        fn: Callable[[dict], tuple[list[tuple[str, str, Mapping[str, Any]]], Any]]) -> tuple[Any, dict]: ...
+
     # where: 같음 조건(field == value). 조건 조합마다 firestore.indexes.json에 복합 색인이 필요하다.
     def list(self, ctx: RequestContext, collection: str, limit: int = 20,
              cursor: str | None = None, descending: bool = False,
@@ -207,6 +215,19 @@ def _new_doc(ctx: RequestContext, data: Mapping[str, Any], doc_id: str) -> dict:
         "created_at": stamp,
         "updated_at": stamp,
     }
+
+
+def _merged(ctx: RequestContext, docs: dict, collection: str, doc_id: str, data: Mapping[str, Any],
+            foreign: set) -> dict:
+    """run_transaction의 쓰기 한 건: 없던 문서는 새로 만들고, 있던 문서는 필드를 합쳐 version을 올린다."""
+    if (collection, doc_id) not in docs:
+        raise ValueError("run_transaction은 읽은 문서만 쓸 수 있습니다")
+    if (collection, doc_id) in foreign:
+        raise NotFound(collection)  # 다른 소유자·모드의 문서를 덮어쓰지 않는다
+    current = docs[(collection, doc_id)]
+    if current is None:
+        return _new_doc(ctx, data, doc_id)
+    return {**current, **_user_fields(data), "version": current["version"] + 1, "updated_at": now_utc()}
 
 
 class MemoryStore:
@@ -258,6 +279,22 @@ class MemoryStore:
             doc.update(_user_fields(fn(copy.deepcopy(doc))))
             doc["updated_at"] = now_utc()
             return copy.deepcopy(doc)
+
+    def run_transaction(self, ctx, reads, fn):
+        for collection, doc_id in reads:
+            _check_collection(collection)
+            _check_doc_id(collection, doc_id)
+        with self._lock:
+            raw = {key: self._docs[key[0]].get(key[1]) for key in reads}
+            docs = {key: copy.deepcopy(d) if _owned(d, ctx) else None for key, d in raw.items()}
+            foreign = {key for key, d in raw.items() if d is not None and docs[key] is None}
+            writes, result = fn(copy.deepcopy(docs))
+            saved = {}
+            for collection, doc_id, data in writes:
+                saved[(collection, doc_id)] = _merged(ctx, docs, collection, doc_id, data, foreign)
+            for (collection, doc_id), doc in saved.items():
+                self._docs[collection][doc_id] = doc
+            return result, copy.deepcopy(saved)
 
     def create_many(self, ctx, items):
         prepared = []
@@ -434,6 +471,32 @@ class FirestoreStore:
             doc["updated_at"] = now_utc()
             tx.set(ref, doc)
             return doc
+
+        return run(self._db.transaction())
+
+    def run_transaction(self, ctx, reads, fn):
+        from google.cloud import firestore as gcf
+
+        for collection, doc_id in reads:
+            _check_collection(collection)
+        refs = {key: self._ref(*key) for key in reads}
+
+        @gcf.transactional
+        def run(tx):
+            docs, foreign = {}, set()
+            for key, ref in refs.items():
+                snap = ref.get(transaction=tx)
+                doc = snap.to_dict() if snap.exists else None
+                docs[key] = doc if _owned(doc, ctx) else None
+                if doc is not None and docs[key] is None:
+                    foreign.add(key)
+            writes, result = fn(copy.deepcopy(docs))
+            saved = {}
+            for collection, doc_id, data in writes:
+                saved[(collection, doc_id)] = _merged(ctx, docs, collection, doc_id, data, foreign)
+            for key, doc in saved.items():
+                tx.set(refs[key], doc)
+            return result, saved
 
         return run(self._db.transaction())
 

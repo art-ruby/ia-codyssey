@@ -16,7 +16,7 @@ from app.core.deps import get_store
 from app.core.firestore import Store
 from app.core.requests import Result, run_idempotent
 from app.features.analysis.schemas import KINDS
-from app.features.materials import priority, search, service
+from app.features.materials import priority, related, search, service
 from app.features.materials.schemas import MaterialCreate, MaterialUpdate
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
@@ -77,6 +77,13 @@ def material_priority(ctx: RequestContext = Depends(get_context), store: Store =
 def get_material(material_id: str, ctx: RequestContext = Depends(get_context),
                  store: Store = Depends(get_store)) -> dict:
     return service.get_material(store, ctx, material_id)
+
+
+@router.get("/{material_id}/related")
+def related_materials(material_id: str, ctx: RequestContext = Depends(get_context),
+                      store: Store = Depends(get_store)) -> dict:
+    """PRD §13. 근거가 있는 보관 자료 후보(제안)와 사용자가 확정한 연결을 따로 돌려준다(T05.02)."""
+    return related.related_view(store, ctx, material_id)
 
 
 @router.put("/{material_id}")

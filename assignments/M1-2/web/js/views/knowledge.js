@@ -1,7 +1,8 @@
 // S03 지식 보관함: 보관 완료 자료 검색·기간·종류·프로젝트 필터, 상세 보기·메모 수정(T05.01).
-// 관련 자료 연결(T05.02)과 휴지통 탭(T05.03)은 이후 Task에서 더한다. 모든 문자열은 textContent·value로만 넣는다.
+// 관련 자료 연결은 related.js(T05.02), 휴지통 탭은 T05.03에서 더한다. 모든 문자열은 textContent·value로만 넣는다.
 import { analysisPanel } from "../analysis.js";
 import { request } from "../api.js";
+import { relatedPanel } from "../related.js";
 import { el } from "../priority.js";
 import { FIELD_LABELS, KIND_OPTIONS, SOURCE_OPTIONS, mergePage, scopeText, searchQuery } from "../search-query.js";
 import { singleFlight } from "../single-flight.js";
@@ -123,7 +124,8 @@ export function renderKnowledge(root, ctx) {
       analysisPanel(material, {
         api, isCurrent: ctx.isCurrent, onError: ctx.onError,
         onChange: (next) => { items = items.map((m) => (m.id === next.id ? { ...next, match: m.match } : m)); },
-      }));
+      }),
+      relatedPanel(material, { api, isCurrent: ctx.isCurrent, onError: ctx.onError }));
     li.append(detail);
 
     save.addEventListener("click", async () => {

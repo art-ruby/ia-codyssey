@@ -3,6 +3,7 @@
 // 모든 문자열은 textContent·value로만 넣는다.
 import { analysisPanel, analysisState } from "../analysis.js";
 import { request } from "../api.js";
+import { relatedPanel } from "../related.js";
 import { processBatches, splitBatches } from "../review-batches.js";
 import { singleFlight } from "../single-flight.js";
 
@@ -61,7 +62,7 @@ export function renderReview(root, ctx) {
   const more = el("button", { class: "button secondary small", type: "button", text: "더 보기", hidden: "" });
   root.append(el("section", { class: "panel" },
     el("h2", { text: "승인 요청 목록" }),
-    el("p", { text: "보관할 자료를 고르고 필요하면 제목·중요도·프로젝트를 고친 뒤 승인합니다. 고르지 않은 자료는 그대로 남습니다. AI 요약·중요 이유는 분석 기능이 연결되면 함께 표시됩니다." }),
+    el("p", { text: "보관할 자료를 고르고 필요하면 제목·중요도·프로젝트를 고친 뒤 승인합니다. 고르지 않은 자료는 그대로 남습니다. 카드에서 AI 분석을 시작하면 요약·중요 이유를 함께 볼 수 있고, 관련 자료 후보도 확인할 수 있습니다." }),
     el("div", { class: "review-toolbar" },
       el("label", { class: "check" }, selectAll, el("span", { text: "전체 선택" })), approveBtn, backBtn),
     status, list, more));
@@ -173,7 +174,9 @@ export function renderReview(root, ctx) {
               tag.textContent = state.label;
             }
           },
-        })));
+        }),
+        // 관련 자료 제안·연결(T05.02). 눌렀을 때만 불러온다.
+        relatedPanel(material, { api, isCurrent: ctx.isCurrent, onError: ctx.onError })));
   }
 
   function renderList() {

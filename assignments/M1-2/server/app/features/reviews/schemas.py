@@ -1,6 +1,7 @@
 """검토·승인 요청 형식(T03.03, PRD §13 `POST /api/reviews/approve`).
 
 요청 전체가 잘못되면(항목 0개·상한 초과·같은 자료 중복·아직 지원하지 않는 작업) 422로 거부한다.
+`action=link`(T05.02)는 관련 자료 판단(연결·관련 없음·해제)이다. `action=trash`는 T05.03에서 붙인다.
 그 밖에는 항목별 결과를 돌려주며, 일부 항목의 충돌로 전체를 실패시키지 않는다.
 """
 from __future__ import annotations
@@ -33,24 +34,48 @@ class KeepChanges(_Strict):
         return clean_ids(ids)
 
 
+class LinkChoice(_Strict):
+    """관련 자료 판단(T05.02). 상대 자료의 ID·버전을 함께 보내 사용자가 본 내용인지 확인한다."""
+
+    target_id: str = Field(min_length=1)
+    target_version: int = Field(ge=1)
+    decision: Literal["link", "unrelated", "unlink"]
+
+
 class ApproveItem(_Strict):
     material_id: str = Field(min_length=1)
     expected_version: int = Field(ge=1)
-    # link·trash는 Phase 05에서 같은 API에 붙인다. 요청 형식은 지금과 같다.
+    # trash는 T05.03에서 같은 API에 붙인다.
     action: Literal["keep", "link", "trash"] = "keep"
     changes: KeepChanges | None = None
+    link: LinkChoice | None = None
 
     @model_validator(mode="after")
     def supported(self):
-        if self.action != "keep":
-            raise ValueError("지금은 보관 승인(keep)만 할 수 있습니다. 연결·휴지통 이동은 이후 단계에서 지원합니다")
+        if self.action == "trash":
+            raise ValueError("휴지통 이동은 이후 단계에서 지원합니다")
+        if self.action == "keep" and self.link is not None:
+            raise ValueError("보관 승인에는 관련 자료 판단을 함께 보낼 수 없습니다")
+        if self.action == "link":
+            if self.link is None:
+                raise ValueError("관련 자료 판단(link)이 필요합니다")
+            if self.changes is not None:
+                raise ValueError("관련 자료 판단에는 수정값을 함께 보낼 수 없습니다")
+            if self.link.target_id == self.material_id:
+                raise ValueError("자기 자신과는 연결할 수 없습니다")
         return self
 
 
 class _Batch(_Strict):
     @model_validator(mode="after")
     def unique_ids(self):
-        ids = [item.material_id for item in self.items]
+        # 관련 자료 판단은 짝으로 구분한다. A→B와 B→A는 같은 기록이므로 정렬한 ID 쌍으로 비교한다(T05.02 코드 리뷰).
+        # 한 자료를 여러 상대와 한 번에 판단할 수는 있다. 보관 승인 등은 자료 ID로 비교한다.
+        def key(item):
+            link = getattr(item, "link", None)
+            return ("link", *sorted([item.material_id, link.target_id])) if link else ("item", item.material_id)
+
+        ids = [key(item) for item in self.items]
         if len(ids) != len(set(ids)):
             raise ValueError("같은 자료를 한 요청에 두 번 넣을 수 없습니다")
         return self

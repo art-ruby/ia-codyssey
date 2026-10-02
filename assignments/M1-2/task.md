@@ -22,7 +22,7 @@
   - [x] **T04.04** 오늘·AI 동향·중요도 수정 화면
 - [ ] **Phase 05. 보관함·관련 자료·웹 휴지통 — MVP**
   - [x] **T05.01** 보관함 검색·필터·페이지네이션
-  - [ ] **T05.02** 관련 자료 제안·연결·해제
+  - [x] **T05.02** 관련 자료 제안·연결·해제
   - [ ] **T05.03** 웹 자료 휴지통 이동·복원·영구 삭제
   - [ ] **T05.04** 검색·채팅에 전달할 자료의 공통 필터
 - [ ] **Phase 06. 숫자 기록·요약·표본 데이터 — MVP**
@@ -346,12 +346,14 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** 실제 내용·프로젝트·키워드의 근거로 기존 승인·활성 자료를 후보로 낸다. 근거가 약하면 빈 목록을 반환한다. 승인 API의 `action=link` 안에 연결/관련 없음/해제 선택과 두 자료의 ID·버전을 기록한다. 제안 상태와 사용자가 확정한 관계를 구분한다.
 - **산출/연결:** `GET /api/materials/{id}/related`, 관계 저장과 화면 표시. 정확한 URL 중복 선택과 혼합하지 않는다.
 - **완료/검증:** 관련 없는 후보, 삭제된 대상, 버전 변경, 연결 해제, 같은 URL과 유사 내용의 차이를 확인한다. A19에 대응한다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** 같은 모드 보관 완료 자료 중 자기·같은 URL·판단한 짝 제외, AI 없이 프로젝트·AI 핵심어·공통 단어로 근거 계산, (프로젝트+1) 또는 핵심어 2 또는 단어 3 미만이면 후보 없음, 최대 5건, 승인 API `action=link`(link|unrelated|unlink)와 짝마다 `material_links` 기록(두 버전·근거), 자료 버전 유지, 검토 카드·보관함 상세의 관련 자료 패널.
 
 ### T05.03 웹 자료 휴지통 이동·복원·영구 삭제
 
 - **파일:** 생성 `server/app/features/trash/routes.py`, `server/app/features/trash/service.py`, `server/tests/test_web_trash.py`; 수정 승인 서비스·보관함 탭.
 - **작업:** 승인 API의 `action=trash`로 활성 웹 자료를 휴지통으로 보내고 보관 수명 상태와 `trashed_at`을 기록한다(PRD §9.2 `materials`. 파일 사본의 `trash_at`과 구분). 휴지통 목록·복원·별도 확인을 요구하는 영구 삭제를 구현한다. 복원은 기존 승인 여부와 승인일을 보존하여 미승인 자료를 승인 자료로 바꾸지 않는다. 자동 만료는 만들지 않는다.
 - **산출/연결:** `GET /api/trash`, `POST /api/trash/{id}/restore`, `DELETE /api/trash/{id}`. 영구 삭제 시 자료 본문·검색 데이터·연결 접수 기록을 제거하고 남은 관계/출처는 삭제 상태로 처리한다. 중복 요청 결과·승인 스냅샷 등에 삭제한 자료의 본문이나 자료 ID가 남지 않게 정리한다. 작업 감사 기록에는 자료 ID를 제거하고 작업 ID·상태·시간만 남긴다. 이전 대화 인용문이 남을 수 있다는 안내를 표시한다.
+- **T05.02에서 넘어온 일:** 영구 삭제 시 그 자료가 들어간 `material_links` 기록도 지운다.
 - **완료/검증:** 휴지통 이동→검색 제외→복원→재포함→영구 삭제를 검증한다. 일부 제거 실패는 완료로 표시하지 않는다. 영구 삭제 뒤 검색·접수 기록·중복 요청/승인 기록·감사 기록에 본문과 자료 ID가 남지 않는지 확인한다. 이전 대화 인용문은 별도 삭제 전까지 남을 수 있다는 안내를 검증한다. `kept_count` 감소와 `received_count` 재계산은 T06.02와 통합 검증한다. A26에 대응한다.
 
 ### T05.04 검색·채팅에 전달할 자료의 공통 필터
@@ -582,8 +584,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T05.01 — 보관 완료 자료 검색(`GET /api/materials/search`, 최신 1,000건 Python 검색·범위 표시), 기간·종류·프로젝트 필터, 20건 페이지, 지식 보관함 화면(상세·메모 수정), 실제 Firestore 브라우저 검증(`docs/verification.md`) |
-| 다음 Task | T05.02 — 관련 자료 제안·연결·해제 |
+| 마지막 완료 Task | T05.02 — 근거 있는 관련 자료 제안(`GET /api/materials/{id}/related`), 승인 API `action=link`(연결·관련 없음·해제)와 `material_links` 기록, 검토 카드·보관함 상세 패널, 실제 Firestore 브라우저 검증(`docs/verification.md`) |
+| 다음 Task | T05.03 — 웹 자료 휴지통 이동·복원·영구 삭제 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

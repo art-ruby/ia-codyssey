@@ -15,6 +15,7 @@ from typing import Any
 from app.core.context import RequestContext
 from app.core.errors import NoChange
 from app.core.firestore import NotFound, Store, VersionConflict, now_utc
+from app.features.materials import related
 from app.features.materials import service as materials
 from app.features.materials.service import COLLECTION, SEOUL, InvalidProjectReference, NoContent, public
 
@@ -72,10 +73,64 @@ def _approve_one(store: Store, ctx: RequestContext, item: dict) -> dict:
     return _write(store, ctx, item, changes, "approved")
 
 
+_LINK_STATUS = {"link": ("linked", "linked"), "unrelated": ("unrelated", "marked_unrelated"),
+                "unlink": ("unlinked", "unlinked")}
+
+
+def _link_one(store: Store, ctx: RequestContext, item: dict) -> dict:
+    """관련 자료 판단(T05.02). 두 자료의 상태·버전 확인과 짝 기록 쓰기를 한 트랜잭션에서 한다.
+
+    확인과 저장 사이에 자료가 고쳐지거나 휴지통으로 가면 오래된 버전으로 저장하지 않는다(T05.02 코드 리뷰).
+    자료 자체의 버전은 바꾸지 않는다.
+    """
+    material_id, choice = item["material_id"], item["link"]
+    target_id, decision = choice["target_id"], choice["decision"]
+    link_id = related.link_id(material_id, target_id)
+    names = related.project_names(store, ctx)  # 근거 표시용 이름. 판단의 정합성과 무관하므로 트랜잭션 밖에서 읽는다
+    decided_at = now_utc()
+    keys = {"source": (COLLECTION, material_id), "target": (COLLECTION, target_id), "link": (related.LINKS, link_id)}
+
+    def check(docs: dict):
+        source, target, existing = (docs[keys[k]] for k in ("source", "target", "link"))
+        if source is None or target is None:
+            return [], _result(material_id, "not_found", side="source" if source is None else "target")
+        if source.get("lifecycle") != "active":
+            return [], _result(material_id, "invalid", reason="trashed")
+        if source["version"] != item["expected_version"]:
+            return [], _result(material_id, "conflict", side="source", current_version=source["version"])
+        if decision == "unlink":
+            # 해제는 상대가 휴지통에 갔어도 할 수 있어야 하므로 상대 상태·버전을 묻지 않는다.
+            if not existing or existing.get("state") != "linked":
+                return [], _result(material_id, "invalid", reason="not_linked")
+        else:
+            if not materials.is_kept(target):
+                return [], _result(material_id, "invalid", reason="target_unavailable")
+            if related.same_url(source, target):
+                return [], _result(material_id, "invalid", reason="same_url")  # 같은 URL은 중복 처리(T03.02)에서
+            if target["version"] != choice["target_version"]:
+                return [], _result(material_id, "conflict", side="target", current_version=target["version"])
+        evidence, _, _ = related.evidence_for(source, target, names)
+        low, high = sorted([material_id, target_id])
+        record = {"a_id": low, "b_id": high, "source_id": material_id, "target_id": target_id,
+                  "source_version": source["version"], "target_version": target["version"],
+                  "state": _LINK_STATUS[decision][0], "evidence": evidence, "decided_at": decided_at}
+        return [(*keys["link"], record)], None
+
+    failure, saved = store.run_transaction(ctx, list(keys.values()), check)
+    if failure:
+        return failure
+    link = saved[keys["link"]]
+    fields = ("a_id", "b_id", "source_id", "target_id", "source_version", "target_version", "state", "evidence",
+              "decided_at", "version")
+    return _result(material_id, _LINK_STATUS[decision][1], link={k: link[k] for k in fields})
+
+
 def approve(store: Store, ctx: RequestContext, items: list[dict[str, Any]]) -> dict:
-    """항목 순서대로 처리한 결과. 지금은 action=keep만 온다(schemas.py가 거른다)."""
-    results = [_approve_one(store, ctx, item) for item in items]
-    return {"results": results, "approved_count": sum(r["status"] == "approved" for r in results)}
+    """항목 순서대로 처리한 결과. action: keep(보관 승인) | link(관련 자료 판단). trash는 schemas.py가 거른다."""
+    results = [_link_one(store, ctx, item) if item.get("action") == "link" else _approve_one(store, ctx, item)
+               for item in items]
+    return {"results": results, "approved_count": sum(r["status"] == "approved" for r in results),
+            "linked_count": sum(r["status"] in ("linked", "marked_unrelated", "unlinked") for r in results)}
 
 
 def _request_one(store: Store, ctx: RequestContext, item: dict, requested: bool) -> dict:

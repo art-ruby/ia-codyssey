@@ -231,3 +231,18 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
 - 200 `{items, next_cursor, total_matches, scope}`. `items`는 최신 접수 순이며 각 자료에 `match: {field, snippet}`(검색어가 없으면 null)이 더해진다. `scope`: `{scanned, scan_limit, truncated, kept_scanned, fields}` — 실제로 검색한 범위다. `truncated=true`면 최근 접수 `scan_limit`(1,000)건까지만 검색했다는 뜻이다.
 - 422: 날짜 형식·존재하지 않는 날짜, 시작이 끝보다 늦음, `limit` 범위 밖, 허용 밖 `kind`·`source_type`, 다른 검색 조건에서 만든 커서·망가진 커서.
 - 저장소 오류는 5xx로 그대로 알린다(결과 0건으로 바꾸지 않는다).
+
+## 관련 자료 (T05.02)
+
+**`GET /api/materials/{id}/related`** — PRD §13. 다른 소유자·모드 자료는 404.
+- 200 `{candidates, confirmed, unrelated_count, scope}`.
+- `candidates`(제안, 아직 연결되지 않음): 같은 모드의 보관 완료 자료 중 근거가 충분한 것 최대 5건, 근거 점수 → 최신 순. 자기 자신, 같은 URL(비교 키) 자료, 이미 연결했거나 관련 없음으로 판단한 짝은 뺀다. 각 항목 `{material: {id, display_title, url, registered_at, review_status, lifecycle, version}, evidence: [{type: project|keywords|terms, label, values}], score}`.
+- 근거가 충분한 조건: (같은 프로젝트 + 공통 단어·핵심어 1개 이상) 또는 공통 AI 핵심어 2개 이상 또는 공통 내용 단어 3개 이상. 근거가 약하면 빈 목록이다. AI는 호출하지 않는다.
+- `confirmed`(사용자가 확정한 연결): `{material, state: "linked", available, source_id, target_id, source_version, target_version, evidence, decided_at}`. 상대가 휴지통에 가면 `available=false`.
+- `unrelated_count`: 관련 없음으로 기록해 제안에서 뺀 수. `scope`: `{scanned, truncated}`(최신 1,000건 기준).
+
+**`POST /api/reviews/approve`의 `action=link`** — 관련 자료 판단.
+- 항목: `{material_id, expected_version, action: "link", link: {target_id, target_version, decision: "link"|"unrelated"|"unlink"}}`. `changes`와 함께 보낼 수 없고 자기 자신을 대상으로 할 수 없다(요청 전체 422). 한 요청에서 같은 자료를 여러 상대와 판단할 수 있다. 같은 짝은 방향과 관계없이 한 번만(A→B와 B→A를 함께 보내면 422).
+- 항목 결과: `linked` · `marked_unrelated` · `unlinked` · `conflict`(`side`: source|target|link, `current_version`) · `not_found`(`side`) · `invalid`(`reason`: `trashed` 기준 자료가 휴지통, `target_unavailable` 상대가 보관 상태가 아님, `same_url` 같은 URL은 중복 처리에서, `not_linked` 연결되지 않은 짝의 해제).
+- 해제(`unlink`)는 상대가 휴지통에 있어도 할 수 있도록 상대의 상태·버전을 확인하지 않는다.
+- 짝마다 기록 하나(`material_links`): 두 자료 ID·당시 버전·근거·상태·시각. 두 자료의 상태·버전 확인과 기록 쓰기는 한 트랜잭션이다. 자료 자체의 `version`은 바뀌지 않는다. 응답에 `linked_count`가 더해졌다.
