@@ -5,6 +5,7 @@ import { request } from "../api.js";
 import { loadAllLaterPages, sortLater } from "../later-list.js";
 import { processBatches, splitBatches } from "../review-batches.js";
 import { singleFlight } from "../single-flight.js";
+import { trashButton } from "../trash.js";
 
 // 서버 한도와 같다(server/app/features/materials/schemas.py). 최종 판단은 서버가 한다.
 const LIMITS = { url: 2048, title: 200, description: 2000, body: 20000, save_reason: 2000, memo: 2000 };
@@ -279,6 +280,15 @@ export function renderInbox(root, ctx) {
     const save = el("button", { class: "button primary small", type: "button", text: "수정 저장" });
     const status = el("p", { class: "form-status", role: "status" });
     detail.append(el("div", { class: "form-actions" }, save, status));
+    // 휴지통 이동(T05.03). 옮기면 받은 자료·나중에 보기 목록에서 빠진다.
+    detail.append(trashButton(material, { api, onError: ctx.onError, onDone: () => {
+      items = items.filter((m) => m.id !== material.id);
+      laterItems = laterItems.filter((m) => m.id !== material.id);
+      selected.delete(material.id);
+      renderList();
+      renderLater();
+      listStatus.textContent = "휴지통으로 옮겼습니다. 지식 보관함의 휴지통 탭에서 복원할 수 있습니다.";
+    } }));
     // 분석은 자료 버전을 올리지 않으므로 열린 수정 폼과 충돌하지 않는다(T04.02).
     detail.append(analysisPanel(material, {
       api, isCurrent: ctx.isCurrent, onError: ctx.onError,

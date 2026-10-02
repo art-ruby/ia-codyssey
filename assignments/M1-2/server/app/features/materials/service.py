@@ -84,6 +84,10 @@ class MissingSeparateTarget(NoChange):
     """별도 저장을 골랐지만 같은 URL의 기존 자료가 없다(422)."""
 
 
+class MaterialDeleting(NoChange):
+    """영구 삭제가 진행 중이거나 일부 실패한 자료다(409). 고치거나 복원할 수 없고 삭제를 이어서 해야 한다(T05.03)."""
+
+
 class TrashedTarget(NoChange):
     """휴지통에 있는 자료에는 메모를 더할 수 없다(409, 복원 후 가능)."""
 
@@ -302,6 +306,8 @@ def get_material(store: Store, ctx: RequestContext, material_id: str) -> dict:
 def update_material(store: Store, ctx: RequestContext, material_id: str, expected_version: int,
                     changes: dict[str, Any]) -> dict:
     current = store.get(ctx, COLLECTION, material_id)  # 남의 자료·없는 자료는 404
+    if current.get("lifecycle") == "deleting":
+        raise MaterialDeleting()
     changes = prepare_changes(store, ctx, current, changes)
     return public(store.update(ctx, COLLECTION, material_id, expected_version, changes))
 

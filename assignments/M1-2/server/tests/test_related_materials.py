@@ -320,10 +320,8 @@ def test_link_request_shape_is_validated(item):
     assert c.post("/api/reviews/approve", json={"items": [body]}, headers=h()).status_code == 422
 
 
-def test_keep_still_works_and_trash_is_still_unsupported():
+def test_keep_still_works_beside_link():
     c, store = make_client()
     new, _ = pair(store)
     keep = {"material_id": new["id"], "expected_version": new["version"]}
     assert result(c.post("/api/reviews/approve", json={"items": [keep]}, headers=h()))["status"] == "approved"
-    trash = {"material_id": new["id"], "expected_version": 1, "action": "trash"}
-    assert c.post("/api/reviews/approve", json={"items": [trash]}, headers=h()).status_code == 422

@@ -246,3 +246,18 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
 - 항목 결과: `linked` · `marked_unrelated` · `unlinked` · `conflict`(`side`: source|target|link, `current_version`) · `not_found`(`side`) · `invalid`(`reason`: `trashed` 기준 자료가 휴지통, `target_unavailable` 상대가 보관 상태가 아님, `same_url` 같은 URL은 중복 처리에서, `not_linked` 연결되지 않은 짝의 해제).
 - 해제(`unlink`)는 상대가 휴지통에 있어도 할 수 있도록 상대의 상태·버전을 확인하지 않는다.
 - 짝마다 기록 하나(`material_links`): 두 자료 ID·당시 버전·근거·상태·시각. 두 자료의 상태·버전 확인과 기록 쓰기는 한 트랜잭션이다. 자료 자체의 `version`은 바뀌지 않는다. 응답에 `linked_count`가 더해졌다.
+
+## 웹 자료 휴지통 (T05.03)
+
+**휴지통 이동** — `POST /api/reviews/approve`의 `action=trash`. 항목 `{material_id, expected_version, action: "trash"}`(수정값·관련 자료 판단과 함께 보낼 수 없음). 활성 자료(미승인 포함)를 `lifecycle=trash`로 바꾸고 `trashed_at`을 기록한다. 검토 상태·승인일은 그대로다. 결과 `trashed`(material) · `conflict` · `not_found` · `invalid`(`trashed`: 이미 휴지통·삭제 중). 응답에 `trashed_count`.
+
+**`GET /api/trash`** — PRD §13. 현재 모드의 휴지통 자료와 영구 삭제가 끝나지 않은 자료(`lifecycle=deleting`)를 휴지통에 넣은 시각의 최신순으로. 200 `{items, truncated}`(최대 500건). 각 자료에 `deletion_failed_step`.
+
+**`POST /api/trash/{id}/restore`** — PRD §13. `{expected_version}`. `lifecycle=active`, `trashed_at=null`. 검토 상태·승인일은 그대로(미승인 자료는 미승인으로). 409: 휴지통에 없음(`not_in_trash`), 삭제 중(`deleting`), 버전 충돌. 404: 없거나 다른 모드.
+
+**`DELETE /api/trash/{id}?expected_version=N&confirm=permanent`** — PRD §13. 휴지통·삭제 중 자료만. `confirm=permanent`가 없거나 다르면 422.
+- ① 자료를 `deleting`으로 바꿔 모든 화면에서 숨기고 작업 ID를 남긴다. ② 접수 기록 → 같은 URL 예약 → 관련 자료 기록(건수 제한 없이 모두) → 중복 요청 기록 정리(응답 본문에 이 자료 ID가 있는 기록의 본문을 `{"deleted": true}`로 비움, 기록·지문은 유지) → 마지막으로 자료 문서 삭제와 감사 완료 기록을 한 트랜잭션으로.
+- 200 `{"status": "deleted", "job_id"}`. 일부 단계가 실패하면 200 `{"status": "partial", "job_id", "failed_step", "steps_done"}`이고 자료는 `deleting`으로 남는다. 같은 API(새 키, 현재 버전)를 다시 부르면 남은 단계부터 이어서 한다.
+- 감사 기록 `audit_events`: `{action: "permanent_delete", job_id, status: running|done|partial, steps_done, failed_step, started_at, finished_at}`. 자료 ID·본문은 남기지 않는다.
+- 삭제 중인 자료는 `PUT /api/materials/{id}` 409(`deleting`), 복원 409, 분석 409(`trashed`).
+- 색인: `materials`의 `owner_id·mode·lifecycle·created_at DESC`(2026-10-02 배포).

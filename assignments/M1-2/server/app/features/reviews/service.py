@@ -125,12 +125,28 @@ def _link_one(store: Store, ctx: RequestContext, item: dict) -> dict:
     return _result(material_id, _LINK_STATUS[decision][1], link={k: link[k] for k in fields})
 
 
+def _trash_one(store: Store, ctx: RequestContext, item: dict) -> dict:
+    """휴지통 이동(T05.03). 검토 상태·승인일은 그대로 두어 복원 때 미승인 자료가 승인 자료가 되지 않게 한다."""
+    material_id = item["material_id"]
+    current = _load(store, ctx, material_id)
+    if current is None:
+        return _result(material_id, "not_found")
+    if current.get("lifecycle") != "active":
+        return _result(material_id, "invalid", reason="trashed")
+    if current["version"] != item["expected_version"]:
+        return _result(material_id, "conflict", current_version=current["version"])
+    return _write(store, ctx, item, {"lifecycle": "trash", "trashed_at": now_utc()}, "trashed")
+
+
+_HANDLERS = {"keep": _approve_one, "link": _link_one, "trash": _trash_one}
+
+
 def approve(store: Store, ctx: RequestContext, items: list[dict[str, Any]]) -> dict:
-    """항목 순서대로 처리한 결과. action: keep(보관 승인) | link(관련 자료 판단). trash는 schemas.py가 거른다."""
-    results = [_link_one(store, ctx, item) if item.get("action") == "link" else _approve_one(store, ctx, item)
-               for item in items]
+    """항목 순서대로 처리한 결과. action: keep(보관 승인) | link(관련 자료 판단) | trash(휴지통 이동)."""
+    results = [_HANDLERS[item.get("action", "keep")](store, ctx, item) for item in items]
     return {"results": results, "approved_count": sum(r["status"] == "approved" for r in results),
-            "linked_count": sum(r["status"] in ("linked", "marked_unrelated", "unlinked") for r in results)}
+            "linked_count": sum(r["status"] in ("linked", "marked_unrelated", "unlinked") for r in results),
+            "trashed_count": sum(r["status"] == "trashed" for r in results)}
 
 
 def _request_one(store: Store, ctx: RequestContext, item: dict, requested: bool) -> dict:

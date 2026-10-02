@@ -1,7 +1,7 @@
 """검토·승인 요청 형식(T03.03, PRD §13 `POST /api/reviews/approve`).
 
 요청 전체가 잘못되면(항목 0개·상한 초과·같은 자료 중복·아직 지원하지 않는 작업) 422로 거부한다.
-`action=link`(T05.02)는 관련 자료 판단(연결·관련 없음·해제)이다. `action=trash`는 T05.03에서 붙인다.
+`action=link`(T05.02)는 관련 자료 판단(연결·관련 없음·해제), `action=trash`(T05.03)는 휴지통 이동이다.
 그 밖에는 항목별 결과를 돌려주며, 일부 항목의 충돌로 전체를 실패시키지 않는다.
 """
 from __future__ import annotations
@@ -45,15 +45,14 @@ class LinkChoice(_Strict):
 class ApproveItem(_Strict):
     material_id: str = Field(min_length=1)
     expected_version: int = Field(ge=1)
-    # trash는 T05.03에서 같은 API에 붙인다.
     action: Literal["keep", "link", "trash"] = "keep"
     changes: KeepChanges | None = None
     link: LinkChoice | None = None
 
     @model_validator(mode="after")
     def supported(self):
-        if self.action == "trash":
-            raise ValueError("휴지통 이동은 이후 단계에서 지원합니다")
+        if self.action == "trash" and (self.changes is not None or self.link is not None):
+            raise ValueError("휴지통 이동에는 수정값이나 관련 자료 판단을 함께 보낼 수 없습니다")
         if self.action == "keep" and self.link is not None:
             raise ValueError("보관 승인에는 관련 자료 판단을 함께 보낼 수 없습니다")
         if self.action == "link":

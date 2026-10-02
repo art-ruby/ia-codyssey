@@ -1,11 +1,12 @@
 // S03 지식 보관함: 보관 완료 자료 검색·기간·종류·프로젝트 필터, 상세 보기·메모 수정(T05.01).
-// 관련 자료 연결은 related.js(T05.02), 휴지통 탭은 T05.03에서 더한다. 모든 문자열은 textContent·value로만 넣는다.
+// 관련 자료 연결은 related.js(T05.02), 휴지통 탭·휴지통 이동은 trash.js(T05.03). 모든 문자열은 textContent·value로만 넣는다.
 import { analysisPanel } from "../analysis.js";
 import { request } from "../api.js";
 import { relatedPanel } from "../related.js";
 import { el } from "../priority.js";
 import { FIELD_LABELS, KIND_OPTIONS, SOURCE_OPTIONS, mergePage, scopeText, searchQuery } from "../search-query.js";
 import { singleFlight } from "../single-flight.js";
+import { renderTrashTab, trashButton } from "../trash.js";
 
 const MEMO_LIMIT = 2000; // server/app/features/materials/schemas.py와 같다
 const SEOUL = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" });
@@ -35,7 +36,32 @@ export function renderKnowledge(root, ctx) {
   const scope = el("p", { class: "form-status", role: "status" });
   const list = el("ul", { class: "material-list" });
   const more = el("button", { class: "button secondary small", type: "button", text: "더 보기", hidden: "" });
-  root.replaceChildren(form, el("section", { class: "panel" }, scope, list, more));
+  // 보관 자료 | 휴지통 탭. 휴지통은 처음 열 때 불러오고, 복원하면 보관 자료 검색을 다시 한다.
+  const keptTab = el("button", { class: "tab", type: "button", role: "tab", "aria-selected": "true", text: "보관 자료" });
+  const trashTab = el("button", { class: "tab", type: "button", role: "tab", "aria-selected": "false", text: "휴지통" });
+  const keptPane = el("div", {}, form, el("section", { class: "panel" }, scope, list, more));
+  const trashPane = el("section", { class: "panel", hidden: "" });
+  root.replaceChildren(el("div", { class: "tabs", role: "tablist" }, keptTab, trashTab), keptPane, trashPane);
+  let trashView = null;
+  let keptStale = false;
+  function show(kept) {
+    keptTab.setAttribute("aria-selected", String(kept));
+    trashTab.setAttribute("aria-selected", String(!kept));
+    if (kept) { keptPane.removeAttribute("hidden"); trashPane.setAttribute("hidden", ""); }
+    else { trashPane.removeAttribute("hidden"); keptPane.setAttribute("hidden", ""); }
+  }
+  keptTab.addEventListener("click", () => {
+    show(true);
+    if (keptStale) {
+      keptStale = false;
+      search(null, { fresh: false });
+    }
+  });
+  trashTab.addEventListener("click", () => {
+    show(false);
+    if (trashView) trashView.reload();
+    else trashView = renderTrashTab(trashPane, { api, isCurrent: ctx.isCurrent, onError: ctx.onError, onChanged: () => { keptStale = true; } });
+  });
 
   let conditions = {};
   let items = [];
@@ -121,6 +147,8 @@ export function renderKnowledge(root, ctx) {
       field("저장 이유", material.save_reason),
       el("label", {}, el("span", { text: "메모" }), memo),
       el("div", { class: "form-actions" }, save, status),
+      trashButton(material, { api, onError: ctx.onError,
+        onDone: () => search(null, { fresh: false, note: "휴지통으로 옮겼습니다." }) }),
       analysisPanel(material, {
         api, isCurrent: ctx.isCurrent, onError: ctx.onError,
         onChange: (next) => { items = items.map((m) => (m.id === next.id ? { ...next, match: m.match } : m)); },

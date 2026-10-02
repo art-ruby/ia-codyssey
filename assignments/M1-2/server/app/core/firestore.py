@@ -31,7 +31,7 @@ _APP_LOCK = threading.Lock()
 # MVP에서 쓰는 컬렉션. PC 관련 컬렉션은 확장 단계에서 추가한다.
 COLLECTIONS = frozenset(
     {"materials", "intake_records", "settings", "projects", "data", "conversations", "idempotency",
-     "url_index", "ai_usage", "material_links"}
+     "url_index", "ai_usage", "material_links", "audit_events"}
 )
 # 저장소가 관리하는 필드. 호출자가 넘긴 값은 무시하고 저장소가 정한다.
 SYSTEM_FIELDS = frozenset({"id", "owner_id", "mode", "version", "created_at", "updated_at"})
@@ -167,8 +167,9 @@ class Store(Protocol):
 
     # 여러 문서를 읽고 확인한 뒤 일부를 쓰는 일을 한 원자적 작업으로 한다(T05.02 관련 자료 판단).
     # reads: [(collection, doc_id)]. 없거나 다른 소유자·모드의 문서는 None으로 넘긴다.
-    # fn(docs: {(collection, doc_id): dict|None}) -> (writes, result). writes: [(collection, doc_id, 바꿀 필드)]이며
+    # fn(docs: {(collection, doc_id): dict|None}) -> (writes, result). writes: [(collection, doc_id, 바꿀 필드 또는 None)]이며
     # reads에 있는 문서만 쓸 수 있다. 없던 문서는 새로 만들고(version 1), 있던 문서는 version을 1 올린다.
+    # 바꿀 필드가 None이면 그 문서를 지운다(T05.03 영구 삭제의 마지막 단계).
     # 반환: (result, {(collection, doc_id): 저장된 문서}). Firestore에서는 fn이 다시 불릴 수 있어 부수 효과가 없어야 한다.
     def run_transaction(self, ctx: RequestContext, reads: list[tuple[str, str]],
                         fn: Callable[[dict], tuple[list[tuple[str, str, Mapping[str, Any]]], Any]]) -> tuple[Any, dict]: ...
@@ -197,6 +198,10 @@ class Store(Protocol):
 
     def release_key(self, record_id: str) -> None: ...
 
+    # 영구 삭제(T05.03): 이 소유자의 중복 요청 기록 중 응답 본문에 needle(자료 ID)이 들어 있는 것의 본문을
+    # {"deleted": true}로 바꾼다. 기록(상태·지문)은 남겨 같은 키 재전송이 작업을 다시 실행하지 않게 한다. 바꾼 개수.
+    def redact_requests(self, owner_id: str, needle: str) -> int: ...
+
     # AI 사용량(T04.03). 모드와 관계없이 소유자 단위다(개인·표본이 같은 구독을 쓰므로).
     # change_usage: fn(현재 기록 또는 빈 dict) -> 새 기록. 원자적이며 fn이 예외를 내면 쓰지 않는다.
     def read_usage(self, owner_id: str, record_id: str) -> dict | None: ...
@@ -217,13 +222,20 @@ def _new_doc(ctx: RequestContext, data: Mapping[str, Any], doc_id: str) -> dict:
     }
 
 
-def _merged(ctx: RequestContext, docs: dict, collection: str, doc_id: str, data: Mapping[str, Any],
-            foreign: set) -> dict:
-    """run_transaction의 쓰기 한 건: 없던 문서는 새로 만들고, 있던 문서는 필드를 합쳐 version을 올린다."""
+def _mentions(body: Any, needle: str) -> bool:
+    return needle in json.dumps(body, ensure_ascii=False, default=str)
+
+
+def _merged(ctx: RequestContext, docs: dict, collection: str, doc_id: str, data: Mapping[str, Any] | None,
+            foreign: set) -> dict | None:
+    """run_transaction의 쓰기 한 건: 없던 문서는 새로 만들고, 있던 문서는 필드를 합쳐 version을 올린다.
+    data가 None이면 지운다는 뜻으로 None을 돌려준다."""
     if (collection, doc_id) not in docs:
         raise ValueError("run_transaction은 읽은 문서만 쓸 수 있습니다")
     if (collection, doc_id) in foreign:
         raise NotFound(collection)  # 다른 소유자·모드의 문서를 덮어쓰지 않는다
+    if data is None:
+        return None
     current = docs[(collection, doc_id)]
     if current is None:
         return _new_doc(ctx, data, doc_id)
@@ -289,11 +301,12 @@ class MemoryStore:
             docs = {key: copy.deepcopy(d) if _owned(d, ctx) else None for key, d in raw.items()}
             foreign = {key for key, d in raw.items() if d is not None and docs[key] is None}
             writes, result = fn(copy.deepcopy(docs))
-            saved = {}
-            for collection, doc_id, data in writes:
-                saved[(collection, doc_id)] = _merged(ctx, docs, collection, doc_id, data, foreign)
+            saved = {(c, i): _merged(ctx, docs, c, i, data, foreign) for c, i, data in writes}
             for (collection, doc_id), doc in saved.items():
-                self._docs[collection][doc_id] = doc
+                if doc is None:
+                    self._docs[collection].pop(doc_id, None)
+                else:
+                    self._docs[collection][doc_id] = doc
             return result, copy.deepcopy(saved)
 
     def create_many(self, ctx, items):
@@ -356,6 +369,15 @@ class MemoryStore:
     def release_key(self, record_id):
         with self._lock:
             self._docs["idempotency"].pop(record_id, None)
+
+    def redact_requests(self, owner_id, needle):
+        count = 0
+        with self._lock:
+            for record in self._docs["idempotency"].values():
+                if record.get("owner_id") == owner_id and "body" in record and _mentions(record["body"], needle):
+                    record["body"] = {"deleted": True}
+                    count += 1
+        return count
 
     def read_usage(self, owner_id, record_id):
         doc = self._docs["ai_usage"].get(record_id)
@@ -491,11 +513,12 @@ class FirestoreStore:
                 if doc is not None and docs[key] is None:
                     foreign.add(key)
             writes, result = fn(copy.deepcopy(docs))
-            saved = {}
-            for collection, doc_id, data in writes:
-                saved[(collection, doc_id)] = _merged(ctx, docs, collection, doc_id, data, foreign)
+            saved = {(c, i): _merged(ctx, docs, c, i, data, foreign) for c, i, data in writes}
             for key, doc in saved.items():
-                tx.set(refs[key], doc)
+                if doc is None:
+                    tx.delete(refs[key])
+                else:
+                    tx.set(refs[key], doc)
             return result, saved
 
         return run(self._db.transaction())
@@ -584,6 +607,18 @@ class FirestoreStore:
 
     def release_key(self, record_id):
         self._ref("idempotency", record_id).delete()
+
+    def redact_requests(self, owner_id, needle):
+        from google.cloud.firestore_v1 import FieldFilter
+
+        count = 0
+        query = self._db.collection("idempotency").where(filter=FieldFilter("owner_id", "==", owner_id))
+        for snap in query.stream():
+            record = snap.to_dict()
+            if "body" in record and _mentions(record["body"], needle):
+                snap.reference.update({"body": {"deleted": True}})
+                count += 1
+        return count
 
     def read_usage(self, owner_id, record_id):
         snap = self._ref("ai_usage", record_id).get()

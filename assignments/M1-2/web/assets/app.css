@@ -203,3 +203,12 @@ p { color: var(--muted); }
 .related-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; }
 .related-card strong { display: block; color: var(--ink); overflow-wrap: anywhere; }
 .related-evidence { margin: 4px 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+
+/* 휴지통(T05.03) */
+.tabs { display: flex; gap: 6px; margin-top: 16px; border-bottom: 1px solid var(--line); }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; color: var(--muted); font-weight: 700; }
+.tab[aria-selected="true"] { color: var(--teal); border-bottom-color: var(--teal); }
+.trash-action { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
+.button.danger { color: #9b2c2c; border-color: #e5b5b5; }
+.button.primary.danger { background: #9b2c2c; border-color: #9b2c2c; color: #fff; }
+.analysis-confirm ul { margin: 0 0 6px; padding-left: 18px; font-size: 12px; color: #6d4718; }

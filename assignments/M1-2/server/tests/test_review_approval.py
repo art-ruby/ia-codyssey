@@ -273,7 +273,8 @@ def test_approved_material_cannot_move_back_to_review():
     ([{"material_id": f"m{i}", "expected_version": 1} for i in range(51)], "50"),
     ([{"material_id": "a", "expected_version": 1}, {"material_id": "a", "expected_version": 1}], "두 번"),
     ([{"material_id": "a", "expected_version": 1, "action": "link"}], "관련 자료 판단(link)이 필요"),  # T05.02
-    ([{"material_id": "a", "expected_version": 1, "action": "trash"}], "휴지통 이동은 이후 단계"),  # T05.03 전
+    ([{"material_id": "a", "expected_version": 1, "action": "trash", "changes": {"title": "t"}}],
+     "휴지통 이동에는 수정값"),  # T05.03: 휴지통 이동은 수정값과 함께 보낼 수 없다
     ([{"material_id": "a", "expected_version": 1, "action": "delete"}], "작업"),
     ([{"material_id": "a", "expected_version": 0}], "버전"),
     ([{"material_id": "a", "expected_version": 1, "changes": {"user_importance": "urgent"}}], "중요도"),

@@ -27,12 +27,14 @@ from app.features.analysis.routes import router as analysis_router
 from app.features.analysis.routes import usage_router as ai_usage_router
 from app.features.analysis.service import AnalysisInProgress, AnalysisRefused
 from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
-                                            MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget)
+                                            MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget, MaterialDeleting)
 from app.features.projects.routes import router as projects_router
 from app.features.projects.service import DuplicateProjectName, TooManyProjects
 from app.features.reviews.routes import router as reviews_router
 from app.features.reviews.service import PastRevisitDate
 from app.features.settings.routes import router as settings_router
+from app.features.trash.routes import router as trash_router
+from app.features.trash.service import NotInTrash
 from app.features.settings.service import InvalidDefaultProject
 
 # 요청 로그: 메서드·경로 템플릿·상태·소요 시간·요청 ID만 남긴다. 본문·토큰·쿼리 값은 남기지 않는다(PRD §14).
@@ -186,6 +188,15 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     async def past_revisit_date(_, __):
         return _error(422, "다시 볼 날짜는 오늘(서울 기준) 이후여야 합니다")
 
+    @app.exception_handler(NotInTrash)
+    async def not_in_trash(_, __):
+        return _error(409, "휴지통에 있는 자료만 복원하거나 영구 삭제할 수 있습니다", reason="not_in_trash")
+
+    @app.exception_handler(MaterialDeleting)
+    async def material_deleting(_, __):
+        return _error(409, "영구 삭제가 진행 중이거나 일부 실패한 자료입니다. 휴지통에서 삭제를 다시 시도하세요",
+                      reason="deleting")
+
     @app.exception_handler(AnalysisRefused)
     async def analysis_refused(_, exc: AnalysisRefused):
         return _error(409, ANALYSIS_REFUSED[exc.reason], reason=exc.reason)
@@ -206,6 +217,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(reviews_router)
     app.include_router(analysis_router)
     app.include_router(ai_usage_router)
+    app.include_router(trash_router)
 
     if settings.allowed_origins:
         app.add_middleware(
