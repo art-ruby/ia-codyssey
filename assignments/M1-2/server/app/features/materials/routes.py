@@ -1,9 +1,13 @@
-"""자료 API (PRD §13: POST/GET /api/materials, GET/PUT /api/materials/{id})."""
+"""자료 API (PRD §13: POST/GET /api/materials, GET/PUT /api/materials/{id}).
+
+PRD 외 추가: GET /api/materials/search(T05.01), GET /api/materials/priority(T04.04).
+"""
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.core.auth import get_context
@@ -11,7 +15,8 @@ from app.core.context import RequestContext
 from app.core.deps import get_store
 from app.core.firestore import Store
 from app.core.requests import Result, run_idempotent
-from app.features.materials import priority, service
+from app.features.analysis.schemas import KINDS
+from app.features.materials import priority, search, service
 from app.features.materials.schemas import MaterialCreate, MaterialUpdate
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
@@ -33,6 +38,33 @@ def list_materials(limit: int = Query(20, ge=1, le=100), cursor: str | None = No
                    ctx: RequestContext = Depends(get_context), store: Store = Depends(get_store)) -> dict:
     # view(PRD 외 추가, T03.03·T03.04): inbox=받은 자료, review=승인 요청 목록, later=나중에 보기. 커서는 같은 view로만 이어 쓴다.
     return service.list_materials(store, ctx, limit, cursor, view)
+
+
+@router.get("/search")
+def search_materials(
+    q: str = Query("", max_length=200),
+    date_from: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    date_to: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    kind: Literal[KINDS] | None = None,
+    source_type: Literal["url", "text"] | None = None,
+    project_id: str | None = Query(None, max_length=200),
+    limit: int = Query(20, ge=1, le=search.MAX_PAGE_SIZE),
+    cursor: str | None = None,
+    ctx: RequestContext = Depends(get_context), store: Store = Depends(get_store),
+) -> dict:
+    """PRD 외 추가(T05.01). 보관 완료 자료 검색. 기간은 서울 날짜(양 끝 포함)."""
+    for value in (date_from, date_to):
+        if value:
+            try:
+                date.fromisoformat(value)
+            except ValueError:
+                raise HTTPException(422, "날짜가 올바르지 않습니다") from None
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(422, "시작 날짜가 끝 날짜보다 늦습니다")
+    page = search.search_materials(store, ctx, q, search.SearchFilters(date_from, date_to, kind, source_type, project_id),
+                                   cursor, limit)
+    return {"items": page.items, "next_cursor": page.next_cursor, "total_matches": page.total_matches,
+            "scope": page.scope}
 
 
 @router.get("/priority")

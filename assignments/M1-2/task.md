@@ -21,7 +21,7 @@
   - [x] **T04.03** AI 사용량·한도·전송 범위 표시
   - [x] **T04.04** 오늘·AI 동향·중요도 수정 화면
 - [ ] **Phase 05. 보관함·관련 자료·웹 휴지통 — MVP**
-  - [ ] **T05.01** 보관함 검색·필터·페이지네이션
+  - [x] **T05.01** 보관함 검색·필터·페이지네이션
   - [ ] **T05.02** 관련 자료 제안·연결·해제
   - [ ] **T05.03** 웹 자료 휴지통 이동·복원·영구 삭제
   - [ ] **T05.04** 검색·채팅에 전달할 자료의 공통 필터
@@ -338,6 +338,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** 제목·설명·입력/추출 본문·메모와 기간·종류·프로젝트를 검색한다. 소규모 MVP는 서버/Python 검색을 우선 검증하되 실제 Firestore 에디션·자료량을 확인하고 전략을 기록한다. 전체 검색 범위와 화면 페이지 크기를 구분한다. 검색을 제한하면 일부 자료 기준임을 응답과 화면에 표시한다.
 - **산출/연결:** `search_materials`와 S03 목록/상세. 채팅·관련 자료도 같은 검색 계약을 재사용한다.
 - **완료/검증:** 첫 페이지 밖의 정답 자료, 한글, 긴 본문, 기간 경계, 다른 모드, 미승인/휴지통 제외를 확인한다. 검색 오류를 결과 0건으로 바꾸지 않는다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** 보관 완료 자료만, 사용자 입력 6개 필드(AI 결과 제외), 검색어 AND·대소문자 무시·부분 일치, 서울 날짜 기간·AI 종류·링크/텍스트·프로젝트(주·관련) 필터, Firestore Standard라 최신 1,000건을 Python으로 검색하고 `scope`로 범위 표시, `GET /api/materials/search`(PRD 외 추가).
 
 ### T05.02 관련 자료 제안·연결·해제
 
@@ -581,8 +582,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T04.04 — 최종 중요도(사용자 값 → 쓸 수 있는 AI 제안)·대응 필요(`needs_action`) 정렬, `GET /api/materials/priority`, 오늘·AI 동향 화면과 중요도 바로 수정, 검토 카드 AI 제안 적용, 실제 Firestore·Hermes 브라우저 검증(`docs/verification.md`). Phase 04 완료 |
-| 다음 Task | T05.01 — 보관함 검색·필터·페이지네이션 |
+| 마지막 완료 Task | T05.01 — 보관 완료 자료 검색(`GET /api/materials/search`, 최신 1,000건 Python 검색·범위 표시), 기간·종류·프로젝트 필터, 20건 페이지, 지식 보관함 화면(상세·메모 수정), 실제 Firestore 브라우저 검증(`docs/verification.md`) |
+| 다음 Task | T05.02 — 관련 자료 제안·연결·해제 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

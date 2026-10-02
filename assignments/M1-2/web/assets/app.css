@@ -186,3 +186,13 @@ p { color: var(--muted); }
 .today-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
 .today-counts .mini-line { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
 .ai-suggestion { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+
+/* 지식 보관함 검색(T05.01) */
+.search-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 14px; margin-top: 10px; }
+.date-range { display: flex; align-items: center; gap: 6px; }
+.date-range input { min-width: 0; flex: 1; }
+.search-filters select { width: 100%; border: 1px solid #cbdad6; border-radius: 9px; padding: 8px 10px; background: #fff; color: var(--ink); }
+.search-snippet { margin: 6px 0 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.detail-field { margin-bottom: 8px; }
+.detail-label { display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.detail-text { margin: 0; font-size: 13px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16em; overflow: auto; }

@@ -222,3 +222,12 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION` 2026-10-02.2). 참이면 권장 행동이 있어야 한다. 자료 응답에 `ai_needs_action`이 더해지며, 이전 결과에는 없다(null).
 
 자료 응답의 `analysis_prompt_outdated`(조회 때 계산): 완료된 결과가 이전 분석 기준(`analysis_prompt_version`이 현재 `PROMPT_VERSION`과 다르거나 없음)으로 만들어졌다. 결과는 계속 쓰며(최종 중요도에도 반영), 화면은 '다시 분석 가능'으로 표시한다. 자동 호출은 없고, 사용자가 시작하면 재사용하지 않고 새로 분석한다.
+
+## 보관함 검색 (T05.01)
+
+**`GET /api/materials/search`** — PRD 외 추가. 현재 모드의 보관 완료 자료(`is_kept`: 보관 승인·활성)만 검색한다. 미승인·나중에 보기·휴지통은 제외.
+- 쿼리: `q`(200자 이하, 공백으로 나눈 검색어가 모두 들어 있어야 일치, 대소문자 무시·한글 부분 일치), `date_from`·`date_to`(`YYYY-MM-DD`, 접수일 서울 날짜, 양 끝 포함), `kind`(AI 종류), `source_type`(`url`|`text`), `project_id`(주 또는 관련 프로젝트), `limit`(1~50, 기본 20), `cursor`.
+- 검색 필드: 제목·설명·본문·저장 이유·메모·URL. AI가 만든 필드는 검색하지 않는다.
+- 200 `{items, next_cursor, total_matches, scope}`. `items`는 최신 접수 순이며 각 자료에 `match: {field, snippet}`(검색어가 없으면 null)이 더해진다. `scope`: `{scanned, scan_limit, truncated, kept_scanned, fields}` — 실제로 검색한 범위다. `truncated=true`면 최근 접수 `scan_limit`(1,000)건까지만 검색했다는 뜻이다.
+- 422: 날짜 형식·존재하지 않는 날짜, 시작이 끝보다 늦음, `limit` 범위 밖, 허용 밖 `kind`·`source_type`, 다른 검색 조건에서 만든 커서·망가진 커서.
+- 저장소 오류는 5xx로 그대로 알린다(결과 0건으로 바꾸지 않는다).
