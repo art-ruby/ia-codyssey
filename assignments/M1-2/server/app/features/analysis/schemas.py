@@ -22,13 +22,39 @@ MIN_EVIDENCE_CHARS = 8
 AI_FIELDS = (
     "ai_title", "ai_summary", "ai_importance", "ai_importance_reason", "ai_primary_project_id",
     "ai_kind", "ai_keywords", "ai_uncertainties", "ai_recommended_action", "ai_evidence",
-    "ai_checked_scope",
+    "ai_checked_scope", "ai_grounding",
 )
-_SENTENCE_END = re.compile(r"(?<=[.!?。])\s+")
+# 문장부호 뒤 공백이 없어도 문장을 나눈다("One.Two."). 소수점(1.5)·도메인(example.com)처럼
+# 뒤에 숫자·영문 소문자가 바로 붙으면 나누지 않는다.
+_SENTENCE_END = re.compile(r"[.!?。]+(?=\s|$|[^a-z0-9/_\-.!?。\s])")
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# 요약 문장이 입력과 공유해야 하는 글자쌍 비율. 2026-10-02 측정: 실제 요약 문장 0.44~0.96,
+# 입력과 무관한 주장 0~0.12, 입력 단어로 뜻을 뒤집은 문장 0.29. 뒤집힌 뜻은 이 방법으로 못 잡는다.
+MIN_SUMMARY_OVERLAP = 0.35
+# 겹침 검사를 하지 않는 필드(추론·조언이라 입력에 없는 표현이 자연스럽다). 숫자 검사는 받는다.
+UNVERIFIED_FIELDS = ("title", "importance_reason", "recommended_action", "keywords")
 
 
 def normalize_space(text: str) -> str:
     return " ".join(text.split())
+
+
+def sentences(text: str) -> list[str]:
+    return [s.strip() for s in _SENTENCE_END.split(text) if s.strip()]
+
+
+def _bigrams(text: str) -> set[str]:
+    t = re.sub(r"[\W_]+", "", text.lower())
+    return {t[i:i + 2] for i in range(len(t) - 1)}
+
+
+def overlap_ratio(sentence: str, source: str) -> float:
+    grams = _bigrams(sentence)
+    return len(grams & _bigrams(source)) / len(grams) if grams else 1.0
+
+
+def numbers(text: str) -> set[str]:
+    return {n.replace(",", "") for n in _NUMBER.findall(text)}
 
 
 class ModelOutput(BaseModel):
@@ -51,7 +77,7 @@ class ModelOutput(BaseModel):
     @classmethod
     def at_most_three_sentences(cls, value: str) -> str:
         # 2~3문장을 요청하지만, 짧은 입력은 한 문장 요약이 자연스러워 하한은 두지 않는다.
-        if len([s for s in _SENTENCE_END.split(value) if s.strip()]) > 3:
+        if len(sentences(value)) > 3:
             raise ValueError("요약은 3문장 이하")
         return value
 
@@ -77,6 +103,8 @@ class AnalysisResult(BaseModel):
     ai_recommended_action: str | None
     ai_evidence: list[str]
     ai_checked_scope: dict
+    # 무엇을 어떻게 대조했는지. 화면은 이 값으로 'AI 제안 · 사실 확인 안 됨'을 표시한다.
+    ai_grounding: dict
     model: str
     total_tokens: int | None
 

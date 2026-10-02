@@ -22,7 +22,8 @@ from pydantic import ValidationError
 from app.core.config import Settings
 from app.features.analysis.prompts import build_messages
 from app.features.analysis.schemas import (
-    CONTENT_FIELDS, INPUT_FIELDS, KINDS, MIN_EVIDENCE_CHARS, AnalysisResult, ModelOutput, normalize_space,
+    CONTENT_FIELDS, INPUT_FIELDS, KINDS, MIN_EVIDENCE_CHARS, MIN_SUMMARY_OVERLAP, UNVERIFIED_FIELDS,
+    AnalysisResult, ModelOutput, normalize_space, numbers, overlap_ratio, sentences,
 )
 
 
@@ -180,6 +181,14 @@ class AnalysisAdapter:
         evidence = [q for q in out.evidence if found_in(q)]
         if not any(found_in(q) & set(CONTENT_FIELDS) for q in evidence):
             raise ProviderError("ungrounded_output")
+        # 인용이 맞아도 요약에 입력과 무관한 문장이 섞일 수 있다. 문장마다 입력과의 겹침을 보고,
+        # 모든 문장 필드에서 입력에 없는 숫자(날짜·금액 등)를 거부한다. 사실 검증은 아니다.
+        source = " ".join(sent.values())
+        if any(overlap_ratio(s, source) < MIN_SUMMARY_OVERLAP for s in sentences(out.summary)):
+            raise ProviderError("ungrounded_output")
+        stated = " ".join([out.title, out.summary, out.importance_reason, out.recommended_action])
+        if not numbers(stated) <= numbers(source):
+            raise ProviderError("ungrounded_output")
 
         notes = list(out.uncertainties)
         project_id = out.primary_project_id
@@ -206,6 +215,13 @@ class AnalysisAdapter:
                 "fields": list(sent),
                 "chars": sum(len(value) for value in sent.values()),
                 "url_fetched": False,
+            },
+            ai_grounding={
+                "evidence": "quote_match",
+                "summary": "lexical_overlap",
+                "numbers": "must_appear_in_input",
+                "unverified": list(UNVERIFIED_FIELDS),
+                "fact_checked": False,
             },
             model=reply.model,
             total_tokens=reply.total_tokens,

@@ -13,7 +13,9 @@ import pytest
 
 from app.features.analysis import provider as module
 from app.features.analysis.provider import AnalysisAdapter, ProviderError, TextResult
-from app.features.analysis.schemas import AI_FIELDS
+from pydantic import ValidationError
+
+from app.features.analysis.schemas import AI_FIELDS, ModelOutput
 from app.features.materials.service import EDITABLE
 
 BODY = "다음 주 화요일까지 결제 모듈 리팩터링 계획서를 팀에 공유해야 한다. 기존 정산 API는 내년 1월에 종료된다."
@@ -134,6 +136,41 @@ def test_null_importance_means_pending_judgement():
 def test_summary_longer_than_three_sentences_is_invalid():
     with pytest.raises(ProviderError, match="invalid_output"):
         run(output(summary="하나다. 둘이다. 셋이다. 넷이다."))
+
+
+@pytest.mark.parametrize("summary", ["One.Two.Three.Four.", "하나다.둘이다.셋이다.넷이다.", "하나다!둘이다?셋이다。넷이다"])
+def test_sentences_without_spaces_are_counted(summary):
+    with pytest.raises(ValidationError):
+        ModelOutput.model_validate(dict(output(), summary=summary))
+
+
+def test_decimals_and_domains_do_not_split_sentences():
+    out = ModelOutput.model_validate(dict(output(), summary="버전 1.5와 example.com 공지를 다룬다. 두 번째다. 세 번째다."))
+    assert out.summary.endswith("세 번째다.")
+
+
+def test_unrelated_claim_in_summary_is_ungrounded_even_with_valid_quote():
+    # 리뷰 재현: 정상 인용 하나를 붙여도 입력과 무관한 요약 문장은 통과하지 않는다.
+    with pytest.raises(ProviderError, match="ungrounded_output"):
+        run(output(summary="기존 정산 API가 내년 1월에 종료된다. 회사는 다음 달 대규모 구조조정을 발표할 예정이다."))
+
+
+@pytest.mark.parametrize("field, text", [
+    ("summary", "기존 정산 API가 내년 2월 15일에 종료된다."),
+    ("title", "정산 API 3월 종료"),
+    ("importance_reason", "결제 개편 예산 500만 원과 관련된다."),
+    ("recommended_action", "12월 1일까지 계획서를 공유한다."),
+])
+def test_numbers_not_in_input_are_ungrounded(field, text):
+    with pytest.raises(ProviderError, match="ungrounded_output"):
+        run(output(**{field: text}))
+
+
+def test_result_marks_what_was_not_fact_checked():
+    grounding = run(output())[0].to_fields()["ai_grounding"]
+    assert grounding["fact_checked"] is False
+    assert set(grounding["unverified"]) == {"title", "importance_reason", "recommended_action", "keywords"}
+    assert grounding["summary"] == "lexical_overlap"
 
 
 def test_unknown_project_is_dropped_with_uncertainty():
