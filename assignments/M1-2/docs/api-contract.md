@@ -186,10 +186,25 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 - 분석 쓰기는 자료 `version`을 올리지 않는다. 분석 중에도 `PUT`으로 고칠 수 있고, 끝났을 때 내용이 바뀌었으면 결과를 버리고 `awaiting_start` + `analysis_error=input_changed`가 된다. 분석 중에 AI 분석 제외를 켰으면 같은 방식으로 결과를 버리고 `analysis_error=ai_excluded`가 된다(이미 보낸 요청은 사용량에 남긴다).
 
 자료 응답에 더해진 필드:
-- `analysis_status`: `link_only` · `awaiting_start` · `analyzing` · `done` · `failed`. 분석 전·실패 자료의 내용을 고치면 `awaiting_start`(또는 `link_only`)로 맞춘다.
+- `analysis_status`: `link_only` · `awaiting_start` · `analyzing` · `done` · `failed` · `quota_waiting`(T04.03 호출 한도 대기). 분석 전·실패 자료의 내용을 고치면 `awaiting_start`(또는 `link_only`)로 맞춘다.
 - `analysis_error`: 오류 종류만(`rate_limited`·`timeout`·`invalid_output`·`ungrounded_output`·`output_truncated`·`missing_ai_settings`·`hermes_tools_enabled`·`provider_*`·`internal_error`·`input_changed`·`ai_excluded`). 본문은 저장하지 않는다. `ai_excluded`는 분석 중에 AI 분석 제외를 켜서 결과를 버린 경우다.
 - `analysis_started_at` · `analysis_deadline_at`(시작 + 요청 시간 × 2) · `analysis_finished_at`.
 - `analysis_stale`(조회 때 계산): `analyzing`인데 기한이 지났다. 서버 재시작 등으로 작업이 사라졌을 수 있어 '결과 확인 필요'로 표시하고, 사용자가 다시 시작할 때만 호출한다.
 - `analysis_outdated`(조회 때 계산): 저장된 AI 결과가 지금 내용 기준이 아니다(완료 후 내용을 고침). 상태는 `done`으로 두고 '다시 분석 필요'로 표시한다.
 - `ai_title` · `ai_summary` · `ai_importance` · `ai_importance_reason` · `ai_primary_project_id` · `ai_kind` · `ai_keywords` · `ai_uncertainties` · `ai_recommended_action` · `ai_evidence` · `ai_checked_scope` · `ai_grounding`: AI 제안값(T04.01). 사용자 최종값(`title`·`user_importance`·`primary_project_id`)을 덮어쓰지 않는다.
 - 내부 저장 필드(응답에 없음): `analysis_job_id`, `analysis_result_fp`, `ai_content_hash`, `analysis_request_sent`, `analysis_total_tokens`, `analysis_model`(T04.03 사용량용).
+
+## AI 사용량·한도 (T04.03)
+
+**`GET /api/ai/usage`** — PRD 외 추가. 오늘(서울 날짜) AI 요청 사용량.
+- 200 `{date, used, limit, remaining, failed_sent, by_kind: {analysis, chat}, total_tokens, resets_at, pending_count, pending_capped, max_output_tokens, timeout_seconds}`.
+- `used`·`limit`·`remaining`은 **개인·표본 모드를 합산**한 소유자 전체 값이다(같은 구독을 쓰므로). `pending_count`는 현재 모드의 `quota_waiting` 자료 수이며 100건까지 센다(`pending_capped`).
+- `resets_at`은 다음 서울 자정(UTC). 날짜가 바뀌어도 대기 자료를 저절로 분석하지 않는다.
+- 금액은 제공하지 않는다(가격 미확인). 화면은 '구독 경로, 금액 미확인'으로 표시한다.
+
+분석 API의 사용량 규칙:
+- `POST /api/materials/{id}/analyze`는 AI를 부르기 전에 요청 1회를 원자적으로 예약한다. 동시 요청도 한도를 넘지 않는다.
+- 오늘 한도에 도달했으면 **200** `{"status": "quota_waiting", "material"}`이고 자료는 `analysis_status=quota_waiting`(호출 한도 대기)이 된다. AI는 부르지 않는다. 재개는 사용자가 같은 API를 다시 부를 때만 한다.
+- 보내기 전에 멈춘 실패(설정 누락·도구 확인 실패 등)는 예약을 돌려준다. 실제로 보낸 요청은 실패·429·시간 초과도 사용량에 남는다(`failed_sent`). 응답은 받았지만 형식·근거 검증에 실패한 경우(`invalid_output`·`ungrounded_output`)도 그 응답의 토큰을 `total_tokens`에 더한다.
+- Provider 429(`rate_limited`)는 `failed`가 아니라 `quota_waiting` + `analysis_error=rate_limited`다.
+- 재사용(`reused`)·거부(409)·한도 대기는 사용량을 쓰지 않는다. Hermes 도구 확인 호출과 수동 스모크 스크립트는 세지 않는다.

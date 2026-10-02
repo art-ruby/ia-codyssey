@@ -31,7 +31,7 @@ _APP_LOCK = threading.Lock()
 # MVP에서 쓰는 컬렉션. PC 관련 컬렉션은 확장 단계에서 추가한다.
 COLLECTIONS = frozenset(
     {"materials", "intake_records", "settings", "projects", "data", "conversations", "idempotency",
-     "url_index"}
+     "url_index", "ai_usage"}
 )
 # 저장소가 관리하는 필드. 호출자가 넘긴 값은 무시하고 저장소가 정한다.
 SYSTEM_FIELDS = frozenset({"id", "owner_id", "mode", "version", "created_at", "updated_at"})
@@ -189,6 +189,12 @@ class Store(Protocol):
 
     def release_key(self, record_id: str) -> None: ...
 
+    # AI 사용량(T04.03). 모드와 관계없이 소유자 단위다(개인·표본이 같은 구독을 쓰므로).
+    # change_usage: fn(현재 기록 또는 빈 dict) -> 새 기록. 원자적이며 fn이 예외를 내면 쓰지 않는다.
+    def read_usage(self, owner_id: str, record_id: str) -> dict | None: ...
+
+    def change_usage(self, owner_id: str, record_id: str, fn: Callable[[dict], Mapping[str, Any]]) -> dict: ...
+
 
 def _new_doc(ctx: RequestContext, data: Mapping[str, Any], doc_id: str) -> dict:
     stamp = now_utc()
@@ -313,6 +319,19 @@ class MemoryStore:
     def release_key(self, record_id):
         with self._lock:
             self._docs["idempotency"].pop(record_id, None)
+
+    def read_usage(self, owner_id, record_id):
+        doc = self._docs["ai_usage"].get(record_id)
+        return copy.deepcopy(doc) if doc and doc.get("owner_id") == owner_id else None
+
+    def change_usage(self, owner_id, record_id, fn):
+        with self._lock:
+            current = self._docs["ai_usage"].get(record_id)
+            if current is not None and current.get("owner_id") != owner_id:
+                raise NotFound("ai_usage")
+            doc = {**dict(fn(copy.deepcopy(current or {}))), "owner_id": owner_id}
+            self._docs["ai_usage"][record_id] = doc
+            return copy.deepcopy(doc)
 
 
 def firebase_app(settings: Settings):
@@ -502,3 +521,26 @@ class FirestoreStore:
 
     def release_key(self, record_id):
         self._ref("idempotency", record_id).delete()
+
+    def read_usage(self, owner_id, record_id):
+        snap = self._ref("ai_usage", record_id).get()
+        doc = snap.to_dict() if snap.exists else None
+        return doc if doc and doc.get("owner_id") == owner_id else None
+
+    def change_usage(self, owner_id, record_id, fn):
+        from google.cloud import firestore as gcf
+
+        ref = self._ref("ai_usage", record_id)
+
+        # 동시에 들어온 예약은 트랜잭션 충돌로 다시 시도되어 한도를 넘지 않는다.
+        @gcf.transactional
+        def run(tx):
+            snap = ref.get(transaction=tx)
+            current = snap.to_dict() if snap.exists else None
+            if current is not None and current.get("owner_id") != owner_id:
+                raise NotFound("ai_usage")
+            doc = {**dict(fn(copy.deepcopy(current or {}))), "owner_id": owner_id}
+            tx.set(ref, doc)
+            return doc
+
+        return run(self._db.transaction())

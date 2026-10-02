@@ -24,6 +24,7 @@ from app.features.materials.routes import router as materials_router
 from app.features.materials.schemas import LIMITS
 from app.features.analysis.provider import AnalysisAdapter, HermesProvider
 from app.features.analysis.routes import router as analysis_router
+from app.features.analysis.routes import usage_router as ai_usage_router
 from app.features.analysis.service import AnalysisInProgress, AnalysisRefused
 from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
                                             MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget)
@@ -204,6 +205,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(materials_router)
     app.include_router(reviews_router)
     app.include_router(analysis_router)
+    app.include_router(ai_usage_router)
 
     if settings.allowed_origins:
         app.add_middleware(

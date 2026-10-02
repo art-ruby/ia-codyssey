@@ -171,3 +171,4 @@ p { color: var(--muted); }
 .analysis-result blockquote { margin: 0 0 4px; padding: 4px 10px; border-left: 3px solid var(--teal); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .analysis-scope { margin: 8px 0 0; font-size: 11px; color: var(--muted); }
 @media (max-width: 560px) { .analysis-result dl { grid-template-columns: 1fr; } }
+.analysis-confirm .analysis-usage { font-weight: 700; }

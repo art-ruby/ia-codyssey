@@ -57,4 +57,4 @@ def test_defaults_and_origins():
     settings = load_settings({"ALLOWED_ORIGINS": " https://a.example , ,https://b.example"})
 
     assert settings.allowed_origins == ("https://a.example", "https://b.example")
-    assert (settings.ai_daily_request_limit, settings.ai_max_output_tokens, settings.ai_timeout_seconds) == (50, 1500, 60)
+    assert (settings.ai_daily_request_limit, settings.ai_max_output_tokens, settings.ai_timeout_seconds) == (50, 1500, 120)

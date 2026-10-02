@@ -23,6 +23,7 @@ from app.core.config import ConfigError
 from app.core.context import RequestContext
 from app.core.errors import NoChange
 from app.core.firestore import NotFound, Store, VersionConflict
+from app.features.analysis import usage
 from app.features.analysis.prompts import PROMPT_VERSION
 from app.features.analysis.provider import AnalysisAdapter, ProviderError
 from app.features.analysis.schemas import CONTENT_FIELDS, INPUT_FIELDS, content_hash
@@ -55,6 +56,7 @@ class Job:
     fingerprint: str
     snapshot: dict  # 시작 시점의 자료. 이 내용만 Provider에 보낸다
     projects: list[dict]
+    usage_day: str | None = None  # 사용량을 예약한 서울 날짜(T04.03). 환불·결과 기록은 이 날짜에 한다
 
 
 def input_fingerprint(doc: dict, offered: list[dict]) -> str:
@@ -81,8 +83,8 @@ def _active_projects(store: Store, ctx: RequestContext) -> list[dict]:
 
 
 def start_analysis(store: Store, ctx: RequestContext, material_id: str, expected_version: int,
-                   timeout_seconds: int) -> tuple[int, dict, Job | None]:
-    """(상태 코드, 응답 본문, 실행할 작업). 재사용이면 작업이 없다."""
+                   timeout_seconds: int, daily_limit: int) -> tuple[int, dict, Job | None]:
+    """(상태 코드, 응답 본문, 실행할 작업). 재사용·한도 대기면 작업이 없다."""
     doc = store.get(ctx, COLLECTION, material_id)  # 남의 자료·다른 모드는 404
     if doc["version"] != expected_version:
         raise VersionConflict(doc["version"])
@@ -92,17 +94,35 @@ def start_analysis(store: Store, ctx: RequestContext, material_id: str, expected
     if doc.get("analysis_status") == "done" and doc.get("analysis_result_fp") == fp:
         return 200, {"status": "reused", "material": public(doc)}, None
 
-    job_id = uuid.uuid4().hex
     now = datetime.now(timezone.utc)
-    # 서버가 재시작되어 작업이 사라졌다고 볼 시점. Provider 요청 시간의 두 배로 둔다.
-    deadline = (now + timedelta(seconds=2 * timeout_seconds)).isoformat()
+    if doc.get("analysis_status") == "analyzing" and not analysis_stale(doc, now):
+        raise AnalysisInProgress()  # 사용량을 예약하기 전에 거른다
 
-    def claim(current: dict) -> dict:
+    def check(current: dict) -> None:
         if current["version"] != expected_version:
             raise VersionConflict(current["version"])
         _check_allowed(current)
         if current.get("analysis_status") == "analyzing" and not analysis_stale(current, now):
             raise AnalysisInProgress()
+
+    day = usage.reserve(store, ctx.owner_id, "analysis", daily_limit)
+    if day is None:
+        # 오늘 한도에 도달했다. 실패가 아니라 '호출 한도 대기'로 남기고 AI를 부르지 않는다(PRD §14).
+        # 날짜가 바뀌어도 저절로 시작하지 않으며, 사용자가 다시 시작해야 한다.
+        def wait(current: dict) -> dict:
+            check(current)
+            return {"analysis_status": "quota_waiting", "analysis_error": None}
+
+        waiting = store.transform(ctx, COLLECTION, material_id, wait)
+        log.info("analysis quota waiting")
+        return 200, {"status": "quota_waiting", "material": public(waiting)}, None
+
+    job_id = uuid.uuid4().hex
+    # 서버가 재시작되어 작업이 사라졌다고 볼 시점. Provider 요청 시간의 두 배로 둔다.
+    deadline = (now + timedelta(seconds=2 * timeout_seconds)).isoformat()
+
+    def claim(current: dict) -> dict:
+        check(current)
         return {
             "analysis_status": "analyzing",
             "analysis_job_id": job_id,
@@ -112,25 +132,47 @@ def start_analysis(store: Store, ctx: RequestContext, material_id: str, expected
             "analysis_error": None,
         }
 
-    updated = store.transform(ctx, COLLECTION, material_id, claim)
+    try:
+        updated = store.transform(ctx, COLLECTION, material_id, claim)
+    except Exception:
+        usage.refund(store, ctx.owner_id, day, "analysis")  # 시작하지 못했으므로 예약을 돌려준다
+        raise
     snapshot = {name: updated.get(name) for name in (*INPUT_FIELDS, "url", "ai_excluded")}
     log.info("analysis accepted job=%s", job_id)
-    return 202, {"status": "accepted", "material": public(updated)}, Job(material_id, job_id, fp, snapshot, offered)
+    job = Job(material_id, job_id, fp, snapshot, offered, day)
+    return 202, {"status": "accepted", "material": public(updated)}, job
+
+
+def _settle_usage(store: Store, ctx: RequestContext, job: Job, *, sent: bool, failed: bool,
+                  tokens: int | None) -> None:
+    """예약한 사용량을 정산한다. 보내기 전 실패만 환불하고, 보낸 요청은 실패·429도 사용으로 남긴다."""
+    if job.usage_day is None:
+        return
+    try:
+        if sent:
+            usage.record_sent(store, ctx.owner_id, job.usage_day, failed=failed, tokens=tokens)
+        else:
+            usage.refund(store, ctx.owner_id, job.usage_day, "analysis")
+    except Exception:  # noqa: BLE001 — 정산 실패는 사용으로 남는 쪽(한도를 넘지 않는 쪽)이다
+        log.exception("analysis job=%s usage settle failed", job.job_id)
 
 
 def run_job(store: Store, ctx: RequestContext, job: Job, adapter_factory: Callable[[], AnalysisAdapter]) -> None:
     """백그라운드에서 Provider를 한 번 부르고 결과를 저장한다. 자동 재시도는 하지 않는다."""
-    result, error, sent = None, None, True
+    result, error, sent, tokens = None, None, True, None
     try:
         result = adapter_factory().analyze_material(job.snapshot, job.projects)
+        tokens = result.total_tokens
     except ProviderError as exc:
-        error, sent = exc.kind, exc.request_sent
+        # 응답을 받은 뒤 검증에 실패한 경우에도 그 응답의 토큰을 정산에 넘긴다.
+        error, sent, tokens = exc.kind, exc.request_sent, exc.total_tokens
     except ConfigError:
         error, sent = "missing_ai_settings", False
     except Exception:  # noqa: BLE001 — 원인 본문은 남기지 않는다. 호출 여부를 모르므로 보낸 것으로 센다
         log.exception("analysis job=%s internal error", job.job_id)
         error = "internal_error"
     finished = datetime.now(timezone.utc).isoformat()
+    _settle_usage(store, ctx, job, sent=sent, failed=error is not None, tokens=tokens)
 
     def finish(current: dict) -> dict:
         if current.get("analysis_job_id") != job.job_id or current.get("analysis_status") != "analyzing":
@@ -139,7 +181,7 @@ def run_job(store: Store, ctx: RequestContext, job: Job, adapter_factory: Callab
             "analysis_job_id": None,
             "analysis_finished_at": finished,
             "analysis_request_sent": sent,
-            "analysis_total_tokens": result.total_tokens if result else None,
+            "analysis_total_tokens": tokens,
         }
         # 분석 중에 AI 분석 제외를 켰거나 내용이 바뀌었으면 결과를 저장하지 않는다. 이미 보낸 요청은 되돌릴 수
         # 없으므로 사용량 기록(`analysis_request_sent`)만 남긴다. 제외는 내용 지문에 없으므로 따로 확인한다.
@@ -149,6 +191,9 @@ def run_job(store: Store, ctx: RequestContext, job: Job, adapter_factory: Callab
             has_content = any(current.get(name) for name in CONTENT_FIELDS)
             return {**base, "analysis_status": "awaiting_start" if has_content else "link_only",
                     "analysis_error": discard}
+        if error == "rate_limited":
+            # Provider 요청 한도(429)는 실패가 아니라 호출 한도 대기로 둔다(PRD §14). 재개는 사용자가 한다.
+            return {**base, "analysis_status": "quota_waiting", "analysis_error": error}
         if error:
             return {**base, "analysis_status": "failed", "analysis_error": error}
         return {

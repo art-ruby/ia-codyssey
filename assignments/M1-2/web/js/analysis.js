@@ -1,6 +1,6 @@
 // 자료 분석 패널(T04.02): 시작 전 전송 범위 확인, 분석 중 상태 조회, 결과·실패·확인 필요 표시와 재시도.
 // 분석은 사용자가 누를 때만 시작한다. 결과는 AI 제안이며 사실 확인 전이라는 표시를 함께 보여준다.
-// 모든 문자열은 textContent로만 넣는다. 사용량 숫자·남은 한도는 T04.03에서 더한다.
+// 모든 문자열은 textContent로만 넣는다. 시작 전에 오늘 사용량·남은 요청·대기 자료 수를 보여준다(T04.03).
 
 const SENT_FIELDS = [["title", "제목"], ["description", "설명"], ["body", "본문"], ["save_reason", "저장 이유"], ["memo", "메모"]];
 const IMPORTANCE = { high: "높음", medium: "보통", low: "낮음" };
@@ -8,7 +8,7 @@ const KIND = { article: "글", document: "문서", note: "메모", reference: "�
 const ERROR = {
   input_changed: "분석하는 동안 내용이 바뀌어 결과를 저장하지 않았습니다.",
   ai_excluded: "분석하는 동안 AI 분석 제외를 켜서 결과를 저장하지 않았습니다.",
-  rate_limited: "AI 요청 한도에 걸렸습니다. 잠시 뒤 다시 시도하세요.",
+  rate_limited: "AI 서버의 요청 한도(429)에 걸려 분석을 미뤘습니다. 잠시 뒤 다시 시작하세요.",
   timeout: "AI 응답 시간이 초과되었습니다.",
   invalid_output: "AI 응답 형식이 맞지 않아 저장하지 않았습니다.",
   ungrounded_output: "AI 응답이 자료 내용과 맞지 않아 저장하지 않았습니다.",
@@ -33,6 +33,10 @@ export function analysisState(m) {
         ? { label: "결과 확인 필요", tone: "amber", action: "retry",
           note: "분석이 끝났는지 확인되지 않았습니다(서버 재시작 등). 다시 시작하면 AI 요청이 1회 더 나갑니다." }
         : { label: "분석 중", tone: "mint", action: null, polling: true };
+    case "quota_waiting":
+      return { label: "호출 한도 대기", tone: "amber", action: "resume",
+        note: m.analysis_error === "rate_limited" ? ERROR.rate_limited
+          : "오늘 AI 요청 한도에 도달해 분석을 미뤘습니다. 날짜가 바뀌어도 저절로 시작하지 않으니 직접 다시 시작하세요." };
     case "failed":
       return { label: "분석 실패", tone: "amber", action: "retry",
         note: ERROR[m.analysis_error] || "분석하지 못했습니다. 입력은 그대로 남아 있습니다." };
@@ -44,6 +48,12 @@ export function analysisState(m) {
     default:
       return { label: "분석 시작 대기", tone: "mint", action: "start", note: ERROR[m.analysis_error] };
   }
+}
+
+// 오늘 사용량 한 줄(순수 함수, 테스트 대상). 요청 수와 자료 건수를 구분하고 금액은 만들지 않는다.
+export function usageLine(u) {
+  const pending = u.pending_capped ? `${u.pending_count}건 이상` : `${u.pending_count}건`;
+  return `오늘 AI 요청 ${u.used}/${u.limit} · 남은 요청 ${u.remaining} · 한도 대기 자료 ${pending} · 비용: 구독 경로, 금액 미확인`;
 }
 
 // 이번 분석에 AI로 보내는 항목과 글자 수(서버 Adapter와 같은 필드).
@@ -116,14 +126,25 @@ export function analysisPanel(material, opts) {
     render();
   }
 
-  function confirmBox(button, message) {
+  async function confirmBox(button, message) {
     const scope = sendScope(current);
     const send = el("button", { class: "button primary small", type: "button", text: "보내고 분석 시작" });
     const cancel = el("button", { class: "button secondary small", type: "button", text: "취소" });
+    const usageNote = el("p", { class: "analysis-usage", text: "오늘 사용량을 불러오는 중…" });
     const box = el("div", { class: "analysis-confirm" },
       el("p", { text: `외부 AI(Hermes)로 보낼 내용: ${scope.labels.join("·")} (${scope.chars.toLocaleString("ko-KR")}자)` }),
       el("p", { text: `${current.url ? "URL은 열어 보지 않고 주소 문자열만 보냅니다. " : ""}AI 요청 1회가 사용량에 기록됩니다. 결과는 제안일 뿐이며 자료·중요도는 바뀌지 않습니다.` }),
+      usageNote,
       el("div", { class: "form-actions" }, send, cancel));
+    opts.api("/api/ai/usage").then((u) => {
+      usageNote.textContent = usageLine(u);
+      if (u.remaining === 0) {
+        usageNote.textContent += " — 오늘 한도에 도달해 지금 보내면 AI를 부르지 않고 '호출 한도 대기'로 남깁니다.";
+        send.textContent = "한도 대기로 남기기";
+      }
+    }).catch(() => {
+      usageNote.textContent = "오늘 사용량을 불러오지 못했습니다. 한도는 서버가 확인합니다.";
+    });
     cancel.addEventListener("click", () => render());
     send.addEventListener("click", async () => {
       send.disabled = true;
@@ -134,6 +155,7 @@ export function analysisPanel(material, opts) {
           { method: "POST", body: { expected_version: current.version } });
         update(res.material);
         if (res.status === "reused") root.querySelector(".form-status").textContent = "같은 내용의 분석 결과가 있어 AI를 다시 부르지 않았습니다.";
+        if (res.status === "quota_waiting") root.querySelector(".form-status").textContent = "오늘 한도에 도달해 AI를 부르지 않고 대기로 남겼습니다.";
       } catch (error) {
         if (error.kind === "http" && [404, 409, 422].includes(error.status)) render(error.detail);
         else opts.onError(error, () => render());
@@ -151,7 +173,7 @@ export function analysisPanel(material, opts) {
     const children = [head];
     if (state.note) children.push(el("p", { class: "row-note", text: state.note }));
     if (state.action) {
-      const label = { start: "분석 시작", retry: "다시 시도", reanalyze: "다시 분석" }[state.action];
+      const label = { start: "분석 시작", retry: "다시 시도", reanalyze: "다시 분석", resume: "다시 시작" }[state.action];
       const button = el("button", { class: "button secondary small", type: "button", text: label });
       button.addEventListener("click", () => confirmBox(button, message));
       children.push(button);

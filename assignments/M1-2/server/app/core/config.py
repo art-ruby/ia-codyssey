@@ -18,9 +18,10 @@ M1_2_ROOT = Path(__file__).resolve().parents[3]
 ENV_FILE = M1_2_ROOT / ".env"
 
 # PRD §14 [초기 가설] — 실제 Provider 제한을 확인한 뒤 환경변수로 조정한다.
+# 출력 1,500토큰은 요청 1회의 출력 상한이다(하루 총량이 아니다, T04.03 결정).
 DEFAULT_AI_DAILY_REQUEST_LIMIT = 50
 DEFAULT_AI_MAX_OUTPUT_TOKENS = 1500
-DEFAULT_AI_TIMEOUT_SECONDS = 60
+DEFAULT_AI_TIMEOUT_SECONDS = 120  # PRD §14 초깃값(로컬 Hermes 요청 시간)
 
 # 기능 묶음별로 반드시 있어야 하는 변수. /health와 기능별 오류에서 함께 쓴다.
 REQUIRED = {

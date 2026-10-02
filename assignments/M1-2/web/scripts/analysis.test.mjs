@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { analysisState, sendScope } from "../js/analysis.js";
+import { analysisState, sendScope, usageLine } from "../js/analysis.js";
 
 const base = { lifecycle: "active", ai_excluded: false };
 
@@ -49,4 +49,18 @@ test("분석 중 제외를 켜서 버린 결과는 제외를 끈 뒤에 사유�
 test("전송 범위는 값이 있는 입력 필드만 센다", () => {
   assert.deepEqual(sendScope({ title: "제목", body: "본문 내용", description: "", save_reason: "이유", memo: null }),
     { labels: ["제목", "본문", "저장 이유"], chars: 9 });
+});
+
+test("한도 대기는 실패가 아니며 사용자가 다시 시작한다", () => {
+  const waiting = analysisState({ ...base, analysis_status: "quota_waiting" });
+  assert.equal(waiting.label, "호출 한도 대기");
+  assert.equal(waiting.action, "resume");
+  assert.match(waiting.note, /저절로 시작하지 않으니/);
+  assert.match(analysisState({ ...base, analysis_status: "quota_waiting", analysis_error: "rate_limited" }).note, /429/);
+});
+
+test("사용량 줄은 요청 수와 자료 건수를 구분하고 금액을 만들지 않는다", () => {
+  const line = usageLine({ used: 37, limit: 50, remaining: 13, pending_count: 42, pending_capped: false });
+  assert.equal(line, "오늘 AI 요청 37/50 · 남은 요청 13 · 한도 대기 자료 42건 · 비용: 구독 경로, 금액 미확인");
+  assert.match(usageLine({ used: 0, limit: 50, remaining: 50, pending_count: 100, pending_capped: true }), /100건 이상/);
 });

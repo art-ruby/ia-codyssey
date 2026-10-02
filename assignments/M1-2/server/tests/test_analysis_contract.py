@@ -291,6 +291,15 @@ def test_length_finish_is_reported_as_truncated(monkeypatch):
         provider.complete_text([{"role": "user", "content": "x"}])
 
 
+@pytest.mark.parametrize("raw", ["형식이 아닌 응답", json.dumps(output(evidence=["지어낸 인용문 여덟 글자 이상"]))])
+def test_validation_failure_keeps_reply_token_usage(raw):
+    # 응답은 도착했으므로 검증에 실패해도 토큰 사용량을 오류에 담아 정산에 넘긴다(T04.03 코드 리뷰).
+    with pytest.raises(ProviderError) as info:
+        run(raw)
+    assert info.value.kind in ("invalid_output", "ungrounded_output")
+    assert info.value.total_tokens == 321 and info.value.request_sent is True
+
+
 def test_link_only_material_is_refused_without_calling_provider():
     fake = FakeCompleter(json.dumps(output()))
     with pytest.raises(ProviderError, match="no_content"):

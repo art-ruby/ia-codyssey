@@ -38,9 +38,11 @@ PRE_SEND_KINDS = frozenset({
 class ProviderError(RuntimeError):
     """사용자에게 전달 가능한 오류 종류만 담는다."""
 
-    def __init__(self, kind: str, status_code: int | None = None) -> None:
+    def __init__(self, kind: str, status_code: int | None = None, total_tokens: int | None = None) -> None:
         self.kind = kind
         self.status_code = status_code
+        # 응답은 받았지만 검증에 실패한 경우의 토큰 사용량. 사용량 정산(T04.03)이 버리지 않게 담아 둔다.
+        self.total_tokens = total_tokens
         super().__init__(kind)
 
     @property
@@ -163,6 +165,14 @@ class AnalysisAdapter:
         offered = [{"id": p["id"], "name": p["name"]} for p in projects if p.get("active", True)]
 
         reply = self.completer.complete_text(build_messages(payload, offered))
+        try:
+            return self._validate(reply, sent, offered)
+        except ProviderError as exc:
+            exc.total_tokens = reply.total_tokens  # 응답은 도착했으므로 검증 실패여도 토큰은 쓰였다
+            raise
+
+    def _validate(self, reply: TextResult, sent: dict, offered: list[dict]) -> AnalysisResult:
+        """응답을 형식·근거 순서로 검증해 결과로 바꾼다. 실패하면 ProviderError."""
         try:
             out = ModelOutput.model_validate(_parse_json(reply.text))
         except ValidationError as exc:
