@@ -26,6 +26,9 @@ from app.features.analysis.provider import AnalysisAdapter, HermesProvider
 from app.features.analysis.routes import router as analysis_router
 from app.features.analysis.routes import usage_router as ai_usage_router
 from app.features.analysis.service import AnalysisInProgress, AnalysisRefused
+from app.features.chat.context import QuestionTooLong
+from app.features.chat.routes import router as chat_router
+from app.features.chat.service import ChatFailed, ConversationFull
 from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
                                             MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget, MaterialDeleting)
 from app.features.projects.routes import router as projects_router
@@ -54,6 +57,7 @@ FIELD_NAMES = {
     "expected_version": "버전", "related_project_ids": "관련 프로젝트",
     "user_importance": "중요도", "items": "검토 항목", "material_id": "자료", "action": "작업",
     "view": "목록 보기", "revisit_on": "다시 볼 날짜", "ai_excluded": "AI 분석 제외",
+    "question": "질문",
 }
 
 
@@ -83,6 +87,13 @@ ANALYSIS_REFUSED = {
     "trashed": "휴지통에 있는 자료는 분석할 수 없습니다. 복원한 뒤 다시 시도하세요",
     "ai_excluded": "AI 분석 제외 자료입니다. 제외를 해제해야 분석할 수 있습니다",
     "no_content": "링크만 저장된 자료라 분석할 내용이 없습니다. 제목·설명·본문을 입력하세요",
+}
+
+
+CHAT_FAILED = {
+    "search_failed": "자료를 검색하지 못했습니다. 저장한 자료가 없다는 뜻이 아닙니다. 잠시 뒤 다시 시도하세요",
+    "quota_exceeded": "오늘 AI 요청 한도에 도달했습니다. 서울 시간 자정 이후 다시 질문하세요",
+    "provider_failed": "AI 답변을 받지 못했습니다. 대화는 저장하지 않았습니다. 다시 시도하세요",
 }
 
 
@@ -212,6 +223,19 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     async def analysis_in_progress(_, __):
         return _error(409, "이미 분석 중입니다. 끝나면 결과가 표시됩니다", reason="analysis_in_progress")
 
+    @app.exception_handler(ChatFailed)
+    async def chat_failed(_, exc: ChatFailed):
+        extra = {"kind": exc.kind} if exc.kind else {}
+        return _error(exc.status, CHAT_FAILED[exc.reason], reason=exc.reason, **extra)
+
+    @app.exception_handler(QuestionTooLong)
+    async def question_too_long(_, __):
+        return _error(422, "질문은 2000자까지 입력할 수 있습니다")
+
+    @app.exception_handler(ConversationFull)
+    async def conversation_full(_, __):
+        return _error(409, "이 대화는 메시지 한도에 도달했습니다. 새 대화를 시작하세요", reason="conversation_full")
+
     @app.exception_handler(RequestValidationError)
     async def validation_error(_, exc: RequestValidationError):
         # 사용자가 이해할 수 있는 안내를 detail로 준다. 입력값(input)은 응답에 되돌려 보내지 않는다.
@@ -226,6 +250,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(ai_usage_router)
     app.include_router(trash_router)
     app.include_router(data_router)
+    app.include_router(chat_router)
 
     if settings.allowed_origins:
         app.add_middleware(

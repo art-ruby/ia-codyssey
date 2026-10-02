@@ -32,7 +32,7 @@
   - [x] **T06.04** 활동 기록·요약 화면과 변경 반영
 - [ ] **Phase 07. 자료 기반 채팅과 대화 기록 — MVP**
   - [x] **T07.01** 질문 검색·자료 문맥·숫자 요약 구성
-  - [ ] **T07.02** 근거 답변·출처 검증·실패 구분
+  - [x] **T07.02** 근거 답변·출처 검증·실패 구분
   - [ ] **T07.03** 대화 자동 저장·불러오기·삭제
   - [ ] **T07.04** 채팅 화면과 검색 품질 평가
 - [ ] **Phase 08. MVP 통합 검증과 배포 — MVP 완료 지점**
@@ -419,6 +419,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** `POST /api/chat`에서 검증된 문맥으로 Provider를 호출한다. 답변 출처 ID를 실제 전달 자료와 대조한다. URL-only 자료는 본문 근거로 인용하지 않는다. 실제 확인한 원문 요약과 비서의 해석·제안을 답변에서 구분하고, 관련 자료도 사용자 확정 연결과 AI 제안 상태를 구분한다. 숫자 결과는 서버 Summary와 일치시키고 가상 기록 여부를 명시한다. 자료 속 지시문으로 권한·승인 동작을 실행하지 않는다.
 - **산출/연결:** 답변과 출처 후보. T07.03의 저장이 끝나야 성공 응답을 반환한다.
 - **완료/검증:** 없는 출처 ID, 검색 결과 없음, 검색 자체 실패, Provider 실패, 악성 지시문이 포함된 본문을 각각 검사한다. 요약과 해석이 구분되고 제안 관계가 사용자 확정 관계처럼 표시되지 않는지 확인한다. 근거가 없으면 한계를 표시하며 새로운 출처를 만들어내지 않는다. A14에 대응한다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** 모델은 JSON(`from_materials`·`interpretation`·`sources`(자료 번호)·`related_suggestions`·`limitations`)으로 답하고 정의 밖 필드는 버림, 번호를 전달 자료 ID로 바꾸고 없는 번호는 `rejected_source_numbers`, URL만 있는 자료는 `basis: link_only`와 한계, 확정 연결 `user_confirmed`·나머지 `ai_suggested`, 숫자는 서버 Summary + `virtual`·확인 안 된 숫자 표시, 실패 구분 503 `search_failed`·429 `quota_exceeded`·502 `provider_failed`(`kind`), 대화는 `conversations` 문서에 저장한 뒤 성공(목록·삭제·저장 실패 재시도는 T07.03).
 
 ### T07.03 대화 자동 저장·불러오기·삭제
 
@@ -591,8 +592,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T07.01 — 채팅 문맥 구성(`chat/context.py`: 조건 추출·순위 검색·자격 필터·한도·과거 대화 재검사·숫자 요약 주입), 평가 세트 10/10 검색 |
-| 다음 Task | T07.02 — 근거 답변·출처 검증·실패 구분 |
+| 마지막 완료 Task | T07.02 — `POST /api/chat`(출처 번호 대조·URL-only 구분·요약/해석 분리·관련 자료 확정/제안·숫자 출처·실패 구분·저장 후 성공), 실제 Hermes 1회 |
+| 다음 Task | T07.03 — 대화 자동 저장·불러오기·삭제 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

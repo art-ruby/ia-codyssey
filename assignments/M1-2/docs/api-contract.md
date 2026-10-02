@@ -291,3 +291,17 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
   - `trend`: `{status: increase|decrease|flat|insufficient|new|both_zero, recent_average, previous_average, change_rate, reference_date}`. 기준일은 개인 모드 오늘(서울), 표본 모드 그 계열의 최신 날짜. 최근 7일 vs 이전 7일, +10% 이상 증가·-10% 이하 감소. 관측 14일 미만은 `insufficient`, 이전 0건은 `new` 또는 `both_zero`(백분율 없음).
 - `label`: 지표·출처 조합의 화면 이름. `kept_count`: actual '현재 보관 자료 수'·manual '사용자 입력 보관 기록'·sample '가상 보관 기록'. `received_count`: actual '실제 접수 건수'·manual '사용자 입력 접수 기록'·sample '가상 접수 기록'(PRD §11.3: 표본 숫자를 실제 수로 오해하지 않게 '가상').
 - 날짜 형식·범위 오류, 시작이 끝보다 늦음, 허용 밖 지표는 422.
+
+## 채팅 (T07.02)
+
+**`POST /api/chat`** — `Idempotency-Key` 필요. 본문 `{question: 1~2000자, conversation_id?}`.
+- 200 `{conversation_id, message_ids: {user, assistant}, answer: {from_materials, interpretation, limitations: [..]}, sources, rejected_source_numbers, related, numbers, unverified_numbers, omitted, model}`. 대화 저장이 끝난 뒤에 돌려준다.
+  - `sources`: `[{number, material_id, display_title, url, registered_at, basis: content|link_only}]`. 실제 전달한 자료만. `link_only`는 본문을 확인하지 않은 URL 자료.
+  - `rejected_source_numbers`: 모델이 댔지만 전달하지 않은 자료 번호(출처에 넣지 않음).
+  - `related`: `[{material_ids, numbers, status: user_confirmed|ai_suggested}]`. 사용자가 확정한 연결과 AI 제안을 구분.
+  - `numbers`: 문맥에 넣은 서버 Summary(`label`·`source`·`period`·`total`…) + `virtual`(가상 기록 여부).
+  - `unverified_numbers`: 답변 문장에서 질문·요약·자료에 없는 숫자.
+  - `answer.limitations`: 서버가 붙인 한계(근거 자료 없음·없는 번호 언급·링크만·확인 안 된 숫자·한도로 빠짐·일부 자료 기준) 뒤에 모델의 한계(최대 5개).
+  - `omitted`: T07.01 문맥의 생략 정보.
+- 실패(대화는 저장하지 않음, 같은 키로 다시 보낼 수 있음): 503 `reason=search_failed`(자료 검색 실패 — 결과 없음과 다름), 429 `quota_exceeded`, 502 `provider_failed` + `kind`(`timeout`·`rate_limited`·`invalid_output`·`hermes_tools_enabled`·`missing_ai_settings` 등). 질문 2,000자 초과 422, 대화가 없거나 다른 모드 404, 대화 메시지 200개 초과 409 `conversation_full`.
+- 같은 키를 다시 보내면 저장된 응답을 재생한다(AI 재호출 없음).
