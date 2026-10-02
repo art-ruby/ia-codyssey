@@ -28,7 +28,9 @@ from app.features.analysis.routes import usage_router as ai_usage_router
 from app.features.analysis.service import AnalysisInProgress, AnalysisRefused
 from app.features.chat.context import QuestionTooLong
 from app.features.chat.routes import router as chat_router
-from app.features.chat.service import ChatFailed, ConversationFull
+from app.features.chat.service import ChatFailed
+from app.features.conversations.routes import router as conversations_router
+from app.features.conversations.service import ConversationFull
 from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
                                             MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget, MaterialDeleting)
 from app.features.projects.routes import router as projects_router
@@ -57,7 +59,7 @@ FIELD_NAMES = {
     "expected_version": "버전", "related_project_ids": "관련 프로젝트",
     "user_importance": "중요도", "items": "검토 항목", "material_id": "자료", "action": "작업",
     "view": "목록 보기", "revisit_on": "다시 볼 날짜", "ai_excluded": "AI 분석 제외",
-    "question": "질문",
+    "question": "질문", "pending_id": "저장 대기 답변", "conversation_id": "대화",
 }
 
 
@@ -251,6 +253,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(trash_router)
     app.include_router(data_router)
     app.include_router(chat_router)
+    app.include_router(conversations_router)
 
     if settings.allowed_origins:
         app.add_middleware(

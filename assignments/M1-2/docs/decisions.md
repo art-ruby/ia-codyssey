@@ -227,3 +227,13 @@
 - **실패 구분:** 문맥 구성 중 저장소 오류 → 503 `search_failed`(예약 전이라 사용량 없음, '저장한 자료가 없다는 뜻이 아님'), 한도 도달 → 429 `quota_exceeded`(Provider 미호출), Provider 오류·형식 오류 → 502 `provider_failed` + `kind`(보내기 전 실패는 환불, 보낸 뒤는 실패·토큰 기록), AI 설정 없음 → 502 `missing_ai_settings`. 결과 없음은 성공 응답에 서버가 '근거가 되는 보관 자료를 찾지 못했습니다.'를 첫 한계로 붙인다. 실패는 모두 아무것도 저장하지 않은 `NoChange`라 같은 키로 다시 보낼 수 있다.
 - **Provider 호출:** 근거 자료가 없어도 숫자 요약이 있으므로 호출한다(한계 문구는 서버가 붙임).
 - **저장 후 성공:** `conversations` 문서(`title`·`messages[]`·`message_count`·`last_message_at`)에 질문과 답(검증된 출처·관련·당시 숫자 요약·`request_id`)을 저장한 뒤 200. 이어지는 질문(`conversation_id`)은 저장된 메시지를 과거 대화로 쓰고 버전 확인으로 덧붙인다. 다른 모드·소유자의 대화는 404(Provider 미호출). 대화당 200개 메시지(문서 1MB 보호) 넘으면 409 `conversation_full`. 같은 Idempotency-Key는 저장된 응답을 재생(AI 재호출 없음). 목록·복원·삭제·저장 실패 상태와 재시도는 T07.03.
+
+## T07.03 대화 자동 저장·불러오기·삭제 (2026-10-02, "진행" 지시 — 착수 전 결정을 기본값으로 정함)
+- **구조:** `conversations` 문서 하나에 `messages[]`를 둔다(PRD §9.2가 허용한 '문서 안 messages'). 대화를 지우면 메시지도 같은 문서와 함께 원자적으로 사라진다. 대화당 200개 메시지(문서 1MB 보호).
+- **덧붙이기:** T07.02의 '버전 확인 후 update'를 트랜잭션 덧붙이기(`append_messages`)로 바꿨다. 같은 대화에 동시에 질문해도 한쪽이 409로 답을 잃지 않는다. 이미 있는 메시지 ID는 다시 넣지 않는다.
+- **저장 실패:** AI 답을 받은 뒤 대화 저장에 실패하면 검증된 질문·답을 `chat_pending`(새 컬렉션, ID = 답변 메시지 ID)에 보관하고 503 `{reason: save_failed, saved: false, pending_id, retryable: true, answer…}`를 돌려준다. 이 응답도 요청 기록에 남아 같은 키 재전송은 AI를 다시 부르지 않는다. 보관마저 실패하면 `pending_id: null`, `retryable: false`와 '다시 질문' 안내(그 답은 복구할 수 없음).
+- **재저장:** `POST /api/conversations {pending_id}`. 서버가 보관한 답만 옮기고 보관본 삭제와 한 트랜잭션이라 두 번 저장되지 않는다(두 번째는 404, 같은 키는 재생). 원래 대화가 사라졌거나 가득 찼으면 새 대화(ID = 보관 ID)로 저장하고 `moved_to_new: true`. 본문은 `title`·`pending_id` 중 하나만, 그 밖의 필드(메시지·답변·출처)는 422 — 클라이언트가 답을 지어 넣을 수 없다. 대기 답변은 `DELETE /api/conversations/pending/{id}`로 버릴 수 있다.
+- **목록:** 현재 모드의 대화를 생성 최신순(새 복합 색인 `conversations(owner_id, mode, created_at DESC)` 배포), 메시지 제외. '최근 대화한 순'은 색인·쓰기 비용이 더 들어 MVP에서는 쓰지 않는다. 저장 대기 답변(`pending`)도 함께(같음 조건 조회라 추가 색인 없음).
+- **상세:** 답변 출처마다 지금 자료 상태 `current_status`(available·trashed·deleted·unapproved·not_kept·ai_excluded)를 붙인다. 기록은 고치지 않는다(PRD §8.2 '기록은 유지하고 현재 삭제 상태를 표시'). 그 출처에 기댄 과거 답변을 AI 문맥에서 빼는 일은 T07.01이 질문 때마다 한다.
+- **삭제:** 대화와 그 대화의 저장 대기 답변을 한 트랜잭션으로 지우고, 요청 기록(Idempotency)의 응답 본문 중 이 대화·대기 답변 ID를 담은 것을 `{deleted: true}`로 가린다(같은 키 재전송이 지운 답을 다시 내주지 않게, T05.03과 같은 방식). 영구 삭제한 자료의 인용문이 대화에 남아 있으면 이 삭제로 지운다(T05.03에서 넘긴 일).
+- **남은 한계:** 서버가 AI 답을 받은 직후 죽으면 보관도 못 해 요청 기록이 `processing`으로 남는다. 같은 키는 409 `in_progress`이고 새 키로 다시 질문해야 한다(사용량은 이미 1 썼다).

@@ -20,16 +20,17 @@ router = APIRouter(prefix="/api", tags=["chat"])
     409: {"description": "대화 메시지 한도 도달 또는 같은 요청 처리 중"},
     429: {"description": "오늘 AI 요청 한도 도달(reason=quota_exceeded). Provider 호출 없음"},
     502: {"description": "AI 호출 실패(reason=provider_failed, kind=오류 종류). 대화는 저장하지 않음"},
-    503: {"description": "자료 검색 실패(reason=search_failed). '결과 없음'과 다르다. 사용량을 쓰지 않음"},
+    503: {"description": "자료 검색 실패(reason=search_failed, 사용량 없음 — '결과 없음'과 다름) 또는 "
+                         "답을 받았지만 대화 저장 실패(reason=save_failed, 답 본문·pending_id 포함)"},
 })
 def chat(body: ChatQuestion, request: Request, ctx: RequestContext = Depends(get_context),
          store: Store = Depends(get_store)):
     settings = request.app.state.settings
 
     def handler() -> Result:
-        return Result(200, service.handle_chat(store, ctx, body.conversation_id, body.question,
-                                               request.app.state.analysis_adapter_factory,
-                                               settings.ai_daily_request_limit))
+        return Result(*service.handle_chat(store, ctx, body.conversation_id, body.question,
+                                           request.app.state.analysis_adapter_factory,
+                                           settings.ai_daily_request_limit))
 
     result = run_idempotent(store, ctx, "POST", "/api/chat", body.model_dump(), handler)
     return JSONResponse(result.body, status_code=result.status_code)

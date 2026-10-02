@@ -13,12 +13,15 @@
 - 숫자: 서버 Summary를 그대로 `numbers`로 돌려주고 `virtual`(가상 기록 여부)을 붙인다. 답변에 질문·요약·자료에
   없는 숫자가 나오면 `unverified_numbers`로 알린다(답을 막지는 않는다).
 - 모델 응답의 정의 밖 필드(예: 승인·삭제 지시)는 버린다. 이 서비스가 쓰는 곳은 사용량과 대화 기록뿐이다.
-- 성공 응답은 대화 저장이 끝난 뒤에 돌려준다. 같은 Idempotency-Key로 다시 보내면 저장된 응답을 재생한다.
-  목록·복원·삭제와 저장 실패 후 재시도는 T07.03.
+- 성공 응답은 대화 저장이 끝난 뒤에 돌려준다(`saved: true`). 같은 Idempotency-Key로 다시 보내면 저장된 응답을 재생한다.
+- AI 답을 받은 뒤 대화 저장에 실패하면 답을 서버에 보관하고 503 `save_failed`(답 본문·`pending_id` 포함)를 돌려준다.
+  이 응답도 요청 기록에 남아 같은 키 재전송은 AI를 다시 부르지 않는다. 재저장은 `POST /api/conversations
+  {pending_id}`(T07.03). 보관마저 실패하면 `pending_id: null`, `retryable: false`.
 """
 from __future__ import annotations
 
 import json
+import logging
 import re
 import uuid
 from datetime import datetime, timezone
@@ -34,15 +37,18 @@ from app.features.analysis import usage
 from app.features.analysis.provider import ProviderError, _parse_json
 from app.features.analysis.schemas import numbers
 from app.features.chat.context import ChatContext, QuestionTooLong, build_context
+from app.features.conversations import service as conversations
+from app.features.conversations.service import MAX_MESSAGES, ConversationFull
 from app.features.materials.eligibility import ai_payload
 from app.features.materials.service import display_title
 
-COLLECTION = "conversations"
-MAX_MESSAGES = 200  # 대화 하나의 메시지 수(Firestore 문서 1MB 한도 보호). 넘으면 새 대화를 시작한다.
 MAX_LIMITATIONS = 5
 MAX_TEXT = 4000
 NO_MATERIALS = "근거가 되는 보관 자료를 찾지 못했습니다."
 _MENTION = re.compile(r"자료\s*(\d+)")
+SAVE_FAILED = "답변은 받았지만 대화에 저장하지 못했습니다. 저장을 다시 시도하세요"
+SAVE_LOST = "답변은 받았지만 저장하지 못했고 보관도 실패했습니다. 이 답은 다시 불러올 수 없으니 필요하면 다시 질문하세요"
+log = logging.getLogger("ai_secretary.chat")
 
 
 class ChatFailed(NoChange):
@@ -51,10 +57,6 @@ class ChatFailed(NoChange):
     def __init__(self, status: int, reason: str, kind: str | None = None) -> None:
         self.status, self.reason, self.kind = status, reason, kind
         super().__init__(reason)
-
-
-class ConversationFull(NoChange):
-    """대화의 메시지가 한도에 도달했다(409)."""
 
 
 class ModelAnswer(BaseModel):
@@ -170,10 +172,11 @@ def _verify(answer: ModelAnswer, built: ChatContext, question: str) -> dict:
 
 
 def handle_chat(store: Store, ctx: RequestContext, conversation_id: str | None, question: str,
-                adapter_factory: Callable, daily_limit: int) -> dict:
+                adapter_factory: Callable, daily_limit: int) -> tuple[int, dict]:
+    """(HTTP 상태, 응답 본문). 200은 저장 완료, 503은 답을 받았지만 저장 실패(`save_failed`)."""
     question = question.strip()
-    conversation = store.get(ctx, COLLECTION, conversation_id) if conversation_id else None  # 다른 모드·소유자는 404
-    past = (conversation or {}).get("messages", [])
+    conversation = store.get(ctx, conversations.COLLECTION, conversation_id) if conversation_id else None
+    past = (conversation or {}).get("messages", [])  # 다른 모드·소유자의 대화는 위에서 404
     if len(past) + 2 > MAX_MESSAGES:
         raise ConversationFull()
     history = [{"role": m["role"], "content": m["content"], "source_ids": m.get("source_ids", [])} for m in past]
@@ -200,11 +203,19 @@ def handle_chat(store: Store, ctx: RequestContext, conversation_id: str | None, 
                      "request_id": ctx.request_id, "created_at": at,
                      **{k: result[k] for k in ("answer", "sources", "rejected_source_numbers", "related", "numbers",
                                                "unverified_numbers")}}
-    messages = [*past, user_msg, assistant_msg]
-    changes = {"messages": messages, "message_count": len(messages), "last_message_at": at}
-    if conversation:
-        saved = store.update(ctx, COLLECTION, conversation["id"], conversation["version"], changes)
-    else:
-        saved = store.create(ctx, COLLECTION, {"title": question[:40], **changes})
-    return {"conversation_id": saved["id"], "message_ids": {"user": user_msg["id"], "assistant": assistant_msg["id"]},
-            **result, "model": model}
+    turn = [user_msg, assistant_msg]
+    body = {"message_ids": {"user": user_msg["id"], "assistant": assistant_msg["id"]}, **result, "model": model}
+    title = question[:40]
+    try:
+        saved_id = conversations.append_messages(store, ctx, conversation_id, title, turn)
+    except Exception as exc:  # 저장 실패: 답을 버리지 않고 서버에 보관한다
+        log.warning("chat save failed: %s", type(exc).__name__)
+        try:
+            pending_id = conversations.keep_pending(store, ctx, conversation_id, title, turn)
+        except Exception as keep_exc:
+            log.warning("chat pending keep failed: %s", type(keep_exc).__name__)
+            pending_id = None
+        return 503, {"conversation_id": conversation_id, **body, "saved": False, "reason": "save_failed",
+                     "pending_id": pending_id, "retryable": pending_id is not None,
+                     "detail": SAVE_FAILED if pending_id else SAVE_LOST}
+    return 200, {"conversation_id": saved_id, **body, "saved": True}

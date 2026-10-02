@@ -33,7 +33,7 @@
 - [ ] **Phase 07. 자료 기반 채팅과 대화 기록 — MVP**
   - [x] **T07.01** 질문 검색·자료 문맥·숫자 요약 구성
   - [x] **T07.02** 근거 답변·출처 검증·실패 구분
-  - [ ] **T07.03** 대화 자동 저장·불러오기·삭제
+  - [x] **T07.03** 대화 자동 저장·불러오기·삭제
   - [ ] **T07.04** 채팅 화면과 검색 품질 평가
 - [ ] **Phase 08. MVP 통합 검증과 배포 — MVP 완료 지점**
   - [ ] **T08.01** MVP 인수 기준과 보안·실패 흐름 검증
@@ -427,6 +427,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** 대화·사용자 질문·AI 답변·검증 출처·당시 숫자 요약·request_id를 저장한다. 저장 실패 상태와 재시도를 제공하고 재시도 시 불필요한 AI 재호출·중복 메시지를 막는다. 클라이언트가 임의 AI 답변·출처를 공식 응답으로 저장하지 못하게 한다.
 - **산출/연결:** PRD의 대화 생성·목록·상세·삭제 API. 삭제는 하위 메시지까지 처리한다. 대화에 표시된 출처가 나중에 삭제되었으면 현재 상태를 함께 보여준다.
 - **완료/검증:** 응답 저장 중 실패·응답 유실·같은 request_id 재전송·대화 삭제·다른 모드/소유자 조회를 검사한다. A17 대화 범위에 대응한다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** `conversations` 문서의 `messages[]` 유지(삭제 시 메시지 함께 원자적 삭제), 덧붙이기는 트랜잭션·같은 메시지 ID 재저장 무시, 저장 실패 시 검증된 질문·답을 `chat_pending`에 보관하고 503 `save_failed`(답 본문·`pending_id`) — 같은 키 재전송은 재생, 재저장은 `POST /api/conversations {pending_id}`(클라이언트 답·출처 입력 불가, 원래 대화가 없으면 새 대화), 목록은 생성 최신순 + 저장 대기 답변(새 복합 색인 배포), 상세는 출처마다 `current_status`, 삭제는 대화·대기 답변·요청 기록의 응답 본문 가림.
 
 ### T07.04 채팅 화면과 검색 품질 평가
 
@@ -592,8 +593,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T07.02 — `POST /api/chat`(출처 번호 대조·URL-only 구분·요약/해석 분리·관련 자료 확정/제안·숫자 출처·실패 구분·저장 후 성공), 실제 Hermes 1회 |
-| 다음 Task | T07.03 — 대화 자동 저장·불러오기·삭제 |
+| 마지막 완료 Task | T07.03 — 대화 저장·목록·상세(출처 현재 상태)·삭제, 저장 실패 보관(`chat_pending`)·재저장(AI 재호출·중복 없음), 실제 Firestore 왕복 |
+| 다음 Task | T07.04 — 채팅 화면과 검색 품질 평가 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

@@ -304,4 +304,17 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
   - `answer.limitations`: 서버가 붙인 한계(근거 자료 없음·없는 번호 언급·링크만·확인 안 된 숫자·한도로 빠짐·일부 자료 기준) 뒤에 모델의 한계(최대 5개).
   - `omitted`: T07.01 문맥의 생략 정보.
 - 실패(대화는 저장하지 않음, 같은 키로 다시 보낼 수 있음): 503 `reason=search_failed`(자료 검색 실패 — 결과 없음과 다름), 429 `quota_exceeded`, 502 `provider_failed` + `kind`(`timeout`·`rate_limited`·`invalid_output`·`hermes_tools_enabled`·`missing_ai_settings` 등). 질문 2,000자 초과 422, 대화가 없거나 다른 모드 404, 대화 메시지 200개 초과 409 `conversation_full`.
-- 같은 키를 다시 보내면 저장된 응답을 재생한다(AI 재호출 없음).
+- 같은 키를 다시 보내면 저장된 응답을 재생한다(AI 재호출 없음). 성공 응답에는 `saved: true`.
+- 503 `reason=save_failed`(T07.03): 답은 받았지만 대화 저장 실패. 본문에 답·출처와 `saved: false`, `pending_id`(서버 보관 ID, 보관도 실패하면 null), `retryable`, `detail`. 재저장은 `POST /api/conversations {pending_id}`.
+
+## 대화 (T07.03)
+
+| API | 요청 | 응답·규칙 |
+|---|---|---|
+| `POST /api/conversations` | `{title?: ≤100자}` 또는 `{pending_id}` (둘 중 하나, 그 밖의 필드 422) | 새 빈 대화 201 `{id, title, message_count: 0, last_message_at, created_at, updated_at, version}`. `pending_id`면 서버가 보관한 답을 대화에 저장 200 `{conversation_id, message_ids, moved_to_new, saved: true}`(AI 재호출 없음). 보관본이 없으면 404. Idempotency-Key 필요 |
+| `GET /api/conversations?limit=20&cursor=` | — | `{items: [대화 요약], next_cursor, pending: [{id, conversation_id, question, created_at}]}`. 현재 모드, 생성 최신순, 메시지 제외. `limit` 1~100 |
+| `GET /api/conversations/{id}` | — | 대화 요약 + `messages`(질문·답변·검증 출처·당시 숫자 요약·`request_id`) + `pending`. 답변 출처마다 `current_status`: available·trashed·deleted·unapproved·not_kept·ai_excluded |
+| `DELETE /api/conversations/{id}` | — | `{deleted: true, id, messages_deleted}`. 대화·하위 메시지·저장 대기 답변 삭제, 요청 기록의 응답 본문 가림. Idempotency-Key 필요 |
+| `DELETE /api/conversations/pending/{id}` | — | `{deleted: true, id}`. 저장하지 못한 답을 버린다. Idempotency-Key 필요 |
+
+- 다른 모드·소유자의 대화·보관본은 404. 대화당 메시지 200개(넘으면 채팅 409 `conversation_full`, 재저장은 새 대화로).
