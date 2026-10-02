@@ -23,7 +23,7 @@ from app.core.config import Settings
 from app.features.analysis.prompts import build_messages
 from app.features.analysis.schemas import (
     CONTENT_FIELDS, INPUT_FIELDS, KINDS, MIN_EVIDENCE_CHARS, MIN_SUMMARY_OVERLAP, UNVERIFIED_FIELDS,
-    AnalysisResult, ModelOutput, normalize_space, numbers, overlap_ratio, sentences,
+    AnalysisResult, ModelOutput, normalize_space, numbers, overlap_ratio, sentences, word_chars,
 )
 
 
@@ -174,7 +174,7 @@ class AnalysisAdapter:
 
         def found_in(quote: str) -> set[str]:
             q = normalize_space(quote)
-            if len(q) < MIN_EVIDENCE_CHARS:
+            if len(word_chars(q)) < MIN_EVIDENCE_CHARS:
                 return set()
             return {name for name, value in normalized.items() if q in value}
 
@@ -186,7 +186,8 @@ class AnalysisAdapter:
         source = " ".join(sent.values())
         if any(overlap_ratio(s, source) < MIN_SUMMARY_OVERLAP for s in sentences(out.summary)):
             raise ProviderError("ungrounded_output")
-        stated = " ".join([out.title, out.summary, out.importance_reason, out.recommended_action])
+        stated = " ".join([out.title, out.summary, out.importance_reason, out.recommended_action,
+                           *out.keywords, *out.uncertainties])
         if not numbers(stated) <= numbers(source):
             raise ProviderError("ungrounded_output")
 

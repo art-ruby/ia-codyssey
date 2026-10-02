@@ -31,8 +31,10 @@ _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 # 요약 문장이 입력과 공유해야 하는 글자쌍 비율. 2026-10-02 측정: 실제 요약 문장 0.44~0.96,
 # 입력과 무관한 주장 0~0.12, 입력 단어로 뜻을 뒤집은 문장 0.29. 뒤집힌 뜻은 이 방법으로 못 잡는다.
 MIN_SUMMARY_OVERLAP = 0.35
+# 요약에 있어야 하는 최소 글자 수(문장부호·공백 제외). "X."·"??" 같은 빈 요약을 막는다.
+MIN_SUMMARY_CHARS = 10
 # 겹침 검사를 하지 않는 필드(추론·조언이라 입력에 없는 표현이 자연스럽다). 숫자 검사는 받는다.
-UNVERIFIED_FIELDS = ("title", "importance_reason", "recommended_action", "keywords")
+UNVERIFIED_FIELDS = ("title", "importance_reason", "recommended_action", "keywords", "uncertainties")
 
 
 def normalize_space(text: str) -> str:
@@ -43,14 +45,20 @@ def sentences(text: str) -> list[str]:
     return [s.strip() for s in _SENTENCE_END.split(text) if s.strip()]
 
 
+def word_chars(text: str) -> str:
+    """문장부호·공백을 뺀 글자. 길이 기준은 이 값으로 센다("--------"는 0자)."""
+    return re.sub(r"[\W_]+", "", text)
+
+
 def _bigrams(text: str) -> set[str]:
-    t = re.sub(r"[\W_]+", "", text.lower())
+    t = word_chars(text.lower())
     return {t[i:i + 2] for i in range(len(t) - 1)}
 
 
 def overlap_ratio(sentence: str, source: str) -> float:
+    # 글자쌍이 없는 문장(한 글자·문장부호뿐)은 근거를 확인할 수 없으므로 겹침 0으로 본다.
     grams = _bigrams(sentence)
-    return len(grams & _bigrams(source)) / len(grams) if grams else 1.0
+    return len(grams & _bigrams(source)) / len(grams) if grams else 0.0
 
 
 def numbers(text: str) -> set[str]:
@@ -73,9 +81,18 @@ class ModelOutput(BaseModel):
     recommended_action: str = Field(max_length=200)
     evidence: list[str] = Field(min_length=1, max_length=3)
 
+    @field_validator("title", "importance_reason")
+    @classmethod
+    def has_words(cls, value: str) -> str:
+        if not word_chars(value):
+            raise ValueError("글자가 없습니다")
+        return value
+
     @field_validator("summary")
     @classmethod
     def at_most_three_sentences(cls, value: str) -> str:
+        if len(word_chars(value)) < MIN_SUMMARY_CHARS:
+            raise ValueError(f"요약은 글자 {MIN_SUMMARY_CHARS}자 이상")
         # 2~3문장을 요청하지만, 짧은 입력은 한 문장 요약이 자연스러워 하한은 두지 않는다.
         if len(sentences(value)) > 3:
             raise ValueError("요약은 3문장 이하")

@@ -166,10 +166,39 @@ def test_numbers_not_in_input_are_ungrounded(field, text):
         run(output(**{field: text}))
 
 
+@pytest.mark.parametrize("summary", ["X.", "??", "API.", "…"])
+def test_summary_without_real_content_is_rejected(summary):
+    # 리뷰 재현: 글자쌍이 없는 문장을 '겹침 100%'로 보던 문제. 요약은 글자 10자 이상이어야 한다.
+    with pytest.raises(ProviderError, match="invalid_output|ungrounded_output"):
+        run(output(summary=summary))
+
+
+@pytest.mark.parametrize("field, value", [
+    ("keywords", ["정산 API", "2029 launch"]),  # 리뷰 재현
+    ("uncertainties", ["2027년 1월인지 확인이 필요하다"]),
+])
+def test_numbers_in_list_fields_must_appear_in_input(field, value):
+    with pytest.raises(ProviderError, match="ungrounded_output"):
+        run(output(**{field: value}))
+
+
+@pytest.mark.parametrize("field", ["title", "importance_reason"])
+def test_punctuation_only_text_fields_are_invalid(field):
+    with pytest.raises(ProviderError, match="invalid_output"):
+        run(output(**{field: "?!"}))
+
+
+def test_punctuation_only_quote_does_not_count_as_evidence():
+    doc = material(body=BODY + " -------- 구분선")
+    with pytest.raises(ProviderError, match="ungrounded_output"):
+        run(output(evidence=["--------"]), doc=doc)
+
+
 def test_result_marks_what_was_not_fact_checked():
     grounding = run(output())[0].to_fields()["ai_grounding"]
     assert grounding["fact_checked"] is False
-    assert set(grounding["unverified"]) == {"title", "importance_reason", "recommended_action", "keywords"}
+    assert set(grounding["unverified"]) == {"title", "importance_reason", "recommended_action", "keywords",
+                                          "uncertainties"}
     assert grounding["summary"] == "lexical_overlap"
 
 
