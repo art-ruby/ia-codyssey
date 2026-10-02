@@ -143,7 +143,7 @@ p { color: var(--muted); }
 .review-card { border-top: 1px solid #e7eeeb; padding: 14px 0; }
 .review-card:first-child { border-top: 0; }
 .review-check { padding-top: 3px; }
-.review-check input, .check input { width: 17px; height: 17px; accent-color: var(--teal); }
+.review-check input, .check input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--teal); }
 .review-text { margin: 6px 0 0; font-size: 13px; overflow-wrap: anywhere; }
 .review-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .review-fields label { margin-top: 10px; }
@@ -151,3 +151,6 @@ p { color: var(--muted); }
 @media (max-width: 640px) {
   .review-fields { grid-template-columns: 1fr; }
 }
+.check input[type="date"] { border: 1px solid #cbdad6; border-radius: 8px; padding: 4px 8px; background: #fff; color: var(--ink); }
+.form label.check { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.form label.check > span { display: inline; margin: 0; font-weight: 400; color: var(--ink); }

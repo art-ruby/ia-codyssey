@@ -5,10 +5,12 @@
 """
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.features.materials.service import SEOUL
 from app.features.materials.schemas import LIMITS, MAX_RELATED_PROJECTS, Importance, clean_ids
 
 MAX_BATCH = 50
@@ -69,3 +71,20 @@ class ReviewRequestBody(_Batch):
 
     items: list[RequestItem] = Field(min_length=1, max_length=MAX_BATCH)
     requested: bool = True
+
+
+class LaterBody(_Batch):
+    """나중에 보기로 남기거나(later=true, 다시 볼 날짜 선택) 미검토로 되돌린다(false). PRD 외 추가(T03.04)."""
+
+    items: list[RequestItem] = Field(min_length=1, max_length=MAX_BATCH)
+    later: bool = True
+    revisit_on: date | None = None
+
+    @model_validator(mode="after")
+    def valid_date(self):
+        if not self.later and self.revisit_on is not None:
+            raise ValueError("되돌릴 때는 다시 볼 날짜를 보내지 않습니다")
+        if self.revisit_on is not None and self.revisit_on < datetime.now(SEOUL).date():
+            raise ValueError("다시 볼 날짜는 오늘(서울 기준) 이후여야 합니다")
+        return self
+

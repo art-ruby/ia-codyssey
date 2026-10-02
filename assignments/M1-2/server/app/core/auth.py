@@ -6,18 +6,17 @@
 """
 from __future__ import annotations
 
-import json
 from typing import Any, Callable, Mapping
 
 from fastapi import HTTPException, Request, status
 
 from app.core.config import ConfigError, Settings
 from app.core.context import MODES, RequestContext
+from app.core.firestore import FIREBASE_APP_NAME, firebase_app  # noqa: F401
 
 # ID 토큰을 받아 디코딩된 클레임을 돌려준다. 무효하면 InvalidToken을 낸다.
 TokenVerifier = Callable[[str], Mapping[str, Any]]
 
-FIREBASE_APP_NAME = "ai-secretary"
 
 
 class InvalidToken(Exception):
@@ -30,25 +29,10 @@ class VerifierUnavailable(Exception):
 
 def firebase_verifier(settings: Settings) -> TokenVerifier:
     """서비스 계정으로 Admin SDK를 초기화한 검증 함수. 설정이 없거나 틀리면 ConfigError."""
-    settings.require("firebase")
-    try:
-        account = json.loads(settings.get("FIREBASE_SERVICE_ACCOUNT_JSON"))
-        if not isinstance(account, dict):
-            raise ValueError
-    except ValueError:
-        # 서비스 계정 내용이 오류 메시지·로그에 남지 않게 변수 이름만 알린다.
-        raise ConfigError("FIREBASE_SERVICE_ACCOUNT_JSON은 JSON 객체여야 합니다") from None
+    from firebase_admin import auth
 
-    import firebase_admin
-    from firebase_admin import auth, credentials
-
-    try:
-        app = firebase_admin.get_app(FIREBASE_APP_NAME)
-    except ValueError:
-        try:
-            app = firebase_admin.initialize_app(credentials.Certificate(account), name=FIREBASE_APP_NAME)
-        except ValueError:
-            raise ConfigError("FIREBASE_SERVICE_ACCOUNT_JSON이 서비스 계정 형식이 아닙니다") from None
+    # 저장소와 같은 Firebase 앱을 같은 잠금으로 초기화한다(firestore.firebase_app).
+    app = firebase_app(settings)
 
     def verify(token: str) -> Mapping[str, Any]:
         try:

@@ -26,6 +26,7 @@ from app.core.context import RequestContext
 from app.core.errors import NoChange
 
 FIREBASE_APP_NAME = "ai-secretary"
+_APP_LOCK = threading.Lock()
 
 # MVP에서 쓰는 컬렉션. PC 관련 컬렉션은 확장 단계에서 추가한다.
 COLLECTIONS = frozenset(
@@ -311,9 +312,13 @@ def firebase_app(settings: Settings):
     import firebase_admin
     from firebase_admin import credentials
 
-    try:
-        return firebase_admin.get_app(FIREBASE_APP_NAME)
-    except ValueError:
+    # 서버가 막 켜졌을 때 동시에 들어온 요청들이 함께 초기화하면, 늦은 쪽이 '이미 있음' 오류를 받아
+    # 503(설정 오류)으로 잘못 끝난다. 확인과 초기화를 한 잠금 안에서 한다.
+    with _APP_LOCK:
+        try:
+            return firebase_admin.get_app(FIREBASE_APP_NAME)
+        except ValueError:
+            pass
         try:
             return firebase_admin.initialize_app(credentials.Certificate(account), name=FIREBASE_APP_NAME)
         except ValueError:

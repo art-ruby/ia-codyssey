@@ -154,3 +154,23 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 - 같은 `Idempotency-Key`로 다시 보내면 처음 응답 그대로다. 새 키로 수정값 없이 다시 보내면 `already_approved`이며 승인 시각은 바뀌지 않는다. 새 키에 수정값을 담아 이미 승인된 자료에 보내면 `conflict`로 알려 수정값을 조용히 버리지 않는다. 화면은 최신 자료와 수정값을 함께 보여주고, 사용자가 확인한 뒤 기존 `PUT /api/materials/{id}`로 수정값을 저장한다.
 - 웹 화면은 선택 항목을 최대 50건씩 나눠 순서대로 요청한다. 각 묶음은 별도 `Idempotency-Key`를 사용한다. 중간 전송이 실패하면 남은 묶음을 멈추고 성공·충돌 항목의 상태를 유지하며, 재시도 시 실패한 묶음에 같은 키를 사용한다. 받은 자료로 되돌리기도 같은 상한을 따른다.
 - **보관 완료** = `review_status=approved` + `copy_status=not_applicable` + `lifecycle=active`. 웹 자료는 승인과 동시에 보관 완료다(PRD §9.1).
+
+## 나중에 보기·AI 분석 제외 (T03.04)
+
+자료에 `revisit_on`(`YYYY-MM-DD` 또는 null)과 계산 값 `revisit_due`(bool, 저장하지 않음)가 더해졌다. `ai_excluded`는 항상 bool로 응답한다.
+
+**`GET /api/materials?view=later`** — 활성·나중에 보기(`review_status=later`) 자료. 최신 접수순. `revisit_due`는 서울 기준 오늘 ≥ `revisit_on`이면 true(날짜 없으면 false).
+
+**`POST /api/reviews/later`** — PRD 외 추가. `{"items": [{"material_id", "expected_version"}], "later": true|false, "revisit_on": "YYYY-MM-DD"|null}`.
+- 요청 전체 422: 항목 0개·50건 초과·중복, 오늘(서울)보다 이른 날짜, 형식이 틀린 날짜, `later=false`에 날짜를 보냄.
+- 200 `{"results": [...], "updated_count"}`. 항목 상태: `updated`(material 포함) · `unchanged`(이미 같은 상태·같은 날짜) · `conflict`(current_version) · `not_found` · `invalid`(reason `trashed`|`approved`).
+- `later=true`: `review_status=later`, `revisit_on` 기록, 검토 요청 해제. `later=false`: 미검토로 되돌리고 `revisit_on=null`.
+- 나중에 보기 자료를 `POST /api/reviews/request`로 옮기면 미검토·검토 요청으로 바뀌고 날짜는 지운다. `POST /api/reviews/approve`로 바로 승인할 수 있으며 승인하면 날짜를 지운다.
+
+**AI 분석 제외** — `ai_excluded`를 `POST /api/materials`·`PUT /api/materials/{id}`로 바꾼다(null은 바꾸지 않음). `analysis_status`는 바뀌지 않는다. 분석(T04)·채팅(T07)은 보내기 직전에 `ai_allowed`/`chat_eligible`로 확인한다.
+
+| 판정 | 조건 |
+|---|---|
+| 보관 완료 `is_kept` | `review_status=approved` + `copy_status=not_applicable` + `lifecycle=active` |
+| AI 전송 가능 `ai_allowed` | `ai_excluded`가 아님 |
+| 채팅 근거 `chat_eligible` | `is_kept` + `ai_allowed`(소유자·모드는 저장소가 보장) |

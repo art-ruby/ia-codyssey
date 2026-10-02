@@ -43,7 +43,7 @@ FIELD_NAMES = {
     "memo": "메모", "name": "이름", "interests": "관심 분야", "activities": "활동 분야",
     "expected_version": "버전", "related_project_ids": "관련 프로젝트",
     "user_importance": "중요도", "items": "검토 항목", "material_id": "자료", "action": "작업",
-    "view": "목록 보기",
+    "view": "목록 보기", "revisit_on": "다시 볼 날짜", "ai_excluded": "AI 분석 제외",
 }
 
 

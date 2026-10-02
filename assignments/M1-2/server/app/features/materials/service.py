@@ -35,12 +35,12 @@ INTAKE = "intake_records"
 URL_INDEX = "url_index"
 SEOUL = timezone(timedelta(hours=9))
 TEXT_FIELDS = ("title", "description", "body", "save_reason", "memo")
-EDITABLE = TEXT_FIELDS + ("primary_project_id", "related_project_ids", "user_importance")
+EDITABLE = TEXT_FIELDS + ("primary_project_id", "related_project_ids", "user_importance", "ai_excluded")
 PUBLIC_FIELDS = (
     "id", "source_type", "url", "title", "description", "body", "save_reason", "memo",
     "primary_project_id", "related_project_ids", "user_importance", "review_status",
     "review_requested", "review_requested_at", "analysis_status", "copy_status",
-    "lifecycle", "ai_excluded", "registered_at", "storage_approved_at", "trashed_at",
+    "lifecycle", "ai_excluded", "revisit_on", "registered_at", "storage_approved_at", "trashed_at",
     "version", "created_at", "updated_at",
 )
 # 목록 보기(T03.03, docs/api-contract.md). 받은 자료와 승인 요청 목록은 겹치지 않는다.
@@ -49,6 +49,8 @@ VIEWS = {
     "all": None,
     "inbox": {"lifecycle": "active", "review_requested": False, "review_status": "unreviewed"},
     "review": {"lifecycle": "active", "review_requested": True, "review_status": "unreviewed"},
+    # 나중에 보기(T03.04). 다시 볼 날짜가 지나도 상태는 그대로이며 `revisit_due`로만 표시한다.
+    "later": {"lifecycle": "active", "review_requested": False, "review_status": "later"},
 }
 DUPLICATE_FIELDS = ("id", "display_title", "title_source", "registered_at", "review_status",
                     "analysis_status", "lifecycle", "version")
@@ -101,9 +103,25 @@ def display_title(doc: dict) -> tuple[str, str]:
     return (first[:40] + "…" if len(first) > 40 else first), "text"
 
 
+def today_seoul() -> str:
+    return datetime.now(SEOUL).date().isoformat()
+
+
+def revisit_due(doc: dict, today: str | None = None) -> bool:
+    """나중에 보기 자료의 다시 볼 날짜가 오늘(서울)이거나 지났는가. 저장하지 않고 볼 때마다 계산한다.
+
+    날짜가 지나도 승인·삭제·상태 변경을 하지 않는다(PRD §8). 화면이 정리 후보로 표시할 뿐이다.
+    """
+    revisit_on = doc.get("revisit_on")
+    return (doc.get("review_status") == "later" and isinstance(revisit_on, str)
+            and revisit_on <= (today or today_seoul()))
+
+
 def public(doc: dict) -> dict:
     out = {field: doc.get(field) for field in PUBLIC_FIELDS}
+    out["ai_excluded"] = bool(doc.get("ai_excluded"))
     out["display_title"], out["title_source"] = display_title(doc)
+    out["revisit_due"] = revisit_due(doc)
     return out
 
 
@@ -138,7 +156,8 @@ def _new_material_doc(data: dict[str, Any], now: str) -> dict:
         "analysis_status": "awaiting_start" if _has_content(fields) else "link_only",
         "copy_status": "not_applicable",  # 웹 자료는 원본 사본이 없다(확장 단계 파일만 해당)
         "lifecycle": "active",
-        "ai_excluded": False,
+        "ai_excluded": bool(data.get("ai_excluded")),
+        "revisit_on": None,  # 나중에 보기의 다시 볼 날짜(YYYY-MM-DD, 서울 기준)
         "registered_at": now,
         "storage_approved_at": None,
         "trashed_at": None,
@@ -226,6 +245,20 @@ def is_kept(doc: dict) -> bool:
             and doc.get("lifecycle") == "active")
 
 
+def ai_allowed(doc: dict) -> bool:
+    """자료 내용을 AI Provider에 보내도 되는가(T04 분석·T07 채팅이 보내기 직전에 확인한다)."""
+    return not doc.get("ai_excluded")
+
+
+def chat_eligible(doc: dict) -> bool:
+    """채팅 근거로 쓸 수 있는가(PRD §9.1: 보관 승인·보관 완료·활성, A13).
+
+    AI 분석 제외 자료는 Open Decision 5가 정해지기 전까지 제목 같은 메타데이터도 쓰지 않는다(엄격한 쪽).
+    소유자·모드 일치는 저장소가 보장한다.
+    """
+    return is_kept(doc) and ai_allowed(doc)
+
+
 def list_materials(store: Store, ctx: RequestContext, limit: int = 20, cursor: str | None = None,
                    view: str = "all") -> dict:
     page: Page = store.list(ctx, COLLECTION, limit=limit, cursor=cursor, descending=True, where=VIEWS[view])
@@ -249,6 +282,8 @@ def prepare_changes(store: Store, ctx: RequestContext, current: dict, changes: d
     프로젝트가 없거나 비활성이면 InvalidProjectReference, 내용이 모두 비게 되면 NoContent.
     """
     changes = {k: v for k, v in changes.items() if k in EDITABLE}
+    if changes.get("ai_excluded", False) is None:
+        del changes["ai_excluded"]  # 켜고 끄는 값이라 비울 수 없다. null은 '바꾸지 않음'으로 본다.
     for name in TEXT_FIELDS:
         if name in changes and changes[name] is None:
             changes[name] = ""

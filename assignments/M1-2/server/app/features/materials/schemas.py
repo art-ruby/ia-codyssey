@@ -44,6 +44,8 @@ class _Fields(BaseModel):
     primary_project_id: str | None = None
     related_project_ids: list[str] | None = Field(None, max_length=MAX_RELATED_PROJECTS)
     user_importance: Importance | None = None
+    # AI 분석 제외(PRD §8). 켜면 본문을 AI Provider에 보내지 않는다. 분석 상태와는 별개 값이다(T03.04).
+    ai_excluded: bool | None = None
 
     @field_validator("related_project_ids")
     @classmethod

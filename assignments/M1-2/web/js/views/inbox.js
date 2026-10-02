@@ -55,9 +55,27 @@ function readFields(root) {
   return data;
 }
 
+// AI 분석 제외는 분석 상태를 덮어쓰지 않고 화면에서만 대신 보여준다(T03.04). 제외를 풀면 원래 상태가 다시 보인다.
 function statusTag(material) {
+  if (material.ai_excluded) return el("span", { class: "tag", text: "AI 분석 제외" });
   const [text, tone] = STATUS[material.analysis_status] || [material.analysis_status, ""];
   return el("span", { class: `tag ${tone}`, text });
+}
+
+const MAX_BATCH = 50; // server/app/features/reviews/schemas.py와 같다
+const DAY = new Intl.DateTimeFormat("ko-KR", { timeZone: "UTC", month: "long", day: "numeric" });
+
+function todaySeoul() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+}
+
+// 나중에 보기 표시. 날짜가 지나도 서버는 상태를 바꾸지 않고, 화면이 정리 후보로만 표시한다(PRD §8).
+function laterTag(material) {
+  if (material.revisit_due) return el("span", { class: "tag amber", text: "다시 볼 날짜 지남 · 정리 후보" });
+  if (material.revisit_on) {
+    return el("span", { class: "tag", text: `${DAY.format(new Date(`${material.revisit_on}T00:00:00Z`))}에 다시 보기` });
+  }
+  return el("span", { class: "tag", text: "날짜 없이 나중에 보기" });
 }
 
 // root: 화면 영역, ctx: { mode, isCurrent(), onError(error, retry) }
@@ -92,42 +110,76 @@ export function renderInbox(root, ctx) {
   const more = el("button", { class: "button secondary small", type: "button", text: "더 보기", hidden: "" });
   const listStatus = el("p", { class: "form-status", role: "status" });
   const moveBtn = el("button", { class: "button secondary small", type: "button", text: "선택한 자료 검토로 이동" });
+  const laterBtn = el("button", { class: "button secondary small", type: "button", text: "나중에 보기" });
+  const laterDate = el("input", { type: "date", "aria-label": "다시 볼 날짜(선택)", min: todaySeoul() });
   const listSection = el("section", { class: "panel" }, el("h2", { text: "접수 목록" }),
-    el("p", { text: "검토할 자료를 골라 검토·승인 화면으로 옮깁니다. 보관은 그 화면에서 승인합니다." }),
-    el("div", { class: "review-toolbar" }, moveBtn), listStatus, list, more);
-  root.append(form, listSection);
+    el("p", { text: "검토할 자료를 골라 검토·승인 화면으로 옮기거나, 나중에 보기로 남깁니다. 보관은 검토·승인 화면에서 승인합니다." }),
+    el("div", { class: "review-toolbar" }, moveBtn, laterBtn,
+      el("label", { class: "check" }, el("span", { text: "다시 볼 날짜(선택)" }), laterDate)),
+    listStatus, list, more);
+
+  // ── 나중에 보기(view=later, T03.04) ──
+  const laterList = el("ul", { class: "material-list" });
+  const laterMore = el("button", { class: "button secondary small", type: "button", text: "더 보기", hidden: "" });
+  const laterStatus = el("p", { class: "form-status", role: "status" });
+  const laterToReview = el("button", { class: "button secondary small", type: "button", text: "검토로 이동" });
+  const laterBack = el("button", { class: "button secondary small", type: "button", text: "받은 자료로 되돌리기" });
+  const laterSection = el("section", { class: "panel" }, el("h2", { text: "나중에 볼 자료" }),
+    el("p", { text: "다시 볼 날짜가 지난 자료는 정리 후보로 위에 표시합니다. 날짜가 지나도 자동으로 승인하거나 지우지 않습니다." }),
+    el("div", { class: "review-toolbar" }, laterToReview, laterBack), laterStatus, laterList, laterMore);
+  root.append(form, listSection, laterSection);
 
   let items = [];
   let nextCursor = null;
   const selected = new Set();
-  const runMove = singleFlight();
+  let laterItems = [];
+  let laterCursor = null;
+  const laterSelected = new Set();
+  const runBatch = singleFlight();
+  const batchButtons = [moveBtn, laterBtn, laterToReview, laterBack];
 
   function syncSelection() {
     const count = items.filter((m) => selected.has(m.id)).length;
     moveBtn.textContent = count ? `선택한 ${count}건 검토로 이동` : "선택한 자료 검토로 이동";
-    moveBtn.disabled = count === 0;
+    laterBtn.textContent = count ? `선택한 ${count}건 나중에 보기` : "나중에 보기";
+    moveBtn.disabled = laterBtn.disabled = count === 0;
+    const laterCount = laterItems.filter((m) => laterSelected.has(m.id)).length;
+    laterToReview.disabled = laterBack.disabled = laterCount === 0;
   }
 
   function renderList() {
     if (!items.length) {
       list.replaceChildren(el("li", { class: "empty-row", text: "검토를 기다리는 받은 자료가 없습니다." }));
     } else {
-      list.replaceChildren(...items.map(row));
+      list.replaceChildren(...items.map((m) => row(m, selected, movable)));
     }
     more.hidden = !nextCursor;
+    syncSelection();
+  }
+
+  function renderLater() {
+    // 불러온 범위 안에서 날짜가 지난 자료(정리 후보)를 먼저, 그다음 다시 볼 날짜가 이른 순으로 보여준다.
+    const sorted = [...laterItems].sort((a, b) => (Number(b.revisit_due) - Number(a.revisit_due))
+      || (a.revisit_on || "9999").localeCompare(b.revisit_on || "9999"));
+    laterList.replaceChildren(...(sorted.length ? sorted.map((m) => {
+      const li = row(m, laterSelected, (x) => x.review_status === "later" && x.lifecycle === "active");
+      li.querySelector(".material-meta").prepend(laterTag(m));
+      return li;
+    }) : [el("li", { class: "empty-row", text: "나중에 볼 자료가 없습니다." })]));
+    laterMore.hidden = !laterCursor;
     syncSelection();
   }
 
   // 검토 대상이 아닌 자료(메모 추가·기존 자료 열기로 불러온 승인·검토 중 자료)는 고를 수 없다.
   const movable = (m) => m.review_status === "unreviewed" && !m.review_requested && m.lifecycle === "active";
 
-  function row(material) {
+  function row(material, chosen, canSelect) {
     const box = el("input", { type: "checkbox", "aria-label": `${material.display_title || "자료"} 선택` });
-    box.checked = selected.has(material.id);
-    box.disabled = !movable(material);
+    box.checked = chosen.has(material.id);
+    box.disabled = !canSelect(material);
     box.addEventListener("change", () => {
-      if (box.checked) selected.add(material.id);
-      else selected.delete(material.id);
+      if (box.checked) chosen.add(material.id);
+      else chosen.delete(material.id);
       syncSelection();
     });
     const li = itemRow(material);
@@ -136,30 +188,50 @@ export function renderInbox(root, ctx) {
     return li;
   }
 
-  async function moveSelected() {
-    const targets = items.filter((m) => selected.has(m.id));
+  // 묶음 요청 공통: 결과를 받은 뒤 두 목록을 새로 불러오고, 처리하지 못한 항목 수를 알린다.
+  async function sendBatch(path, body, targets, statusNode, label) {
     if (!targets.length) return;
-    await runMove([moveBtn], async () => {
-      listStatus.textContent = "옮기는 중…";
-      const body = { requested: true, items: targets.map((m) => ({ material_id: m.id, expected_version: m.version })) };
+    if (targets.length > MAX_BATCH) {
+      statusNode.textContent = `한 번에 ${MAX_BATCH}건까지 처리할 수 있습니다.`;
+      return;
+    }
+    await runBatch(batchButtons, async () => {
+      statusNode.textContent = "처리하는 중…";
+      const payload = { ...body, items: targets.map((m) => ({ material_id: m.id, expected_version: m.version })) };
       const apply = async (res) => {
-        const moved = new Set(res.results.filter((r) => ["updated", "unchanged"].includes(r.status)).map((r) => r.material_id));
-        items = items.filter((m) => !moved.has(m.id));
-        for (const id of moved) selected.delete(id);
-        const left = res.results.length - moved.size;
-        if (left) await load(); // 다른 곳에서 바뀐 자료는 최신 버전으로 다시 불러온다
-        else renderList();
-        listStatus.textContent = left
-          ? `${moved.size}건을 옮겼습니다. ${left}건은 다른 곳에서 바뀌었거나 없어져 옮기지 못했습니다. 목록을 새로 불러왔습니다.`
-          : `${moved.size}건을 검토·승인 화면으로 옮겼습니다.`;
+        const done = res.results.filter((r) => ["updated", "unchanged"].includes(r.status)).length;
+        const left = res.results.length - done;
+        await Promise.all([load(), loadLater()]);
+        statusNode.textContent = left
+          ? `${done}건 ${label}. ${left}건은 다른 곳에서 바뀌었거나 처리할 수 없어 그대로 두었습니다. 목록을 새로 불러왔습니다.`
+          : `${done}건 ${label}.`;
       };
       try {
-        await apply(await guarded(api("/api/reviews/request", { method: "POST", body })));
+        await apply(await guarded(api(path, { method: "POST", body: payload })));
       } catch (error) {
-        fail(error, listStatus, () => error.retry().then(apply).catch((e) => fail(e, listStatus)));
+        fail(error, statusNode, () => error.retry().then(apply).catch((e) => fail(e, statusNode)));
       }
     });
     syncSelection();
+  }
+
+  const chosenIn = (source, chosen) => source.filter((m) => chosen.has(m.id));
+
+  function moveSelected() {
+    return sendBatch("/api/reviews/request", { requested: true }, chosenIn(items, selected), listStatus,
+      "검토·승인 화면으로 옮겼습니다");
+  }
+
+  function laterSelectedItems() {
+    const body = { later: true };
+    if (laterDate.value) {
+      if (laterDate.value < todaySeoul()) {
+        listStatus.textContent = "다시 볼 날짜는 오늘 이후로 고르세요.";
+        return null;
+      }
+      body.revisit_on = laterDate.value;
+    }
+    return sendBatch("/api/reviews/later", body, chosenIn(items, selected), listStatus, "나중에 보기로 남겼습니다");
   }
 
   function itemRow(material) {
@@ -188,6 +260,10 @@ export function renderInbox(root, ctx) {
       material.url ? el("p", { class: "field-note", text: "원래 URL은 출처로 보존되어 고칠 수 없습니다." }) : null,
       ...FIELDS.map(([name, label, kind, rows]) => field(name, label, kind, rows)));
     for (const input of detail.querySelectorAll("[data-field]")) input.value = material[input.dataset.field] || "";
+    const exclude = el("input", { type: "checkbox" });
+    exclude.checked = Boolean(material.ai_excluded);
+    detail.append(el("label", { class: "check" }, exclude,
+      el("span", { text: "AI 분석 제외 — 켜면 이 자료의 내용을 AI에 보내지 않고, 채팅 근거로도 쓰지 않습니다." })));
     const save = el("button", { class: "button primary small", type: "button", text: "수정 저장" });
     const status = el("p", { class: "form-status", role: "status" });
     detail.append(el("div", { class: "form-actions" }, save, status));
@@ -203,9 +279,12 @@ export function renderInbox(root, ctx) {
       status.textContent = "저장하는 중…";
       try {
         const updated = await guarded(api(`/api/materials/${encodeURIComponent(material.id)}`, {
-          method: "PUT", body: { expected_version: material.version, ...readFields(detail) } }));
+          method: "PUT", body: { expected_version: material.version, ...readFields(detail),
+            ...(exclude.checked !== Boolean(material.ai_excluded) ? { ai_excluded: exclude.checked } : {}) } }));
         items = items.map((m) => (m.id === updated.id ? updated : m));
+        laterItems = laterItems.map((m) => (m.id === updated.id ? updated : m));
         renderList();
+        renderLater();
         listStatus.textContent = "수정했습니다.";
       } catch (error) {
         // 버전 충돌(409)·형식 오류(422)는 메시지로, 연결 실패는 공통 배너로 알린다.
@@ -227,6 +306,20 @@ export function renderInbox(root, ctx) {
       listStatus.textContent = "";
     } catch (error) {
       fail(error, listStatus, () => load(cursor));
+    }
+  }
+
+  async function loadLater(cursor = null) {
+    laterStatus.textContent = "불러오는 중…";
+    try {
+      const page = await guarded(api(`/api/materials?view=later&limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`));
+      laterItems = cursor ? [...laterItems, ...page.items.filter((m) => !laterItems.some((x) => x.id === m.id))] : page.items;
+      laterCursor = page.next_cursor;
+      for (const id of [...laterSelected]) if (!laterItems.some((m) => m.id === id)) laterSelected.delete(id);
+      renderLater();
+      laterStatus.textContent = "";
+    } catch (error) {
+      fail(error, laterStatus, () => loadLater(cursor));
     }
   }
 
@@ -337,6 +430,13 @@ export function renderInbox(root, ctx) {
 
   submit.addEventListener("click", send);
   moveBtn.addEventListener("click", moveSelected);
+  laterBtn.addEventListener("click", laterSelectedItems);
+  laterToReview.addEventListener("click", () => sendBatch("/api/reviews/request", { requested: true },
+    chosenIn(laterItems, laterSelected), laterStatus, "검토·승인 화면으로 옮겼습니다"));
+  laterBack.addEventListener("click", () => sendBatch("/api/reviews/later", { later: false },
+    chosenIn(laterItems, laterSelected), laterStatus, "받은 자료로 되돌렸습니다"));
+  laterMore.addEventListener("click", () => loadLater(laterCursor));
   more.addEventListener("click", () => load(nextCursor));
   load();
+  loadLater();
 }

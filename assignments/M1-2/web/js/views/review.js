@@ -128,8 +128,10 @@ export function renderReview(root, ctx) {
       ? el("button", { class: "button secondary small", type: "button", text: "수정값 저장" }) : null;
     if (saveApproved) saveApproved.addEventListener("click", () => saveApprovedChanges(material, saveApproved));
 
-    const [statusText, tone] = material.review_status === "approved"
-      ? ["이미 보관 승인됨", "mint"] : (STATUS[material.analysis_status] || [material.analysis_status, ""]);
+    // AI 분석 제외는 분석 상태를 덮어쓰지 않고 화면에서만 대신 보여준다(T03.04).
+    const [statusText, tone] = material.review_status === "approved" ? ["이미 보관 승인됨", "mint"]
+      : material.ai_excluded ? ["AI 분석 제외", ""]
+        : (STATUS[material.analysis_status] || [material.analysis_status, ""]);
     const context = material.description || material.body || "";
     const note = notes.get(material.id);
     return el("li", { class: "review-card", "data-id": material.id },

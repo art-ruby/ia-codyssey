@@ -9,7 +9,7 @@ from app.core.deps import get_store
 from app.core.firestore import Store
 from app.core.requests import Result, run_idempotent
 from app.features.reviews import service
-from app.features.reviews.schemas import ApproveRequest, ReviewRequestBody
+from app.features.reviews.schemas import ApproveRequest, LaterBody, ReviewRequestBody
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
@@ -31,3 +31,15 @@ def request_review(body: ReviewRequestBody, ctx: RequestContext = Depends(get_co
         store, ctx, "POST", "/api/reviews/request", payload,
         lambda: Result(200, service.request_review(store, ctx, payload["items"], payload["requested"])),
     ).body
+
+
+@router.post("/later")
+def set_later(body: LaterBody, ctx: RequestContext = Depends(get_context),
+              store: Store = Depends(get_store)) -> dict:
+    """나중에 보기(PRD 외 추가, T03.04)."""
+    payload = body.model_dump(mode="json")
+    return run_idempotent(
+        store, ctx, "POST", "/api/reviews/later", payload,
+        lambda: Result(200, service.set_later(store, ctx, payload["items"], payload["later"], payload["revisit_on"])),
+    ).body
+

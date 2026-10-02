@@ -61,7 +61,8 @@ def _approve_one(store: Store, ctx: RequestContext, item: dict) -> dict:
         return _result(material_id, "invalid", reason="project")
     except NoContent:
         return _result(material_id, "invalid", reason="no_content")
-    changes.update({"review_status": "approved", "storage_approved_at": now_utc()})
+    # 나중에 보기 자료도 바로 승인할 수 있다. 승인하면 다시 볼 날짜는 의미가 없어 비운다.
+    changes.update({"review_status": "approved", "storage_approved_at": now_utc(), "revisit_on": None})
     return _write(store, ctx, item, changes, "approved")
 
 
@@ -80,6 +81,12 @@ def _request_one(store: Store, ctx: RequestContext, item: dict, requested: bool)
         return _result(material_id, "invalid", reason="trashed")
     if current.get("review_status") == "approved":
         return _result(material_id, "invalid", reason="approved")
+    if requested and current.get("review_status") == "later":
+        # 나중에 보기 자료를 검토로 옮기면 미검토로 되돌린다(두 목록이 겹치지 않게).
+        if current["version"] != item["expected_version"]:
+            return _result(material_id, "conflict", current_version=current["version"])
+        return _write(store, ctx, item, {"review_status": "unreviewed", "revisit_on": None,
+                                         "review_requested": True, "review_requested_at": now_utc()}, "updated")
     if bool(current.get("review_requested")) == requested:
         # 이미 원하는 상태다. 새 키로 다시 보내도 요청 시각을 바꾸지 않는다.
         return _result(material_id, "unchanged", current_version=current["version"], material=public(current))
@@ -93,3 +100,33 @@ def request_review(store: Store, ctx: RequestContext, items: list[dict[str, Any]
     """받은 자료를 승인 요청 목록으로 옮기거나(requested=True) 되돌린다."""
     results = [_request_one(store, ctx, item, requested) for item in items]
     return {"results": results, "updated_count": sum(r["status"] == "updated" for r in results)}
+
+
+def _later_one(store: Store, ctx: RequestContext, item: dict, later: bool, revisit_on: str | None) -> dict:
+    material_id = item["material_id"]
+    current = _load(store, ctx, material_id)
+    if current is None:
+        return _result(material_id, "not_found")
+    if current.get("lifecycle") != "active":
+        return _result(material_id, "invalid", reason="trashed")
+    if current.get("review_status") == "approved":
+        return _result(material_id, "invalid", reason="approved")
+    is_later = current.get("review_status") == "later"
+    if is_later == later and (not later or current.get("revisit_on") == revisit_on):
+        return _result(material_id, "unchanged", current_version=current["version"], material=public(current))
+    if current["version"] != item["expected_version"]:
+        return _result(material_id, "conflict", current_version=current["version"])
+    if later:
+        changes = {"review_status": "later", "revisit_on": revisit_on,
+                   "review_requested": False, "review_requested_at": None}
+    else:
+        changes = {"review_status": "unreviewed", "revisit_on": None}
+    return _write(store, ctx, item, changes, "updated")
+
+
+def set_later(store: Store, ctx: RequestContext, items: list[dict[str, Any]], later: bool,
+              revisit_on: str | None) -> dict:
+    """나중에 보기로 남기거나(다시 볼 날짜 선택) 미검토로 되돌린다. 날짜가 지나도 자동으로 바꾸지 않는다."""
+    results = [_later_one(store, ctx, item, later, revisit_on) for item in items]
+    return {"results": results, "updated_count": sum(r["status"] == "updated" for r in results)}
+
