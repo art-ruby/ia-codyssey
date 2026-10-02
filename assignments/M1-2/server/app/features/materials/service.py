@@ -35,13 +35,21 @@ INTAKE = "intake_records"
 URL_INDEX = "url_index"
 SEOUL = timezone(timedelta(hours=9))
 TEXT_FIELDS = ("title", "description", "body", "save_reason", "memo")
-EDITABLE = TEXT_FIELDS + ("primary_project_id", "related_project_ids")
+EDITABLE = TEXT_FIELDS + ("primary_project_id", "related_project_ids", "user_importance")
 PUBLIC_FIELDS = (
     "id", "source_type", "url", "title", "description", "body", "save_reason", "memo",
-    "primary_project_id", "related_project_ids", "review_status", "analysis_status", "copy_status",
+    "primary_project_id", "related_project_ids", "user_importance", "review_status",
+    "review_requested", "review_requested_at", "analysis_status", "copy_status",
     "lifecycle", "ai_excluded", "registered_at", "storage_approved_at", "trashed_at",
     "version", "created_at", "updated_at",
 )
+# 목록 보기(T03.03, docs/api-contract.md). 받은 자료와 승인 요청 목록은 겹치지 않는다.
+# 같음 조건만 쓰므로 두 보기가 같은 복합 색인을 쓴다(firestore.indexes.json).
+VIEWS = {
+    "all": None,
+    "inbox": {"lifecycle": "active", "review_requested": False, "review_status": "unreviewed"},
+    "review": {"lifecycle": "active", "review_requested": True, "review_status": "unreviewed"},
+}
 DUPLICATE_FIELDS = ("id", "display_title", "title_source", "registered_at", "review_status",
                     "analysis_status", "lifecycle", "version")
 
@@ -64,6 +72,10 @@ class DuplicateUrl(NoChange):
 
 class InvalidDuplicateTarget(NoChange):
     """메모를 더할 대상이 없거나 같은 URL의 자료가 아니다(422)."""
+
+
+class MissingSeparateTarget(NoChange):
+    """별도 저장을 골랐지만 같은 URL의 기존 자료가 없다(422)."""
 
 
 class TrashedTarget(NoChange):
@@ -119,7 +131,10 @@ def _new_material_doc(data: dict[str, Any], now: str) -> dict:
         **fields,
         "primary_project_id": data.get("primary_project_id"),
         "related_project_ids": data.get("related_project_ids") or [],
+        "user_importance": data.get("user_importance"),
         "review_status": "unreviewed",
+        "review_requested": False,  # '검토로 이동'하면 True(승인 요청 목록). 검토 상태와는 별도 축이다.
+        "review_requested_at": None,
         "analysis_status": "awaiting_start" if _has_content(fields) else "link_only",
         "copy_status": "not_applicable",  # 웹 자료는 원본 사본이 없다(확장 단계 파일만 해당)
         "lifecycle": "active",
@@ -195,13 +210,25 @@ def create_material(store: Store, ctx: RequestContext, data: dict[str, Any]) -> 
     if not key:
         return 201, public(_insert(store, ctx, doc, None))
     if action == "save_separately":
-        # 사용자가 같은 URL을 따로 저장하겠다고 고른 경우만 새 자료·접수 기록을 만든다.
+        # 첫 접수에 이 값을 직접 보내 예약을 건너뛰지 못하게 한다.
+        if not _same_url(store, ctx, key):
+            raise MissingSeparateTarget()
         return 201, {**public(_insert(store, ctx, doc, None)), "duplicate_action": "save_separately"}
     return 201, public(_create_first(store, ctx, doc, key))
 
 
-def list_materials(store: Store, ctx: RequestContext, limit: int = 20, cursor: str | None = None) -> dict:
-    page: Page = store.list(ctx, COLLECTION, limit=limit, cursor=cursor, descending=True)
+def is_kept(doc: dict) -> bool:
+    """보관 완료 판정(T03.03). 웹 자료는 보관 승인과 동시에 보관 완료다(PRD §9.1).
+
+    T03.04·T05(보관함)·T07(채팅 대상)·보관 건수 집계가 이 조건을 함께 쓴다.
+    """
+    return (doc.get("review_status") == "approved" and doc.get("copy_status") == "not_applicable"
+            and doc.get("lifecycle") == "active")
+
+
+def list_materials(store: Store, ctx: RequestContext, limit: int = 20, cursor: str | None = None,
+                   view: str = "all") -> dict:
+    page: Page = store.list(ctx, COLLECTION, limit=limit, cursor=cursor, descending=True, where=VIEWS[view])
     return {"items": [public(d) for d in page.items], "next_cursor": page.next_cursor}
 
 
@@ -212,6 +239,15 @@ def get_material(store: Store, ctx: RequestContext, material_id: str) -> dict:
 def update_material(store: Store, ctx: RequestContext, material_id: str, expected_version: int,
                     changes: dict[str, Any]) -> dict:
     current = store.get(ctx, COLLECTION, material_id)  # 남의 자료·없는 자료는 404
+    changes = prepare_changes(store, ctx, current, changes)
+    return public(store.update(ctx, COLLECTION, material_id, expected_version, changes))
+
+
+def prepare_changes(store: Store, ctx: RequestContext, current: dict, changes: dict[str, Any]) -> dict:
+    """사용자 수정값을 검사·정리한다(수정 API와 보관 승인이 함께 쓴다). 쓰지는 않는다.
+
+    프로젝트가 없거나 비활성이면 InvalidProjectReference, 내용이 모두 비게 되면 NoContent.
+    """
     changes = {k: v for k, v in changes.items() if k in EDITABLE}
     for name in TEXT_FIELDS:
         if name in changes and changes[name] is None:
@@ -227,4 +263,4 @@ def update_material(store: Store, ctx: RequestContext, material_id: str, expecte
             "link_only", "awaiting_start"):
         # 아직 분석하지 않은 자료는 내용에 맞춰 상태만 맞춘다. 분석 결과가 있는 자료의 재분석은 T04.02가 맡는다.
         changes["analysis_status"] = "awaiting_start" if _has_content(merged) else "link_only"
-    return public(store.update(ctx, COLLECTION, material_id, expected_version, changes))
+    return changes

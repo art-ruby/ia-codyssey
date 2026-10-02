@@ -22,9 +22,10 @@ from app.core.requests import IdempotencyConflict, IdempotencyKeyRequired
 from app.features.materials.routes import router as materials_router
 from app.features.materials.schemas import LIMITS
 from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
-                                            MemoTooLong, NoContent, TrashedTarget)
+                                            MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget)
 from app.features.projects.routes import router as projects_router
 from app.features.projects.service import DuplicateProjectName, TooManyProjects
+from app.features.reviews.routes import router as reviews_router
 from app.features.settings.routes import router as settings_router
 from app.features.settings.service import InvalidDefaultProject
 
@@ -41,6 +42,8 @@ FIELD_NAMES = {
     "url": "URL", "title": "제목", "description": "설명", "body": "본문", "save_reason": "저장 이유",
     "memo": "메모", "name": "이름", "interests": "관심 분야", "activities": "활동 분야",
     "expected_version": "버전", "related_project_ids": "관련 프로젝트",
+    "user_importance": "중요도", "items": "검토 항목", "material_id": "자료", "action": "작업",
+    "view": "목록 보기",
 }
 
 
@@ -57,6 +60,8 @@ def _validation_message(errors: list[dict]) -> str:
         return f"{label}은(는) {limit or LIMITS.get(field, '')}자까지 입력할 수 있습니다"
     if kind == "too_long":
         return f"{label}은(는) {limit}개까지 넣을 수 있습니다"
+    if kind == "too_short":
+        return f"{label}을(를) 하나 이상 넣으세요"
     if kind == "extra_forbidden":
         return f"{label}은(는) 보낼 수 없는 항목입니다"
     if kind == "value_error":
@@ -152,6 +157,10 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     async def invalid_duplicate_target(_, __):
         return _error(422, "메모를 더할 자료가 없거나 같은 URL의 자료가 아닙니다")
 
+    @app.exception_handler(MissingSeparateTarget)
+    async def missing_separate_target(_, __):
+        return _error(422, "같은 URL의 기존 자료가 없습니다. 일반 접수로 다시 시도하세요")
+
     @app.exception_handler(MemoTooLong)
     async def memo_too_long(_, __):
         return _error(422, "메모를 더하면 2000자를 넘습니다. 기존 메모를 줄이거나 별도로 저장하세요")
@@ -165,6 +174,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(projects_router)
     app.include_router(settings_router)
     app.include_router(materials_router)
+    app.include_router(reviews_router)
 
     if settings.allowed_origins:
         app.add_middleware(

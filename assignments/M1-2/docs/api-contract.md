@@ -120,7 +120,37 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 
 | 선택 | 요청에 더할 값 | 결과 |
 |---|---|---|
-| 별도 저장 | `"duplicate_action": "save_separately"` | 201 새 자료(+접수 기록) |
+| 별도 저장 | `"duplicate_action": "save_separately"` | 같은 소유자·모드에 같은 URL의 기존 자료가 있을 때만 201 새 자료(+접수 기록). 기존 자료가 없으면 쓰기 없이 422 |
 | 메모 추가 | `"duplicate_action": "add_memo", "target_id", "target_version", "memo"` | 200 기존 자료(메모만 덧붙음). 대상 없음·다른 URL 422, 휴지통 409 `trashed`, 버전 불일치 409, 2,000자 초과 422 |
 
 `POST /api/materials`의 응답 상태는 결과에 따라 201(새 자료) 또는 200(메모 추가)이며, 같은 키로 다시 보내면 처음 상태와 본문을 그대로 돌려준다. URL 포트가 숫자가 아니거나 0~65535 밖이면 422다. 쓰기 전에 거부된 요청(404·409·422)은 같은 키로 다시 보낼 수 있다.
+
+## 검토·승인 (T03.03)
+
+자료에 `user_importance`(`high|medium|low|null`, null=판단 보류), `review_requested`(bool), `review_requested_at`이 더해졌다. `user_importance`는 접수·`PUT /api/materials/{id}`에서도 고칠 수 있다.
+
+**`GET /api/materials?view=`** — PRD 외 추가. `all`(기본, 전체 최신순) · `inbox`(활성·미검토·검토 요청 안 함) · `review`(활성·미검토·검토 요청함). 다른 값은 422. 커서는 같은 view로만 이어 쓴다.
+
+**`POST /api/reviews/request`** — PRD 외 추가. `{"items": [{"material_id", "expected_version"}], "requested": true|false}`. 결과 `{"results": [...], "updated_count"}`, 항목 상태는 `updated`(material 포함) · `unchanged`(이미 그 상태, 시각 유지) · `conflict`(current_version) · `not_found` · `invalid`(reason `trashed`|`approved`).
+
+**`POST /api/reviews/approve`** — PRD §13.
+```json
+{"items": [{"material_id": "…", "expected_version": 2, "action": "keep",
+            "changes": {"title": "…", "user_importance": "high", "primary_project_id": "…", "related_project_ids": []}}]}
+```
+- `changes`는 선택이며 보낸 필드만 바꾼다(null은 비움). 다른 필드를 보내면 422.
+- 요청 전체 422: 항목 0개, 50건 초과, 같은 `material_id` 중복, `action`이 `link`·`trash`(Phase 05에서 같은 형식으로 지원)이거나 그 밖의 값, 형식 오류. 쓰기 전 거부이므로 같은 키로 다시 보낼 수 있다.
+- 그 밖에는 **200** `{"results": [...], "approved_count"}`. 항목 순서대로 결과를 준다.
+
+| status | 뜻 |
+|---|---|
+| `approved` | `review_status=approved`, `storage_approved_at` 기록, 수정값 반영. `material` 포함 |
+| `already_approved` | 수정값 없는 새 요청의 자료가 이미 승인됨. 버전과 관계없이 쓰지 않는다. `current_version`, `material` 포함 |
+| `conflict` | 버전 불일치 또는 이미 승인된 자료에 새 수정값을 보냄. 쓰지 않음. `current_version` 포함 |
+| `not_found` | 없거나 다른 소유자·모드의 자료 |
+| `invalid` | `reason`: `trashed`(휴지통) · `project`(없거나 비활성 프로젝트) · `no_content`(제목을 비워 내용이 없어짐) |
+
+- 자료 한 건은 버전 확인을 포함한 쓰기 한 번이다. 묶음 전체를 한꺼번에 성공·실패시키지 않는다.
+- 같은 `Idempotency-Key`로 다시 보내면 처음 응답 그대로다. 새 키로 수정값 없이 다시 보내면 `already_approved`이며 승인 시각은 바뀌지 않는다. 새 키에 수정값을 담아 이미 승인된 자료에 보내면 `conflict`로 알려 수정값을 조용히 버리지 않는다. 화면은 최신 자료와 수정값을 함께 보여주고, 사용자가 확인한 뒤 기존 `PUT /api/materials/{id}`로 수정값을 저장한다.
+- 웹 화면은 선택 항목을 최대 50건씩 나눠 순서대로 요청한다. 각 묶음은 별도 `Idempotency-Key`를 사용한다. 중간 전송이 실패하면 남은 묶음을 멈추고 성공·충돌 항목의 상태를 유지하며, 재시도 시 실패한 묶음에 같은 키를 사용한다. 받은 자료로 되돌리기도 같은 상한을 따른다.
+- **보관 완료** = `review_status=approved` + `copy_status=not_applicable` + `lifecycle=active`. 웹 자료는 승인과 동시에 보관 완료다(PRD §9.1).

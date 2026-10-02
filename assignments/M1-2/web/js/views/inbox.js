@@ -1,6 +1,7 @@
 // S02 받은 자료: URL·텍스트 접수 폼과 최신순 목록, 상세 수정.
 // URL만 받은 자료는 본문을 읽었다고 표시하지 않는다(PRD C02). 모든 문자열은 textContent·value로만 넣는다.
 import { request } from "../api.js";
+import { singleFlight } from "../single-flight.js";
 
 // 서버 한도와 같다(server/app/features/materials/schemas.py). 최종 판단은 서버가 한다.
 const LIMITS = { url: 2048, title: 200, description: 2000, body: 20000, save_reason: 2000, memo: 2000 };
@@ -86,26 +87,82 @@ export function renderInbox(root, ctx) {
   const formStatus = el("p", { class: "form-status", role: "status" });
   form.append(el("div", { class: "form-actions" }, submit, formStatus));
 
-  // ── 목록 ──
+  // ── 목록: 검토로 옮기지 않은 미검토 자료만(view=inbox). 옮긴 자료는 검토·승인 화면에 모인다(T03.03). ──
   const list = el("ul", { class: "material-list" });
   const more = el("button", { class: "button secondary small", type: "button", text: "더 보기", hidden: "" });
   const listStatus = el("p", { class: "form-status", role: "status" });
-  const listSection = el("section", { class: "panel" }, el("h2", { text: "접수 목록" }), list, more, listStatus);
+  const moveBtn = el("button", { class: "button secondary small", type: "button", text: "선택한 자료 검토로 이동" });
+  const listSection = el("section", { class: "panel" }, el("h2", { text: "접수 목록" }),
+    el("p", { text: "검토할 자료를 골라 검토·승인 화면으로 옮깁니다. 보관은 그 화면에서 승인합니다." }),
+    el("div", { class: "review-toolbar" }, moveBtn), listStatus, list, more);
   root.append(form, listSection);
 
   let items = [];
   let nextCursor = null;
+  const selected = new Set();
+  const runMove = singleFlight();
+
+  function syncSelection() {
+    const count = items.filter((m) => selected.has(m.id)).length;
+    moveBtn.textContent = count ? `선택한 ${count}건 검토로 이동` : "선택한 자료 검토로 이동";
+    moveBtn.disabled = count === 0;
+  }
 
   function renderList() {
     if (!items.length) {
-      list.replaceChildren(el("li", { class: "empty-row", text: "아직 받은 자료가 없습니다." }));
+      list.replaceChildren(el("li", { class: "empty-row", text: "검토를 기다리는 받은 자료가 없습니다." }));
     } else {
       list.replaceChildren(...items.map(row));
     }
     more.hidden = !nextCursor;
+    syncSelection();
   }
 
+  // 검토 대상이 아닌 자료(메모 추가·기존 자료 열기로 불러온 승인·검토 중 자료)는 고를 수 없다.
+  const movable = (m) => m.review_status === "unreviewed" && !m.review_requested && m.lifecycle === "active";
+
   function row(material) {
+    const box = el("input", { type: "checkbox", "aria-label": `${material.display_title || "자료"} 선택` });
+    box.checked = selected.has(material.id);
+    box.disabled = !movable(material);
+    box.addEventListener("change", () => {
+      if (box.checked) selected.add(material.id);
+      else selected.delete(material.id);
+      syncSelection();
+    });
+    const li = itemRow(material);
+    li.prepend(el("div", { class: "review-check" }, box));
+    li.classList.add("selectable");
+    return li;
+  }
+
+  async function moveSelected() {
+    const targets = items.filter((m) => selected.has(m.id));
+    if (!targets.length) return;
+    await runMove([moveBtn], async () => {
+      listStatus.textContent = "옮기는 중…";
+      const body = { requested: true, items: targets.map((m) => ({ material_id: m.id, expected_version: m.version })) };
+      const apply = async (res) => {
+        const moved = new Set(res.results.filter((r) => ["updated", "unchanged"].includes(r.status)).map((r) => r.material_id));
+        items = items.filter((m) => !moved.has(m.id));
+        for (const id of moved) selected.delete(id);
+        const left = res.results.length - moved.size;
+        if (left) await load(); // 다른 곳에서 바뀐 자료는 최신 버전으로 다시 불러온다
+        else renderList();
+        listStatus.textContent = left
+          ? `${moved.size}건을 옮겼습니다. ${left}건은 다른 곳에서 바뀌었거나 없어져 옮기지 못했습니다. 목록을 새로 불러왔습니다.`
+          : `${moved.size}건을 검토·승인 화면으로 옮겼습니다.`;
+      };
+      try {
+        await apply(await guarded(api("/api/reviews/request", { method: "POST", body })));
+      } catch (error) {
+        fail(error, listStatus, () => error.retry().then(apply).catch((e) => fail(e, listStatus)));
+      }
+    });
+    syncSelection();
+  }
+
+  function itemRow(material) {
     const temp = material.title_source !== "user";
     const head = el("button", { class: "material-head", type: "button", "aria-expanded": "false" },
       el("strong", { text: material.display_title || "(제목 없음)" }),
@@ -162,9 +219,10 @@ export function renderInbox(root, ctx) {
   async function load(cursor = null) {
     listStatus.textContent = "불러오는 중…";
     try {
-      const page = await guarded(api(`/api/materials?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`));
-      items = cursor ? [...items, ...page.items] : page.items;
+      const page = await guarded(api(`/api/materials?view=inbox&limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`));
+      items = cursor ? [...items, ...page.items.filter((m) => !items.some((x) => x.id === m.id))] : page.items;
       nextCursor = page.next_cursor;
+      for (const id of [...selected]) if (!items.some((m) => m.id === id)) selected.delete(id);
       renderList();
       listStatus.textContent = "";
     } catch (error) {
@@ -184,6 +242,7 @@ export function renderInbox(root, ctx) {
   // ── 같은 URL(T03.02): 기존 자료 열기 / 메모 추가 / 별도 저장 ──
   const dupPanel = el("div", { class: "dup-panel", hidden: "" });
   form.insertBefore(dupPanel, form.querySelector(".form-actions"));
+  const runDuplicateChoice = singleFlight();
 
   async function openExisting(id) {
     if (!items.some((m) => m.id === id)) {
@@ -201,12 +260,14 @@ export function renderInbox(root, ctx) {
   }
 
   async function chooseDuplicate(body, extra, onDone) {
-    formStatus.textContent = "처리하는 중…";
-    try {
-      onDone(await guarded(api("/api/materials", { method: "POST", body: { ...body, ...extra } })));
-    } catch (error) {
-      fail(error, formStatus, () => error.retry().then(onDone).catch((e) => fail(e, formStatus)));
-    }
+    return runDuplicateChoice([...dupPanel.querySelectorAll("button"), submit], async () => {
+      formStatus.textContent = "처리하는 중…";
+      try {
+        onDone(await guarded(api("/api/materials", { method: "POST", body: { ...body, ...extra } })));
+      } catch (error) {
+        fail(error, formStatus, () => error.retry().then(onDone).catch((e) => fail(e, formStatus)));
+      }
+    });
   }
 
   function showDuplicate(body, existing) {
@@ -275,6 +336,7 @@ export function renderInbox(root, ctx) {
   }
 
   submit.addEventListener("click", send);
+  moveBtn.addEventListener("click", moveSelected);
   more.addEventListener("click", () => load(nextCursor));
   load();
 }

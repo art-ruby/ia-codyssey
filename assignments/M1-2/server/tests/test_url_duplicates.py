@@ -111,6 +111,18 @@ def test_save_separately_creates_new_material_and_intake():
     assert len(post(c, {"url": "https://a.test/x"}).json()["existing"]) == 2
 
 
+def test_save_separately_requires_existing_same_url():
+    c, store = make_client()
+    body = {"url": "https://new.test/post", "duplicate_action": "save_separately"}
+
+    first = c.post("/api/materials", json=body, headers=h(key="separate-without-duplicate"))
+    again = c.post("/api/materials", json=body, headers=h(key="separate-without-duplicate"))
+
+    assert first.status_code == again.status_code == 422
+    assert count(store, "materials") == count(store, "intake_records") == count(store, "url_index") == 0
+    assert count(store, "idempotency") == 0
+
+
 def test_add_memo_appends_without_touching_body_and_without_intake():
     c, store = make_client()
     m = post(c, {"url": "https://a.test/x", "body": "원문", "memo": "처음 메모"}).json()

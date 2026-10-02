@@ -13,7 +13,7 @@
 - [ ] **Phase 03. URL·텍스트 접수와 보관 승인 — MVP**
   - [x] **T03.01** URL·텍스트 입력·저장·상세 수정
   - [x] **T03.02** 동일 URL 확인과 세 가지 선택
-  - [ ] **T03.03** 받은 자료·일괄 검토·보관 승인
+  - [x] **T03.03** 받은 자료·일괄 검토·보관 승인
   - [ ] **T03.04** 나중에 보기·분석 제외·승인 상태 검증
 - [ ] **Phase 04. AI 분석과 개인 중요도 — MVP**
   - [ ] **T04.01** AI Adapter와 구조화 분석 결과
@@ -279,6 +279,9 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** 받은 자료와 승인 요청 목록을 구분한다. 묶음 선택·일부 제외·제목/중요도/프로젝트 수정 후 승인한다. `POST /api/reviews/approve`의 `keep`은 자료 ID·예상 버전·선택 내용을 검증하고 승인 시각을 기록한다. URL·텍스트는 보관 승인 시 보관 완료가 된다.
 - **산출/연결:** 승인 결과와 자료별 성공/충돌 결과. `link`·`trash`는 Phase 05에서 같은 승인 API로 연결한다.
 - **완료/검증:** 선택한 항목만 승인되고 충돌 항목을 성공으로 표시하지 않는다. 동일 요청 재전송으로 승인 시각·자료 수가 중복 변경되지 않는다. 사용자 수정값은 새로고침 후 유지된다. A02 중 검토·승인 범위에 대응한다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** 검토 요청은 `review_requested`·`review_requested_at` 별도 필드, 목록은 `GET /api/materials?view=inbox|review`(PRD 외 추가)와 `POST /api/reviews/request`(PRD 외 추가), 중요도는 사용자 최종값 `user_importance`(높음·보통·낮음·판단 보류)만, 일괄 승인은 요청 전체 오류만 422이고 그 밖에는 200 + 항목별 결과(`approved / already_approved / conflict / not_found / invalid`).
+- **추가 검증:** 다른 소유자·모드 자료가 섞이면 그 항목만 `not_found`, 휴지통 자료 거부, 일부만 충돌할 때의 응답, 이미 승인된 자료를 새 키로 다시 보낼 때 `already_approved`, 보관 완료 판정 조건, 사용자 수정값의 새로고침 후 유지는 실제 브라우저로 확인.
+- **2026-10-02 코드 리뷰 보완:** 새 키로 이미 승인된 자료에 수정값을 보내면 `conflict`로 응답하고 화면에서 입력을 보존한 뒤 `PUT /api/materials/{id}`로 저장한다. 승인·되돌리기는 50건씩 순차 전송하고 실패 묶음부터 같은 키로 재개한다. 실제 브라우저 충돌 복구와 Firestore 저장은 `docs/verification.md`에 기록했다. 51건 실제 브라우저 대량 시연은 아직 하지 않았으므로 완료 체크 전 다시 판단한다.
 
 ### T03.04 나중에 보기·분석 제외·승인 상태 검증
 
@@ -573,8 +576,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T03.02 — 같은 URL 409와 세 가지 선택, URL별 예약, T03.01 리뷰 결함 4건 수정(`docs/verification.md`) |
-| 다음 Task | T03.03 — 받은 자료·일괄 검토·보관 승인 |
+| 마지막 완료 Task | T03.03 — 받은 자료·승인 요청 목록 분리, 묶음 보관 승인(항목별 결과·`already_approved`), 사용자 중요도, 실제 Firestore·브라우저 검증(`docs/verification.md`) |
+| 다음 Task | T03.04 — 나중에 보기·분석 제외·승인 상태 검증(착수 전 결정 1~4 대기) |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

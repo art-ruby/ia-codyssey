@@ -4,10 +4,11 @@
 import { onUserChanged, signIn, signOut } from "./auth.js";
 import { onSlowRequest, request } from "./api.js";
 import { renderInbox } from "./views/inbox.js";
+import { renderReview } from "./views/review.js";
 import { renderSettings } from "./views/settings.js";
 
 // 실제 기능이 연결된 화면. 나머지는 빈 상태로 둔다.
-const VIEWS = { inbox: renderInbox, settings: renderSettings };
+const VIEWS = { inbox: renderInbox, review: renderReview, settings: renderSettings };
 
 // PRD §5의 화면 키. stage가 "expansion"인 화면은 MVP에서 예정 표시만 한다.
 const SCREENS = [

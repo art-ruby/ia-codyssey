@@ -158,8 +158,10 @@ class Store(Protocol):
     def update(self, ctx: RequestContext, collection: str, doc_id: str,
                expected_version: int, changes: Mapping[str, Any]) -> dict: ...
 
+    # where: 같음 조건(field == value). 조건 조합마다 firestore.indexes.json에 복합 색인이 필요하다.
     def list(self, ctx: RequestContext, collection: str, limit: int = 20,
-             cursor: str | None = None, descending: bool = False) -> Page: ...
+             cursor: str | None = None, descending: bool = False,
+             where: Mapping[str, Any] | None = None) -> Page: ...
 
     def delete(self, ctx: RequestContext, collection: str, doc_id: str) -> None: ...
 
@@ -245,11 +247,13 @@ class MemoryStore:
                 self._docs[col][doc["id"]] = doc
         return [copy.deepcopy(doc) for _, doc in prepared]
 
-    def list(self, ctx, collection, limit=20, cursor=None, descending=False):
+    def list(self, ctx, collection, limit=20, cursor=None, descending=False, where=None):
         _check_collection(collection)
         size = _page_size(limit)
+        conditions = dict(where or {})
         docs = sorted(
-            (d for d in self._docs[collection].values() if _owned(d, ctx)),
+            (d for d in self._docs[collection].values()
+             if _owned(d, ctx) and all(k in d and d[k] == v for k, v in conditions.items())),
             key=lambda d: (d["created_at"], d["id"]),
             reverse=descending,
         )
@@ -389,7 +393,7 @@ class FirestoreStore:
             raise VersionConflict(0) from None
         return docs
 
-    def list(self, ctx, collection, limit=20, cursor=None, descending=False):
+    def list(self, ctx, collection, limit=20, cursor=None, descending=False, where=None):
         from google.cloud.firestore_v1 import FieldFilter, Query
         from google.cloud.firestore_v1.field_path import FieldPath
 
@@ -400,7 +404,11 @@ class FirestoreStore:
             self._db.collection(collection)
             .where(filter=FieldFilter("owner_id", "==", ctx.owner_id))
             .where(filter=FieldFilter("mode", "==", ctx.mode))
-            .order_by("created_at", direction=direction)
+        )
+        for field, value in (where or {}).items():
+            query = query.where(filter=FieldFilter(field, "==", value))
+        query = (
+            query.order_by("created_at", direction=direction)
             .order_by(FieldPath.document_id(), direction=direction)
         )
         if cursor:

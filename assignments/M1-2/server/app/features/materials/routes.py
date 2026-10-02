@@ -1,6 +1,8 @@
 """자료 API (PRD §13: POST/GET /api/materials, GET/PUT /api/materials/{id})."""
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
@@ -27,8 +29,10 @@ def create_material(body: MaterialCreate, ctx: RequestContext = Depends(get_cont
 
 @router.get("")
 def list_materials(limit: int = Query(20, ge=1, le=100), cursor: str | None = None,
+                   view: Literal["all", "inbox", "review"] = "all",
                    ctx: RequestContext = Depends(get_context), store: Store = Depends(get_store)) -> dict:
-    return service.list_materials(store, ctx, limit, cursor)
+    # view(PRD 외 추가, T03.03): inbox=받은 자료, review=승인 요청 목록. 커서는 같은 view로만 이어 쓴다.
+    return service.list_materials(store, ctx, limit, cursor, view)
 
 
 @router.get("/{material_id}")

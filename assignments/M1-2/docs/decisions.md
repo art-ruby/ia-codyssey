@@ -67,3 +67,12 @@
 - 메모 추가는 기존 메모 끝에 `[YYYY-MM-DD 추가] 내용`(Asia/Seoul 날짜)을 덧붙이며 본문·설명은 바꾸지 않는다. 합쳐서 2,000자를 넘으면 422. 휴지통 자료에는 메모를 더할 수 없다(409 `trashed`, 복원 후 가능).
 - 동시 첫 등록은 URL별 예약 문서(`url_index`, ID = 소유자·모드·비교 키 해시)를 자료·접수 기록과 같은 일괄 쓰기로 만들어 하나만 성공시킨다. 별도 저장은 예약을 쓰지 않는다. 판정은 자료 검색으로 하므로 예약이 없는 기존 자료(T03.01)를 따로 채우지 않는다. 예약이 가리키는 자료가 없으면 예약을 지우고 한 번 다시 시도한다. **영구 삭제(T05.03)는 그 자료를 가리키는 예약도 지운다.**
 - 쓰기 전에 거부된 요청(`NoChange`: 404·409·422)은 중복 요청 기록을 지워 같은 키로 다시 판단할 수 있게 한다. 그 밖의 예외는 결과가 불확실하므로 기록을 `processing`으로 남긴다.
+
+## T03.03 검토·승인 결정 (2026-10-02, 착수 전 검토의 추천안으로 진행 지시)
+- **검토 요청 표시:** 검토 상태(미검토·나중에 보기·보관 승인) 축은 그대로 두고 별도 필드 `review_requested`(bool)·`review_requested_at`을 둔다. 받은 자료의 '검토로 이동'이 true로, 검토 화면의 '받은 자료로 되돌리기'가 false로 바꾼다. PRD에 없는 해석이다.
+- **목록 API:** `GET /api/materials?view=all|inbox|review`(PRD 외 추가). inbox = 활성·미검토·검토 요청 안 함, review = 활성·미검토·검토 요청함. 두 보기는 겹치지 않는다. 같음 조건만 쓰므로 복합 색인 하나(`owner_id, mode, lifecycle, review_requested, review_status, created_at desc`)를 공유한다. `review_requested`가 없는 예전 문서는 두 목록에 안 보이므로 `server/scripts/backfill_review_fields.py`로 채운다(2026-10-02 시험 실행: 소유자 자료 0건이라 실행 불필요).
+- **중요도:** 사용자 최종 중요도 `user_importance` = `high|medium|low|null`(PRD C04, null = 판단 보류)만 이번에 만든다. AI 제안 중요도는 T04.01에서 별도 필드로 둔다.
+- **일괄 승인 응답:** 요청 전체가 잘못되면 422(항목 0개·50건 초과·같은 자료 중복·`link`/`trash`·형식 오류). 그 밖에는 200과 항목별 결과(`approved / already_approved / conflict / not_found / invalid`). 일부 충돌로 전체를 409로 만들지 않는다.
+- **이미 승인된 자료:** 새 요청에 수정값이 없으면 버전과 관계없이 `already_approved`로 돌려주고 쓰지 않는다. 새 요청에 수정값이 있으면 `conflict`로 알려 입력을 보존한다. 같은 키의 재전송은 처음 응답을 그대로 돌려주므로 승인 시각·보관 건수가 중복 변경되지 않는다. 화면에서 최신 자료를 확인한 뒤 수정값은 기존 자료 수정 API로 저장한다.
+- **보관 완료 판정:** `review_status=approved` + `copy_status=not_applicable` + `lifecycle=active`(`materials.service.is_kept`). T03.04·T05·T07·보관 건수 집계가 같은 조건을 쓴다.
+- 받은 자료에서 바로 승인하는 것도 막지 않는다(검토 요청은 목록을 나누는 표시일 뿐 승인 조건이 아니다). 승인된 자료는 검토 요청 목록으로 옮길 수 없다.

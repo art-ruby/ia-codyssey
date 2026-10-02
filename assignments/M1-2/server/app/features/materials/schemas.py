@@ -22,6 +22,15 @@ LIMITS = {
 }
 MAX_RELATED_PROJECTS = 20
 CONTENT_FIELDS = ("title", "description", "body")
+# 사용자 최종 중요도(PRD C04: 높음·보통·낮음). null은 판단 보류. AI 제안 중요도는 T04.01에서 따로 둔다.
+Importance = Literal["high", "medium", "low"]
+
+
+def clean_ids(ids: list[str] | None) -> list[str] | None:
+    """빈 값을 빼고 순서를 지키며 중복을 없앤다."""
+    if ids is None:
+        return ids
+    return list(dict.fromkeys(i.strip() for i in ids if i and i.strip()))
 
 
 class _Fields(BaseModel):
@@ -34,14 +43,12 @@ class _Fields(BaseModel):
     memo: str | None = Field(None, max_length=LIMITS["memo"])
     primary_project_id: str | None = None
     related_project_ids: list[str] | None = Field(None, max_length=MAX_RELATED_PROJECTS)
+    user_importance: Importance | None = None
 
     @field_validator("related_project_ids")
     @classmethod
     def unique_related(cls, ids):
-        if ids is None:
-            return ids
-        cleaned = [i.strip() for i in ids if i and i.strip()]
-        return list(dict.fromkeys(cleaned))
+        return clean_ids(ids)
 
 
 class MaterialCreate(_Fields):
