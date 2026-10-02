@@ -1,0 +1,20 @@
+{
+  "description": "채팅 평가 세트(T06.03 준비, T07.04에서 채점). 정답이 있는 질문 10개와 근거 없는 질문 3개. expected_ids는 sample_materials.json의 ID다. key_terms는 검색 계약(search_materials)으로 정답을 찾을 수 있는지 확인하는 핵심어다.",
+  "answerable": [
+    {"id": "q01", "question": "정산 API는 언제 종료돼?", "expected_ids": ["sample-mat-01"], "key_terms": ["정산", "종료"]},
+    {"id": "q02", "question": "위키 이전 때 팀이 해야 할 일은 뭐야?", "expected_ids": ["sample-mat-03"], "key_terms": ["위키", "담당자"]},
+    {"id": "q03", "question": "환불이 늦어진다는 고객 의견이 있었나?", "expected_ids": ["sample-mat-08"], "key_terms": ["환불", "지연"]},
+    {"id": "q04", "question": "Rust 소유권 규칙을 정리해 줘", "expected_ids": ["sample-mat-04"], "key_terms": ["소유권"]},
+    {"id": "q05", "question": "복합 인덱스의 열 순서는 어떻게 정해?", "expected_ids": ["sample-mat-05"], "key_terms": ["복합", "인덱스"]},
+    {"id": "q06", "question": "배포 자동화 회고에서 무엇을 바꿨어?", "expected_ids": ["sample-mat-06"], "key_terms": ["배포", "회고"]},
+    {"id": "q07", "question": "4분기 OKR 목표가 뭐였지?", "expected_ids": ["sample-mat-10"], "key_terms": ["OKR"]},
+    {"id": "q08", "question": "웹훅이 실패하면 어떻게 재시도해?", "expected_ids": ["sample-mat-17"], "key_terms": ["웹훅", "백오프"]},
+    {"id": "q09", "question": "Firestore 백업은 얼마나 보관해?", "expected_ids": ["sample-mat-18"], "key_terms": ["백업"]},
+    {"id": "q10", "question": "결제 개편과 관련된 자료를 모아 줘", "expected_ids": ["sample-mat-01", "sample-mat-02"], "key_terms": ["결제", "개편"]}
+  ],
+  "no_evidence": [
+    {"id": "n01", "question": "다음 달 회사 주가 전망은 어때?", "key_terms": ["주가"]},
+    {"id": "n02", "question": "김치찌개 맛있게 끓이는 법 알려 줘", "key_terms": ["김치찌개"]},
+    {"id": "n03", "question": "화성 탐사선 발사 일정은 언제야?", "key_terms": ["화성", "탐사선"]}
+  ]
+}

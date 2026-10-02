@@ -289,5 +289,5 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
   - 기간은 관측 시작(첫 값이 있는 날)부터 기준일까지. `start_date`가 관측 시작보다 이르면 관측 시작으로 맞춘다. 기록 없는 날은 0.
   - 값이 전혀 없으면 `total=0`, `period`·`average`·`min`·`max`·`trend`는 null, `daily=[]`.
   - `trend`: `{status: increase|decrease|flat|insufficient|new|both_zero, recent_average, previous_average, change_rate, reference_date}`. 기준일은 개인 모드 오늘(서울), 표본 모드 그 계열의 최신 날짜. 최근 7일 vs 이전 7일, +10% 이상 증가·-10% 이하 감소. 관측 14일 미만은 `insufficient`, 이전 0건은 `new` 또는 `both_zero`(백분율 없음).
-- `label`: 지표·출처 조합의 화면 이름(예: `kept_count + actual` = '현재 보관 자료 수', `kept_count + manual` = '사용자 입력 보관 기록').
+- `label`: 지표·출처 조합의 화면 이름. `kept_count`: actual '현재 보관 자료 수'·manual '사용자 입력 보관 기록'·sample '가상 보관 기록'. `received_count`: actual '실제 접수 건수'·manual '사용자 입력 접수 기록'·sample '가상 접수 기록'(PRD §11.3: 표본 숫자를 실제 수로 오해하지 않게 '가상').
 - 날짜 형식·범위 오류, 시작이 끝보다 늦음, 허용 밖 지표는 422.

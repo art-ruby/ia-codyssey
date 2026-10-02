@@ -23,8 +23,9 @@ DEFAULT_SOURCE = {"personal": "actual", "sample": "sample"}
 ALLOWED_SOURCES = {"personal": ("actual", "manual"), "sample": ("sample", "actual")}
 LABELS = {
     ("kept_count", "actual"): "현재 보관 자료 수", ("kept_count", "manual"): "사용자 입력 보관 기록",
-    ("kept_count", "sample"): "표본 보관 기록", ("received_count", "actual"): "실제 접수 건수",
-    ("received_count", "manual"): "사용자 입력 접수 기록", ("received_count", "sample"): "표본 접수 기록",
+    # 표본 숫자를 실제 보관 수로 오해하지 않게 '가상'으로 표시한다(PRD §11.3).
+    ("kept_count", "sample"): "가상 보관 기록", ("received_count", "actual"): "실제 접수 건수",
+    ("received_count", "manual"): "사용자 입력 접수 기록", ("received_count", "sample"): "가상 접수 기록",
 }
 TREND_DAYS = 7
 CHANGE_THRESHOLD = 10.0
