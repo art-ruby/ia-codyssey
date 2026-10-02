@@ -1,5 +1,6 @@
 import itertools
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -181,6 +182,34 @@ def test_later_whole_request_422(body, words):
     res = c.post("/api/reviews/later", json=body, headers=h("bad"))
     assert res.status_code == 422 and words in res.json()["detail"], res.json()
     assert store.list(ME, "idempotency", limit=5).items == []
+
+
+def test_later_same_key_replays_after_midnight_but_new_key_rejects_past_date():
+    c, store = make_client()
+    material = new(c)
+    payload = {"items": ids([material]), "later": True, "revisit_on": "2026-10-02"}
+
+    class BeforeMidnight:
+        @staticmethod
+        def now(tz):
+            return datetime(2026, 10, 2, 23, 59, tzinfo=tz)
+
+    class AfterMidnight:
+        @staticmethod
+        def now(tz):
+            return datetime(2026, 10, 3, 0, 1, tzinfo=tz)
+
+    with patch("app.features.reviews.service.datetime", BeforeMidnight):
+        first = c.post("/api/reviews/later", json=payload, headers=h("cross-midnight"))
+    assert first.status_code == 200
+
+    with patch("app.features.reviews.service.datetime", AfterMidnight):
+        replay = c.post("/api/reviews/later", json=payload, headers=h("cross-midnight"))
+        new_request = c.post("/api/reviews/later", json=payload, headers=h("after-midnight"))
+
+    assert replay.status_code == 200 and replay.json() == first.json()
+    assert new_request.status_code == 422 and "오늘" in new_request.json()["detail"]
+    assert store.get(ME, "materials", material["id"])["version"] == 2
 
 
 # ── AI 분석 제외 ──────────────────────────────────────────────────

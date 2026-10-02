@@ -26,6 +26,7 @@ from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget
 from app.features.projects.routes import router as projects_router
 from app.features.projects.service import DuplicateProjectName, TooManyProjects
 from app.features.reviews.routes import router as reviews_router
+from app.features.reviews.service import PastRevisitDate
 from app.features.settings.routes import router as settings_router
 from app.features.settings.service import InvalidDefaultProject
 
@@ -164,6 +165,10 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     @app.exception_handler(MemoTooLong)
     async def memo_too_long(_, __):
         return _error(422, "메모를 더하면 2000자를 넘습니다. 기존 메모를 줄이거나 별도로 저장하세요")
+
+    @app.exception_handler(PastRevisitDate)
+    async def past_revisit_date(_, __):
+        return _error(422, "다시 볼 날짜는 오늘(서울 기준) 이후여야 합니다")
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_, exc: RequestValidationError):

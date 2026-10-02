@@ -1,6 +1,8 @@
 // S02 받은 자료: URL·텍스트 접수 폼과 최신순 목록, 상세 수정.
 // URL만 받은 자료는 본문을 읽었다고 표시하지 않는다(PRD C02). 모든 문자열은 textContent·value로만 넣는다.
 import { request } from "../api.js";
+import { loadAllLaterPages, sortLater } from "../later-list.js";
+import { processBatches, splitBatches } from "../review-batches.js";
 import { singleFlight } from "../single-flight.js";
 
 // 서버 한도와 같다(server/app/features/materials/schemas.py). 최종 판단은 서버가 한다.
@@ -62,7 +64,6 @@ function statusTag(material) {
   return el("span", { class: `tag ${tone}`, text });
 }
 
-const MAX_BATCH = 50; // server/app/features/reviews/schemas.py와 같다
 const DAY = new Intl.DateTimeFormat("ko-KR", { timeZone: "UTC", month: "long", day: "numeric" });
 
 function todaySeoul() {
@@ -120,20 +121,18 @@ export function renderInbox(root, ctx) {
 
   // ── 나중에 보기(view=later, T03.04) ──
   const laterList = el("ul", { class: "material-list" });
-  const laterMore = el("button", { class: "button secondary small", type: "button", text: "더 보기", hidden: "" });
   const laterStatus = el("p", { class: "form-status", role: "status" });
   const laterToReview = el("button", { class: "button secondary small", type: "button", text: "검토로 이동" });
   const laterBack = el("button", { class: "button secondary small", type: "button", text: "받은 자료로 되돌리기" });
   const laterSection = el("section", { class: "panel" }, el("h2", { text: "나중에 볼 자료" }),
     el("p", { text: "다시 볼 날짜가 지난 자료는 정리 후보로 위에 표시합니다. 날짜가 지나도 자동으로 승인하거나 지우지 않습니다." }),
-    el("div", { class: "review-toolbar" }, laterToReview, laterBack), laterStatus, laterList, laterMore);
+    el("div", { class: "review-toolbar" }, laterToReview, laterBack), laterStatus, laterList);
   root.append(form, listSection, laterSection);
 
   let items = [];
   let nextCursor = null;
   const selected = new Set();
   let laterItems = [];
-  let laterCursor = null;
   const laterSelected = new Set();
   const runBatch = singleFlight();
   const batchButtons = [moveBtn, laterBtn, laterToReview, laterBack];
@@ -158,15 +157,12 @@ export function renderInbox(root, ctx) {
   }
 
   function renderLater() {
-    // 불러온 범위 안에서 날짜가 지난 자료(정리 후보)를 먼저, 그다음 다시 볼 날짜가 이른 순으로 보여준다.
-    const sorted = [...laterItems].sort((a, b) => (Number(b.revisit_due) - Number(a.revisit_due))
-      || (a.revisit_on || "9999").localeCompare(b.revisit_on || "9999"));
+    const sorted = sortLater(laterItems);
     laterList.replaceChildren(...(sorted.length ? sorted.map((m) => {
       const li = row(m, laterSelected, (x) => x.review_status === "later" && x.lifecycle === "active");
       li.querySelector(".material-meta").prepend(laterTag(m));
       return li;
     }) : [el("li", { class: "empty-row", text: "나중에 볼 자료가 없습니다." })]));
-    laterMore.hidden = !laterCursor;
     syncSelection();
   }
 
@@ -188,31 +184,51 @@ export function renderInbox(root, ctx) {
     return li;
   }
 
-  // 묶음 요청 공통: 결과를 받은 뒤 두 목록을 새로 불러오고, 처리하지 못한 항목 수를 알린다.
+  // 묶음 요청 공통: 서버 상한(50건)대로 나눠 보내며 실패한 묶음은 같은 요청 키로 재시도한다.
   async function sendBatch(path, body, targets, statusNode, label) {
     if (!targets.length) return;
-    if (targets.length > MAX_BATCH) {
-      statusNode.textContent = `한 번에 ${MAX_BATCH}건까지 처리할 수 있습니다.`;
-      return;
+    const batches = splitBatches(targets.map((m) => ({ material_id: m.id, expected_version: m.version })))
+      .map((items) => ({ ...body, items }));
+    const counts = { done: 0, failed: 0 };
+
+    async function process(startAt = 0, retryFirst = null) {
+      await runBatch(batchButtons, async () => {
+        const outcome = await processBatches(
+          batches,
+          (payload, index) => {
+            statusNode.textContent = `${label} 처리 중… (${index + 1}/${batches.length}묶음)`;
+            return guarded(api(path, { method: "POST", body: payload }));
+          },
+          async (res) => {
+            const doneIds = new Set(res.results.filter((r) => ["updated", "unchanged"].includes(r.status))
+              .map((r) => r.material_id));
+            counts.done += doneIds.size;
+            counts.failed += res.results.length - doneIds.size;
+            items = items.filter((m) => !doneIds.has(m.id));
+            laterItems = laterItems.filter((m) => !doneIds.has(m.id));
+            for (const id of doneIds) {
+              selected.delete(id);
+              laterSelected.delete(id);
+            }
+            statusNode.textContent = `${counts.done}건 처리, ${counts.failed}건 확인 필요.`;
+          },
+          { startAt, retryFirst: retryFirst && (() => guarded(retryFirst())) },
+        );
+        if (outcome.error) {
+          renderList();
+          renderLater();
+          statusNode.textContent = `${counts.done}건 처리했습니다. 남은 묶음은 전송되지 않았습니다.`;
+          fail(outcome.error, statusNode, () => process(outcome.nextIndex, outcome.error.retry));
+        } else {
+          await Promise.all([load(), loadLater()]);
+          statusNode.textContent = counts.failed
+            ? `${counts.done}건 ${label}. ${counts.failed}건은 다른 곳에서 바뀌었거나 처리할 수 없어 목록에서 확인하세요.`
+            : `${counts.done}건 ${label}.`;
+        }
+      });
+      syncSelection();
     }
-    await runBatch(batchButtons, async () => {
-      statusNode.textContent = "처리하는 중…";
-      const payload = { ...body, items: targets.map((m) => ({ material_id: m.id, expected_version: m.version })) };
-      const apply = async (res) => {
-        const done = res.results.filter((r) => ["updated", "unchanged"].includes(r.status)).length;
-        const left = res.results.length - done;
-        await Promise.all([load(), loadLater()]);
-        statusNode.textContent = left
-          ? `${done}건 ${label}. ${left}건은 다른 곳에서 바뀌었거나 처리할 수 없어 그대로 두었습니다. 목록을 새로 불러왔습니다.`
-          : `${done}건 ${label}.`;
-      };
-      try {
-        await apply(await guarded(api(path, { method: "POST", body: payload })));
-      } catch (error) {
-        fail(error, statusNode, () => error.retry().then(apply).catch((e) => fail(e, statusNode)));
-      }
-    });
-    syncSelection();
+    await process();
   }
 
   const chosenIn = (source, chosen) => source.filter((m) => chosen.has(m.id));
@@ -309,17 +325,16 @@ export function renderInbox(root, ctx) {
     }
   }
 
-  async function loadLater(cursor = null) {
+  async function loadLater() {
     laterStatus.textContent = "불러오는 중…";
     try {
-      const page = await guarded(api(`/api/materials?view=later&limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`));
-      laterItems = cursor ? [...laterItems, ...page.items.filter((m) => !laterItems.some((x) => x.id === m.id))] : page.items;
-      laterCursor = page.next_cursor;
+      laterItems = await guarded(loadAllLaterPages((cursor) => guarded(api(
+        `/api/materials?view=later&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`))));
       for (const id of [...laterSelected]) if (!laterItems.some((m) => m.id === id)) laterSelected.delete(id);
       renderLater();
       laterStatus.textContent = "";
     } catch (error) {
-      fail(error, laterStatus, () => loadLater(cursor));
+      fail(error, laterStatus, () => loadLater());
     }
   }
 
@@ -435,7 +450,6 @@ export function renderInbox(root, ctx) {
     chosenIn(laterItems, laterSelected), laterStatus, "검토·승인 화면으로 옮겼습니다"));
   laterBack.addEventListener("click", () => sendBatch("/api/reviews/later", { later: false },
     chosenIn(laterItems, laterSelected), laterStatus, "받은 자료로 되돌렸습니다"));
-  laterMore.addEventListener("click", () => loadLater(laterCursor));
   more.addEventListener("click", () => load(nextCursor));
   load();
   loadLater();

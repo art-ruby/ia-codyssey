@@ -5,12 +5,11 @@
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.features.materials.service import SEOUL
 from app.features.materials.schemas import LIMITS, MAX_RELATED_PROJECTS, Importance, clean_ids
 
 MAX_BATCH = 50
@@ -84,7 +83,5 @@ class LaterBody(_Batch):
     def valid_date(self):
         if not self.later and self.revisit_on is not None:
             raise ValueError("되돌릴 때는 다시 볼 날짜를 보내지 않습니다")
-        if self.revisit_on is not None and self.revisit_on < datetime.now(SEOUL).date():
-            raise ValueError("다시 볼 날짜는 오늘(서울 기준) 이후여야 합니다")
         return self
 

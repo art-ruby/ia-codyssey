@@ -9,12 +9,18 @@
 """
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 
 from app.core.context import RequestContext
+from app.core.errors import NoChange
 from app.core.firestore import NotFound, Store, VersionConflict, now_utc
 from app.features.materials import service as materials
-from app.features.materials.service import COLLECTION, InvalidProjectReference, NoContent, public
+from app.features.materials.service import COLLECTION, SEOUL, InvalidProjectReference, NoContent, public
+
+
+class PastRevisitDate(NoChange):
+    """새 나중에 보기 요청에 과거 날짜를 지정했다(422)."""
 
 
 def _result(material_id: str, status: str, **extra) -> dict:
@@ -127,6 +133,9 @@ def _later_one(store: Store, ctx: RequestContext, item: dict, later: bool, revis
 def set_later(store: Store, ctx: RequestContext, items: list[dict[str, Any]], later: bool,
               revisit_on: str | None) -> dict:
     """나중에 보기로 남기거나(다시 볼 날짜 선택) 미검토로 되돌린다. 날짜가 지나도 자동으로 바꾸지 않는다."""
+    # 중복 요청의 완료 결과를 먼저 재생할 수 있도록 날짜 검사는 run_idempotent의 handler 안에서 한다.
+    if later and revisit_on and date.fromisoformat(revisit_on) < datetime.now(SEOUL).date():
+        raise PastRevisitDate()
     results = [_later_one(store, ctx, item, later, revisit_on) for item in items]
     return {"results": results, "updated_count": sum(r["status"] == "updated" for r in results)}
 

@@ -163,6 +163,7 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 
 **`POST /api/reviews/later`** — PRD 외 추가. `{"items": [{"material_id", "expected_version"}], "later": true|false, "revisit_on": "YYYY-MM-DD"|null}`.
 - 요청 전체 422: 항목 0개·50건 초과·중복, 오늘(서울)보다 이른 날짜, 형식이 틀린 날짜, `later=false`에 날짜를 보냄.
+- 날짜 경과 판정은 같은 `Idempotency-Key`의 완료 결과를 재생한 뒤 새 요청에만 적용한다. 따라서 자정 전 완료한 요청을 자정 후 같은 키·본문으로 재시도하면 원래 결과를 돌려주고, 새 키로 과거 날짜를 보내면 422다.
 - 200 `{"results": [...], "updated_count"}`. 항목 상태: `updated`(material 포함) · `unchanged`(이미 같은 상태·같은 날짜) · `conflict`(current_version) · `not_found` · `invalid`(reason `trashed`|`approved`).
 - `later=true`: `review_status=later`, `revisit_on` 기록, 검토 요청 해제. `later=false`: 미검토로 되돌리고 `revisit_on=null`.
 - 나중에 보기 자료를 `POST /api/reviews/request`로 옮기면 미검토·검토 요청으로 바뀌고 날짜는 지운다. `POST /api/reviews/approve`로 바로 승인할 수 있으며 승인하면 날짜를 지운다.
