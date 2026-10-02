@@ -1,6 +1,7 @@
-// S01 오늘: AI 동향과 같은 우선순위로 확인할 자료 최대 3건과 이유, 미검토·보관 수(T04.04).
+// S01 오늘: AI 동향과 같은 우선순위로 확인할 자료 최대 3건과 이유, 미검토·보관 수(T04.04), 숫자 요약(T06.04).
 // 실제로 확인한 자료가 없으면 빈 상태만 보인다. 예약 브리핑이 실행된 것처럼 쓰지 않는다.
 import { request } from "../api.js";
+import { periodText, statsText, trendText } from "../activity-format.js";
 import { el, priorityCard, todayPicks } from "../priority.js";
 
 // root: 화면 영역, ctx: { mode, isCurrent(), onError(error, retry) }
@@ -12,9 +13,13 @@ export function renderToday(root, ctx) {
   async function load() {
     status.textContent = "불러오는 중…";
     try {
-      const view = await request("/api/materials/priority", { mode: ctx.mode });
+      // 숫자 요약은 현재 모드의 기본값(개인: 현재 보관 자료 수, 표본: 가상 보관 기록)을 매번 새로 받는다.
+      const [view, numbers] = await Promise.all([
+        request("/api/materials/priority", { mode: ctx.mode }),
+        request("/api/data/summary", { mode: ctx.mode }),
+      ]);
       if (!ctx.isCurrent()) return;
-      render(view);
+      render(view, numbers);
       status.textContent = view.truncated ? `최근 ${view.scanned}건까지만 비교했습니다.` : "";
     } catch (error) {
       if (!ctx.isCurrent()) return;
@@ -23,7 +28,7 @@ export function renderToday(root, ctx) {
     }
   }
 
-  function render(view) {
+  function render(view, numbers) {
     const picks = todayPicks(view.items);
     const total = view.items.length + view.pending.length;
     const counts = el("section", { class: "panel today-counts" },
@@ -49,7 +54,13 @@ export function renderToday(root, ctx) {
         el("ul", { class: "priority-list" }, ...picks.map((m) => priorityCard(m))),
         el("a", { class: "button secondary small", href: "#trends", text: "전체 순서 보기" }));
     }
-    body.replaceChildren(main, counts);
+    const summaryCard = el("section", { class: "panel today-numbers" },
+      el("h2", { class: "section-title", text: numbers.label }),
+      el("p", { class: "field-note", text: periodText(numbers) }),
+      el("p", { class: "activity-stats", text: statsText(numbers) }),
+      el("p", { class: "activity-trend", text: trendText(numbers.trend) }),
+      el("a", { class: "button secondary small", href: "#knowledge", text: "활동 기록에서 자세히 보기" }));
+    body.replaceChildren(main, counts, summaryCard);
   }
 
   load();

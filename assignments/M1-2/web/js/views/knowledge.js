@@ -1,5 +1,5 @@
 // S03 지식 보관함: 보관 완료 자료 검색·기간·종류·프로젝트 필터, 상세 보기·메모 수정(T05.01).
-// 관련 자료 연결은 related.js(T05.02), 휴지통 탭·휴지통 이동은 trash.js(T05.03). 모든 문자열은 textContent·value로만 넣는다.
+// 관련 자료 연결은 related.js(T05.02), 휴지통 탭·휴지통 이동은 trash.js(T05.03), 활동 기록 탭은 activity.js(T06.04). 모든 문자열은 textContent·value로만 넣는다.
 import { analysisPanel } from "../analysis.js";
 import { request } from "../api.js";
 import { relatedPanel } from "../related.js";
@@ -7,6 +7,7 @@ import { el } from "../priority.js";
 import { FIELD_LABELS, KIND_OPTIONS, SOURCE_OPTIONS, mergePage, scopeText, searchQuery } from "../search-query.js";
 import { singleFlight } from "../single-flight.js";
 import { renderTrashTab, trashButton } from "../trash.js";
+import { renderActivityTab } from "./activity.js";
 
 const MEMO_LIMIT = 2000; // server/app/features/materials/schemas.py와 같다
 const SEOUL = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" });
@@ -36,31 +37,42 @@ export function renderKnowledge(root, ctx) {
   const scope = el("p", { class: "form-status", role: "status" });
   const list = el("ul", { class: "material-list" });
   const more = el("button", { class: "button secondary small", type: "button", text: "더 보기", hidden: "" });
-  // 보관 자료 | 휴지통 탭. 휴지통은 처음 열 때 불러오고, 복원하면 보관 자료 검색을 다시 한다.
+  // 보관 자료 | 휴지통 | 활동 기록 탭. 휴지통·활동 기록은 처음 열 때 불러오고 다시 열면 새로 받는다.
+  // 휴지통에서 복원하면 보관 자료 검색을 다시 한다.
   const keptTab = el("button", { class: "tab", type: "button", role: "tab", "aria-selected": "true", text: "보관 자료" });
   const trashTab = el("button", { class: "tab", type: "button", role: "tab", "aria-selected": "false", text: "휴지통" });
+  const activityTab = el("button", { class: "tab", type: "button", role: "tab", "aria-selected": "false", text: "활동 기록" });
   const keptPane = el("div", {}, form, el("section", { class: "panel" }, scope, list, more));
   const trashPane = el("section", { class: "panel", hidden: "" });
-  root.replaceChildren(el("div", { class: "tabs", role: "tablist" }, keptTab, trashTab), keptPane, trashPane);
+  const activityPane = el("div", { hidden: "" });
+  root.replaceChildren(el("div", { class: "tabs", role: "tablist" }, keptTab, trashTab, activityTab),
+    keptPane, trashPane, activityPane);
   let trashView = null;
+  let activityView = null;
   let keptStale = false;
-  function show(kept) {
-    keptTab.setAttribute("aria-selected", String(kept));
-    trashTab.setAttribute("aria-selected", String(!kept));
-    if (kept) { keptPane.removeAttribute("hidden"); trashPane.setAttribute("hidden", ""); }
-    else { trashPane.removeAttribute("hidden"); keptPane.setAttribute("hidden", ""); }
+  function show(pane) {
+    for (const [tab, node] of [[keptTab, keptPane], [trashTab, trashPane], [activityTab, activityPane]]) {
+      tab.setAttribute("aria-selected", String(node === pane));
+      if (node === pane) node.removeAttribute("hidden");
+      else node.setAttribute("hidden", "");
+    }
   }
   keptTab.addEventListener("click", () => {
-    show(true);
+    show(keptPane);
     if (keptStale) {
       keptStale = false;
       search(null, { fresh: false });
     }
   });
   trashTab.addEventListener("click", () => {
-    show(false);
+    show(trashPane);
     if (trashView) trashView.reload();
     else trashView = renderTrashTab(trashPane, { api, isCurrent: ctx.isCurrent, onError: ctx.onError, onChanged: () => { keptStale = true; } });
+  });
+  activityTab.addEventListener("click", () => {
+    show(activityPane);
+    if (activityView) activityView.reload();
+    else activityView = renderActivityTab(activityPane, ctx);
   });
 
   let conditions = {};
