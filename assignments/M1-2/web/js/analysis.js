@@ -41,10 +41,15 @@ export function analysisState(m) {
       return { label: "분석 실패", tone: "amber", action: "retry",
         note: ERROR[m.analysis_error] || "분석하지 못했습니다. 입력은 그대로 남아 있습니다." };
     case "done":
-      return m.analysis_outdated
-        ? { label: "내용 변경 · 다시 분석 필요", tone: "amber", action: "reanalyze", result: true,
-          note: "아래 결과는 고치기 전 내용 기준입니다." }
-        : { label: "분석 완료", tone: "mint", action: null, result: true };
+      if (m.analysis_outdated) {
+        return { label: "내용 변경 · 다시 분석 필요", tone: "amber", action: "reanalyze", result: true,
+          note: "아래 결과는 고치기 전 내용 기준입니다." };
+      }
+      if (m.analysis_prompt_outdated) {
+        return { label: "분석 완료 · 다시 분석 가능", tone: "mint", action: "reanalyze", result: true,
+          note: "분석 기준이 바뀌었습니다(예: 대응 필요 구분 추가). 지금 결과는 그대로 쓰며, 원하면 다시 분석할 수 있습니다." };
+      }
+      return { label: "분석 완료", tone: "mint", action: null, result: true };
     default:
       return { label: "분석 시작 대기", tone: "mint", action: "start", note: ERROR[m.analysis_error] };
   }
@@ -85,6 +90,8 @@ function resultView(m) {
       el("dt", { text: "중요도 제안" }),
       el("dd", { text: `${m.ai_importance ? IMPORTANCE[m.ai_importance] : "판단 보류"} — ${m.ai_importance_reason || ""}` }),
       m.ai_kind ? el("dt", { text: "종류" }) : null, m.ai_kind ? el("dd", { text: KIND[m.ai_kind] || m.ai_kind }) : null,
+      typeof m.ai_needs_action === "boolean" ? el("dt", { text: "대응" }) : null,
+      typeof m.ai_needs_action === "boolean" ? el("dd", { text: m.ai_needs_action ? "대응 필요" : "학습 자료" }) : null,
       m.ai_recommended_action ? el("dt", { text: "권장 행동" }) : null,
       m.ai_recommended_action ? el("dd", { text: m.ai_recommended_action }) : null,
       m.ai_keywords && m.ai_keywords.length ? el("dt", { text: "핵심어" }) : null,

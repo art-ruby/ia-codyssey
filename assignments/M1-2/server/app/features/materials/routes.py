@@ -11,7 +11,7 @@ from app.core.context import RequestContext
 from app.core.deps import get_store
 from app.core.firestore import Store
 from app.core.requests import Result, run_idempotent
-from app.features.materials import service
+from app.features.materials import priority, service
 from app.features.materials.schemas import MaterialCreate, MaterialUpdate
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
@@ -33,6 +33,12 @@ def list_materials(limit: int = Query(20, ge=1, le=100), cursor: str | None = No
                    ctx: RequestContext = Depends(get_context), store: Store = Depends(get_store)) -> dict:
     # view(PRD 외 추가, T03.03·T03.04): inbox=받은 자료, review=승인 요청 목록, later=나중에 보기. 커서는 같은 view로만 이어 쓴다.
     return service.list_materials(store, ctx, limit, cursor, view)
+
+
+@router.get("/priority")
+def material_priority(ctx: RequestContext = Depends(get_context), store: Store = Depends(get_store)) -> dict:
+    # PRD 외 추가(T04.04). 오늘·AI 동향용 우선순위. `/{material_id}`보다 먼저 선언해야 경로가 겹치지 않는다.
+    return priority.priority_view(store, ctx)
 
 
 @router.get("/{material_id}")

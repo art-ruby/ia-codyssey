@@ -221,6 +221,7 @@ class AnalysisAdapter:
             ai_keywords=out.keywords,
             ai_uncertainties=notes,
             ai_recommended_action=out.recommended_action or None,
+            ai_needs_action=out.needs_action,
             ai_evidence=evidence,
             ai_checked_scope={
                 "fields": list(sent),

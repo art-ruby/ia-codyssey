@@ -12,7 +12,7 @@ import json
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Importance = Literal["high", "medium", "low"]
 KINDS = ("article", "document", "note", "reference", "tool", "other")
@@ -23,7 +23,7 @@ CONTENT_FIELDS = ("title", "description", "body")
 MIN_EVIDENCE_CHARS = 8
 AI_FIELDS = (
     "ai_title", "ai_summary", "ai_importance", "ai_importance_reason", "ai_primary_project_id",
-    "ai_kind", "ai_keywords", "ai_uncertainties", "ai_recommended_action", "ai_evidence",
+    "ai_kind", "ai_keywords", "ai_uncertainties", "ai_recommended_action", "ai_needs_action", "ai_evidence",
     "ai_checked_scope", "ai_grounding",
 )
 # 문장부호 뒤 공백이 없어도 문장을 나눈다("One.Two."). 소수점(1.5)·도메인(example.com)처럼
@@ -87,7 +87,15 @@ class ModelOutput(BaseModel):
     keywords: list[str] = Field(max_length=8)
     uncertainties: list[str] = Field(max_length=3)
     recommended_action: str = Field(max_length=200)
+    # 대응 필요(T04.04): 기한·변경·종료·요청처럼 사용자가 해야 할 일이 자료에 적혀 있다.
+    needs_action: bool
     evidence: list[str] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def action_when_needed(self):
+        if self.needs_action and not word_chars(self.recommended_action):
+            raise ValueError("대응 필요면 권장 행동이 있어야 합니다")
+        return self
 
     @field_validator("title", "importance_reason")
     @classmethod
@@ -126,6 +134,8 @@ class AnalysisResult(BaseModel):
     ai_keywords: list[str]
     ai_uncertainties: list[str]
     ai_recommended_action: str | None
+    # T04.04 이전 결과에는 없다(None = 대응 여부 미확인).
+    ai_needs_action: bool | None = None
     ai_evidence: list[str]
     ai_checked_scope: dict
     # 무엇을 어떻게 대조했는지. 화면은 이 값으로 'AI 제안 · 사실 확인 안 됨'을 표시한다.

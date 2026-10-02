@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 from app.core.context import RequestContext
 from app.core.errors import NoChange
 from app.core.firestore import NotFound, Page, Store, VersionConflict, now_utc
+from app.features.analysis.prompts import PROMPT_VERSION
 from app.features.analysis.schemas import AI_FIELDS, content_hash
 from app.features.materials.schemas import CONTENT_FIELDS, LIMITS
 from app.features.materials.url_keys import url_index_id, url_key  # noqa: F401  (url_key: 기존 import 호환)
@@ -130,6 +131,14 @@ def analysis_stale(doc: dict, now: datetime | None = None) -> bool:
             and datetime.fromisoformat(deadline) < (now or datetime.now(timezone.utc)))
 
 
+def analysis_prompt_outdated(doc: dict) -> bool:
+    """완료된 결과가 이전 분석 기준(프롬프트·출력 계약)으로 만들어졌다. 결과는 계속 쓰되 '다시 분석 가능'으로 알린다.
+
+    자동으로 다시 호출하지 않는다. 사용자가 시작하면 입력 지문의 버전이 달라 새 분석이 된다(T04.04 코드 리뷰).
+    """
+    return doc.get("analysis_status") == "done" and doc.get("analysis_prompt_version") != PROMPT_VERSION
+
+
 def analysis_outdated(doc: dict) -> bool:
     """저장된 AI 결과가 지금 내용 기준이 아니다(결과 뒤에 내용을 고쳤다). 화면은 '다시 분석 필요'로 표시한다."""
     return bool(doc.get("ai_content_hash")) and doc["ai_content_hash"] != content_hash(doc)
@@ -142,6 +151,7 @@ def public(doc: dict) -> dict:
     out["revisit_due"] = revisit_due(doc)
     out["analysis_stale"] = analysis_stale(doc)
     out["analysis_outdated"] = analysis_outdated(doc)
+    out["analysis_prompt_outdated"] = analysis_prompt_outdated(doc)
     return out
 
 

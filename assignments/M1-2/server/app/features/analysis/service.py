@@ -91,7 +91,9 @@ def start_analysis(store: Store, ctx: RequestContext, material_id: str, expected
     _check_allowed(doc)
     offered = _active_projects(store, ctx)
     fp = input_fingerprint(doc, offered)
-    if doc.get("analysis_status") == "done" and doc.get("analysis_result_fp") == fp:
+    # 지문에 프롬프트 버전이 들어 있지만, 버전 기록도 함께 확인해 이전 기준의 결과를 재사용하지 않는다.
+    if (doc.get("analysis_status") == "done" and doc.get("analysis_result_fp") == fp
+            and doc.get("analysis_prompt_version") == PROMPT_VERSION):
         return 200, {"status": "reused", "material": public(doc)}, None
 
     now = datetime.now(timezone.utc)
@@ -200,6 +202,7 @@ def run_job(store: Store, ctx: RequestContext, job: Job, adapter_factory: Callab
             **base, **result.to_fields(),
             "analysis_status": "done", "analysis_error": None, "analysis_model": result.model,
             "analysis_result_fp": job.fingerprint, "ai_content_hash": content_hash(job.snapshot),
+            "analysis_prompt_version": PROMPT_VERSION,
         }
 
     try:

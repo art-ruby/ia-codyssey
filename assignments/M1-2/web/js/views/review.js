@@ -119,6 +119,20 @@ export function renderReview(root, ctx) {
       ...IMPORTANCE.map(([v, label]) => el("option", { value: v, text: label })));
     importance.value = value(material, "user_importance");
     importance.addEventListener("change", () => setDraft(material, "user_importance", importance.value));
+    // AI 제안 중요도는 자동으로 채우지 않는다. 사용자가 '제안 적용'을 누르거나 직접 고른 값만 승인 때 저장된다(T04.04).
+    const aiUsable = material.analysis_status === "done" && !material.analysis_outdated;
+    let suggestion = null;
+    if (aiUsable) {
+      const label = (IMPORTANCE.find(([v]) => v === (material.ai_importance || "")) || ["", "판단 보류"])[1];
+      const apply = el("button", { class: "button secondary small", type: "button", text: "제안 적용" });
+      apply.addEventListener("click", () => {
+        importance.value = material.ai_importance || "";
+        setDraft(material, "user_importance", importance.value);
+      });
+      suggestion = el("p", { class: "ai-suggestion" },
+        el("span", { text: `AI 제안 중요도: ${label}${material.ai_importance_reason ? ` — ${material.ai_importance_reason}` : ""}` }),
+        material.review_status === "approved" ? null : apply);
+    }
     const project = projectSelect(material);
     project.addEventListener("change", () => setDraft(material, "primary_project_id", project.value));
     const saveApproved = material.review_status === "approved"
@@ -144,6 +158,7 @@ export function renderReview(root, ctx) {
           el("label", {}, el("span", { text: "제목" }), title),
           el("label", {}, el("span", { text: "중요도" }), importance),
           el("label", {}, el("span", { text: "주 프로젝트" }), project)),
+        suggestion,
         saveApproved,
         note ? el("p", { class: "row-note", role: "status", text: note }) : null,
         // 분석 결과는 제안으로만 보여주고 제목·중요도 입력값을 바꾸지 않는다(T04.02).

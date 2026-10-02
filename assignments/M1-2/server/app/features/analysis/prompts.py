@@ -11,7 +11,7 @@ import json
 from app.features.analysis.schemas import KINDS
 
 # 프롬프트나 출력 계약을 바꾸면 올린다. 같은 입력이라도 버전이 다르면 새 분석 대상이다(T04.02 입력 지문).
-PROMPT_VERSION = "2026-10-02.1"
+PROMPT_VERSION = "2026-10-02.2"  # .2: needs_action 추가(T04.04)
 
 SYSTEM = f"""당신은 개인 자료 정리 도우미입니다. 사용자 메시지의 JSON 안 `material`을 분석합니다.
 
@@ -31,6 +31,7 @@ SYSTEM = f"""당신은 개인 자료 정리 도우미입니다. 사용자 메시
 - keywords: 핵심어 배열(최대 8개)
 - uncertainties: 불확실한 점 배열(최대 3개)
 - recommended_action: 권장 행동(200자 이하, 없으면 빈 문자열)
+- needs_action: 기한·변경·종료·요청처럼 사용자가 해야 할 일이 `material`에 적혀 있으면 true, 참고·학습용이면 false. true이면 recommended_action을 반드시 쓰세요
 - evidence: `material`에서 그대로 옮긴 짧은 인용문 1~3개(각 8자 이상, 바꿔 쓰지 말 것)"""
 
 

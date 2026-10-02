@@ -208,3 +208,17 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 - 보내기 전에 멈춘 실패(설정 누락·도구 확인 실패 등)는 예약을 돌려준다. 실제로 보낸 요청은 실패·429·시간 초과도 사용량에 남는다(`failed_sent`). 응답은 받았지만 형식·근거 검증에 실패한 경우(`invalid_output`·`ungrounded_output`)도 그 응답의 토큰을 `total_tokens`에 더한다.
 - Provider 429(`rate_limited`)는 `failed`가 아니라 `quota_waiting` + `analysis_error=rate_limited`다.
 - 재사용(`reused`)·거부(409)·한도 대기는 사용량을 쓰지 않는다. Hermes 도구 확인 호출과 수동 스모크 스크립트는 세지 않는다.
+
+## 오늘·AI 동향 우선순위 (T04.04)
+
+**`GET /api/materials/priority`** — PRD 외 추가. 현재 모드의 활성 자료(휴지통 제외)를 우선순위로 정렬한다.
+- 200 `{items, pending, counts: {unreviewed, kept}, scanned, truncated}`. `items`는 최종 중요도가 있는 자료의 정렬 결과, `pending`은 판단 보류 자료(최신 접수 순).
+- 최종 중요도 = `user_importance`, 없으면 지금 내용 기준으로 끝난 AI 제안(`analysis_status=done`이고 `analysis_outdated=false`일 때의 `ai_importance`).
+- 정렬: 최종 중요도(높음→보통→낮음) → 대응 필요(`needs_action=true`) 우선 → 최신 접수 → ID.
+- 각 자료에 `final_importance`, `importance_source`(`user`|`ai`|null), `needs_action`(true|false|null=미확인), `reason`(사용자가 정했으면 저장 이유 우선, 아니면 AI 중요 이유)이 더해진다.
+- 계산값이라 Firestore 정렬을 쓰지 않고 **최신 접수부터** 최대 500건을 읽어 서버에서 정렬한다. 넘으면 오래된 자료가 빠지고 `truncated=true`.
+- `counts.unreviewed`는 활성·미검토 자료 수, `counts.kept`는 보관 완료(`is_kept`) 수.
+
+AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION` 2026-10-02.2). 참이면 권장 행동이 있어야 한다. 자료 응답에 `ai_needs_action`이 더해지며, 이전 결과에는 없다(null).
+
+자료 응답의 `analysis_prompt_outdated`(조회 때 계산): 완료된 결과가 이전 분석 기준(`analysis_prompt_version`이 현재 `PROMPT_VERSION`과 다르거나 없음)으로 만들어졌다. 결과는 계속 쓰며(최종 중요도에도 반영), 화면은 '다시 분석 가능'으로 표시한다. 자동 호출은 없고, 사용자가 시작하면 재사용하지 않고 새로 분석한다.

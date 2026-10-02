@@ -27,7 +27,7 @@ def result(title="AI 제목") -> AnalysisResult:
     return AnalysisResult(
         ai_title=title, ai_summary="요약이다.", ai_importance="high", ai_importance_reason="이유",
         ai_primary_project_id=None, ai_kind="note", ai_keywords=["k"], ai_uncertainties=[],
-        ai_recommended_action=None, ai_evidence=["인용문 여덟 글자 이상"],
+        ai_recommended_action=None, ai_needs_action=False, ai_evidence=["인용문 여덟 글자 이상"],
         ai_checked_scope={"fields": ["title"], "chars": 1, "url_fetched": False},
         ai_grounding={"fact_checked": False}, model="gpt-6-luna", total_tokens=100,
     )
@@ -193,6 +193,31 @@ def test_turning_on_ai_exclusion_during_analysis_discards_result():
     assert doc["analysis_status"] == "awaiting_start" and doc["analysis_error"] == "ai_excluded"
     assert doc["analysis_request_sent"] is True  # 이미 보낸 요청은 사용량에 남긴다
     assert get(c, m)["ai_title"] is None
+
+
+def test_result_from_older_prompt_version_can_be_reanalyzed(monkeypatch):
+    # 리뷰 재현: 프롬프트 버전만 바뀐 결과는 화면에서 다시 분석할 방법이 없었다. 자동 호출은 하지 않는다.
+    c, store, adapter = make_client()
+    m = new(c)
+    analyze(c, m)
+    current = get(c, m)
+    assert current["analysis_prompt_outdated"] is False
+
+    store.transform(ME, "materials", m["id"], lambda d: {"analysis_prompt_version": "2026-10-02.1"})
+    old = get(c, m)
+    assert old["analysis_status"] == "done" and old["analysis_prompt_outdated"] is True
+    assert old["analysis_outdated"] is False and len(adapter.calls) == 1  # 표시만, 호출 없음
+
+    assert analyze(c, old).status_code == 202
+    assert get(c, m)["analysis_prompt_outdated"] is False and len(adapter.calls) == 2
+
+
+def test_result_without_prompt_version_counts_as_older():
+    c, store, _ = make_client()
+    m = new(c)
+    analyze(c, m)
+    store.transform(ME, "materials", m["id"], lambda d: {"analysis_prompt_version": None})
+    assert get(c, m)["analysis_prompt_outdated"] is True
 
 
 def test_edit_after_completion_marks_result_outdated_and_allows_new_analysis():

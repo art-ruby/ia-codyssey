@@ -64,3 +64,11 @@ test("사용량 줄은 요청 수와 자료 건수를 구분하고 금액을 만
   assert.equal(line, "오늘 AI 요청 37/50 · 남은 요청 13 · 한도 대기 자료 42건 · 비용: 구독 경로, 금액 미확인");
   assert.match(usageLine({ used: 0, limit: 50, remaining: 50, pending_count: 100, pending_capped: true }), /100건 이상/);
 });
+
+test("분석 기준이 바뀐 이전 결과는 그대로 보이되 다시 분석할 수 있다", () => {
+  const old = analysisState({ ...base, analysis_status: "done", analysis_prompt_outdated: true });
+  assert.equal(old.action, "reanalyze");
+  assert.equal(old.result, true);
+  assert.match(old.note, /분석 기준이 바뀌었습니다/);
+  assert.equal(analysisState({ ...base, analysis_status: "done", analysis_prompt_outdated: false }).action, null);
+});

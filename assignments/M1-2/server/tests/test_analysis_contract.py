@@ -43,6 +43,7 @@ def output(**overrides) -> dict:
         "keywords": ["정산 API", "리팩터링", "정산 API"],
         "uncertainties": [],
         "recommended_action": "계획서 초안을 화요일 전에 작성한다.",
+        "needs_action": True,
         "evidence": ["기존 정산 API는 내년 1월에 종료된다"],
     }
     data.update(overrides)
@@ -298,6 +299,26 @@ def test_validation_failure_keeps_reply_token_usage(raw):
         run(raw)
     assert info.value.kind in ("invalid_output", "ungrounded_output")
     assert info.value.total_tokens == 321 and info.value.request_sent is True
+
+
+def test_needs_action_is_part_of_the_result():
+    assert run(output())[0].to_fields()["ai_needs_action"] is True
+    assert run(output(needs_action=False, recommended_action=""))[0].to_fields()["ai_needs_action"] is False
+
+
+@pytest.mark.parametrize("change", [{"needs_action": "yes"}, {"needs_action": None},
+                                    {"needs_action": True, "recommended_action": ""}])
+def test_needs_action_must_be_bool_and_come_with_an_action(change):
+    # 대응 필요(T04.04)는 참·거짓만 받고, 참이면 무엇을 해야 하는지(권장 행동)가 있어야 한다.
+    with pytest.raises(ProviderError, match="invalid_output"):
+        run(output(**change))
+
+
+def test_missing_needs_action_is_invalid():
+    data = output()
+    del data["needs_action"]
+    with pytest.raises(ProviderError, match="invalid_output"):
+        run(data)
 
 
 def test_link_only_material_is_refused_without_calling_provider():
