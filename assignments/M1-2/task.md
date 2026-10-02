@@ -26,7 +26,7 @@
   - [x] **T05.03** 웹 자료 휴지통 이동·복원·영구 삭제
   - [x] **T05.04** 검색·채팅에 전달할 자료의 공통 필터
 - [ ] **Phase 06. 숫자 기록·요약·표본 데이터 — MVP**
-  - [ ] **T06.01** 숫자 기록 CRUD와 입력 검증
+  - [x] **T06.01** 숫자 기록 CRUD와 입력 검증
   - [ ] **T06.02** 실제·수기·표본 Summary와 추세 계산
   - [ ] **T06.03** 숫자 표본 100건 이상과 채팅 평가 자료
   - [ ] **T06.04** 활동 기록·요약 화면과 변경 반영
@@ -375,6 +375,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** `date/value/memo/metric_type/origin/mode/version`을 갖는 수기·표본 기록을 만들고 CRUD한다. 값은 0 이상 정수, 날짜는 유효 날짜로 제한한다. 실제 자료 집계값을 수정 가능한 `data` 행으로 생성하지 않는다.
 - **산출/연결:** PRD의 POST/GET/PUT/DELETE `/api/data` 및 상세 API. `/summary`를 동적 ID보다 먼저/명확히 등록한다.
 - **완료/검증:** 추가·조회·수정·삭제, 음수·소수·잘못된 날짜 422, 버전 충돌 409, 다른 모드 접근, 중복 재전송을 확인한다. A15의 CRUD 부분에 대응한다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** 출처는 모드에서(개인 manual·표본 sample, 요청으로 못 보냄), 값 0~1,000,000 엄격 정수·실제 날짜·메모 500자, 같은 날짜 여러 건 허용(요약에서 합계), 목록은 날짜 최신순·필터·커서, 삭제는 버전 확인과 한 트랜잭션.
 
 ### T06.02 실제·수기·표본 Summary와 추세 계산
 
@@ -586,8 +587,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T05.04 — AI 문맥용 공통 필터(`materials/eligibility.py`: 판정·이유·보관함 표시와 구분·질문 때 다시 읽기·보낼 필드 고정), Provider 요청 캡처 시험. Phase 05 완료 |
-| 다음 Task | T06.01 — 숫자 기록 CRUD와 입력 검증 |
+| 마지막 완료 Task | T06.01 — 숫자 기록 CRUD(`/api/data`, 출처는 모드에서·엄격 정수·실제 날짜·버전 확인·트랜잭션 삭제), 실제 Firestore 확인(`docs/verification.md`) |
+| 다음 Task | T06.02 — 실제·수기·표본 Summary와 추세 계산 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

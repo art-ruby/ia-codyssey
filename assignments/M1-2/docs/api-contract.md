@@ -261,3 +261,20 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
 - 감사 기록 `audit_events`: `{action: "permanent_delete", job_id, status: running|done|partial, steps_done, failed_step, started_at, finished_at}`. 자료 ID·본문은 남기지 않는다.
 - 삭제 중인 자료는 `PUT /api/materials/{id}` 409(`deleting`), 복원 409, 분석 409(`trashed`).
 - 색인: `materials`의 `owner_id·mode·lifecycle·created_at DESC`(2026-10-02 배포).
+
+## 숫자 기록 (T06.01)
+
+모두 인증·`X-Data-Mode` 필요, 변경 요청은 `Idempotency-Key` 필요. `data`에는 수기(개인 모드)·표본(표본 모드) 기록만 있다. 실제 지표는 저장하지 않는다(요약에서 계산, T06.02).
+
+| API | 요청 | 응답·규칙 |
+|---|---|---|
+| `POST /api/data` | `{date, metric_type, value, memo?}` | 201 기록. `origin`은 모드에서 정한다(개인 `manual`, 표본 `sample`). 보내면 422 |
+| `GET /api/data?metric_type=&date_from=&date_to=&limit=50&cursor=` | — | `{items, next_cursor, total, truncated}`. 날짜 최신순(같은 날짜는 최근 생성 먼저). `limit` 1~100. 다른 조건의 커서·망가진 커서 422 |
+| `GET /api/data/{id}` | — | 기록. 다른 소유자·모드 404 |
+| `PUT /api/data/{id}` | `{expected_version, date?, metric_type?, value?, memo?}` | 보낸 필드만 수정. 바꿀 필드가 하나도 없으면 422. 날짜·지표·값은 null 불가, 메모 null은 비움. 버전 불일치 409(`current_version`) |
+| `DELETE /api/data/{id}?expected_version=N` | — | `{deleted: true, id}`. 버전 확인과 삭제는 한 트랜잭션. 버전 없으면 422, 불일치 409 |
+
+- 기록: `{id, date, metric_type, value, memo, origin, mode, version, created_at, updated_at}`.
+- `date`: 실제 있는 `YYYY-MM-DD`, 2000-01-01~2100-12-31. `metric_type`: `received_count`|`kept_count`. `value`: 0~1,000,000 정수(소수·`2.0`·문자열·참거짓 422). `memo`: 500자 이하.
+- 같은 날짜·지표에 여러 기록을 둘 수 있다. 요약의 일별 값은 합계다(T06.02).
+- `GET /api/data/summary`(T06.02)는 `/{id}`보다 먼저 등록한다.

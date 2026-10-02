@@ -34,6 +34,7 @@ from app.features.reviews.routes import router as reviews_router
 from app.features.reviews.service import PastRevisitDate
 from app.features.settings.routes import router as settings_router
 from app.features.trash.routes import router as trash_router
+from app.features.data.routes import router as data_router
 from app.features.trash.service import NotInTrash
 from app.features.settings.service import InvalidDefaultProject
 
@@ -218,6 +219,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(analysis_router)
     app.include_router(ai_usage_router)
     app.include_router(trash_router)
+    app.include_router(data_router)
 
     if settings.allowed_origins:
         app.add_middleware(
