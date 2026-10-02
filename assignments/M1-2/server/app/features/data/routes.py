@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -14,7 +15,7 @@ from app.core.context import RequestContext
 from app.core.deps import get_store
 from app.core.firestore import Store
 from app.core.requests import Result, run_idempotent
-from app.features.data import service
+from app.features.data import service, summary
 from app.features.data.schemas import DataCreate, DataUpdate, Metric, check_date
 
 router = APIRouter(prefix="/api/data", tags=["data"])
@@ -50,7 +51,15 @@ def list_records(metric_type: Metric | None = None,
     return service.list_records(store, ctx, metric_type, date_from, date_to, limit, cursor)
 
 
-# T06.02: @router.get("/summary")는 여기, `/{record_id}`보다 위에 둔다.
+@router.get("/summary")
+def summary_view(source: Literal["actual", "manual", "sample"] | None = None,
+                 metric_type: Literal["received_count", "kept_count", "all"] = "kept_count",
+                 start_date: str | None = Query(None, pattern=DATE_PATTERN),
+                 end_date: str | None = Query(None, pattern=DATE_PATTERN),
+                 ctx: RequestContext = Depends(get_context), store: Store = Depends(get_store)) -> dict:
+    """PRD §11.2. `/{record_id}`보다 먼저 등록해 'summary'가 기록 ID로 해석되지 않게 한다(T06.02)."""
+    _check_range(start_date, end_date)
+    return summary.summarize_data(store, ctx, source, metric_type, start_date, end_date)
 
 
 @router.get("/{record_id}")

@@ -27,7 +27,7 @@
   - [x] **T05.04** 검색·채팅에 전달할 자료의 공통 필터
 - [ ] **Phase 06. 숫자 기록·요약·표본 데이터 — MVP**
   - [x] **T06.01** 숫자 기록 CRUD와 입력 검증
-  - [ ] **T06.02** 실제·수기·표본 Summary와 추세 계산
+  - [x] **T06.02** 실제·수기·표본 Summary와 추세 계산
   - [ ] **T06.03** 숫자 표본 100건 이상과 채팅 평가 자료
   - [ ] **T06.04** 활동 기록·요약 화면과 변경 반영
 - [ ] **Phase 07. 자료 기반 채팅과 대화 기록 — MVP**
@@ -383,6 +383,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **작업:** 개인 기본값은 `actual + kept_count`, 표본 기본값은 `sample + kept_count`다. 실제 접수 수는 접수 기록, 실제 보관 수는 현재 승인·보관 완료·활성 자료를 승인일별로 집계한다. 수기/표본은 `data`만 읽는다. 지표·출처·모드를 섞지 않는다.
 - **산출/연결:** `summarize_data`와 `GET /api/data/summary`. 관측 이후 빈 날은 0, 전체 데이터 없음은 합계 0 및 기간/평균/최소/최대/추세 null. 개인 기준일은 현재 한국 날짜, 표본은 최신 표본 날짜다.
 - **완료/검증:** 14일 중 앞 7일이 매일 2건, 뒤 7일이 매일 3건이면 합계 35·평균 2.5·최소 2·최대 3·증가율 50%가 나오는지 독립 계산과 대조한다. 14일 미만, 이전 기간 0, 양쪽 0, ±10% 경계, UTC/한국 날짜 경계도 검증한다. 휴지통/복원/영구 삭제 후 재계산한다. A15에 대응한다.
+- **착수 전 결정(2026-10-02, `docs/decisions.md`):** 허용 출처는 개인 actual·manual, 표본 sample·actual(그 밖 422), 실제 접수 = 접수 기록·실제 보관 = 현재 보관 자료의 승인일(서울), 관측 시작 이후 빈 날 0, 기준일은 개인 오늘·표본 최신 날짜, 최근·이전 7일 합계 비교와 ±10% 경계, `metric_type=all`은 지표별 결과.
 
 ### T06.03 숫자 표본 100건 이상과 채팅 평가 자료
 
@@ -587,8 +588,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T06.01 — 숫자 기록 CRUD(`/api/data`, 출처는 모드에서·엄격 정수·실제 날짜·버전 확인·트랜잭션 삭제), 실제 Firestore 확인(`docs/verification.md`) |
-| 다음 Task | T06.02 — 실제·수기·표본 Summary와 추세 계산 |
+| 마지막 완료 Task | T06.02 — `GET /api/data/summary`(실제는 자료에서 계산·수기/표본은 data, 출처·모드 분리, 일별 값·합계·평균·최소·최대·추세), 실제 Firestore로 명세 예시 확인(`docs/verification.md`) |
+| 다음 Task | T06.03 — 숫자 표본 100건 이상과 채팅 평가 자료 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |

@@ -278,3 +278,16 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
 - `date`: 실제 있는 `YYYY-MM-DD`, 2000-01-01~2100-12-31. `metric_type`: `received_count`|`kept_count`. `value`: 0~1,000,000 정수(소수·`2.0`·문자열·참거짓 422). `memo`: 500자 이하.
 - 같은 날짜·지표에 여러 기록을 둘 수 있다. 요약의 일별 값은 합계다(T06.02).
 - `GET /api/data/summary`(T06.02)는 `/{id}`보다 먼저 등록한다.
+
+## 숫자 요약 (T06.02)
+
+**`GET /api/data/summary?source=&metric_type=kept_count&start_date=&end_date=`** — PRD §11.2. `/api/data/{id}`보다 먼저 등록돼 있다.
+- `source`: 기본은 개인 모드 `actual`, 표본 모드 `sample`. 허용은 개인 `actual`·`manual`, 표본 `sample`·`actual`. 그 밖은 422(`source_not_allowed`).
+- `metric_type`: `kept_count`(기본) · `received_count` · `all`(지표별로 나눈 `{source, mode, results: [...]}`).
+- `actual`: 접수 수 = 접수 기록(휴지통 자료 포함, 영구 삭제 자료 제외)을 서울 날짜로, 보관 수 = 현재 보관 완료·활성 자료를 승인일(서울)로. `manual`·`sample`: `data`의 같은 출처 기록을 날짜별 합계로.
+- 200 `{metric_type, source, mode, label, period: {start, end}|null, days, daily: [{date, value}], total, average, min, max, trend}`.
+  - 기간은 관측 시작(첫 값이 있는 날)부터 기준일까지. `start_date`가 관측 시작보다 이르면 관측 시작으로 맞춘다. 기록 없는 날은 0.
+  - 값이 전혀 없으면 `total=0`, `period`·`average`·`min`·`max`·`trend`는 null, `daily=[]`.
+  - `trend`: `{status: increase|decrease|flat|insufficient|new|both_zero, recent_average, previous_average, change_rate, reference_date}`. 기준일은 개인 모드 오늘(서울), 표본 모드 그 계열의 최신 날짜. 최근 7일 vs 이전 7일, +10% 이상 증가·-10% 이하 감소. 관측 14일 미만은 `insufficient`, 이전 0건은 `new` 또는 `both_zero`(백분율 없음).
+- `label`: 지표·출처 조합의 화면 이름(예: `kept_count + actual` = '현재 보관 자료 수', `kept_count + manual` = '사용자 입력 보관 기록').
+- 날짜 형식·범위 오류, 시작이 끝보다 늦음, 허용 밖 지표는 422.

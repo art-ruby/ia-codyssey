@@ -35,6 +35,7 @@ from app.features.reviews.service import PastRevisitDate
 from app.features.settings.routes import router as settings_router
 from app.features.trash.routes import router as trash_router
 from app.features.data.routes import router as data_router
+from app.features.data.summary import SourceNotAllowed
 from app.features.trash.service import NotInTrash
 from app.features.settings.service import InvalidDefaultProject
 
@@ -188,6 +189,11 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     @app.exception_handler(PastRevisitDate)
     async def past_revisit_date(_, __):
         return _error(422, "다시 볼 날짜는 오늘(서울 기준) 이후여야 합니다")
+
+    @app.exception_handler(SourceNotAllowed)
+    async def source_not_allowed(_, __):
+        return _error(422, "이 모드에서 쓸 수 없는 출처입니다. 개인 모드는 actual·manual, 표본 모드는 sample·actual입니다",
+                      reason="source_not_allowed")
 
     @app.exception_handler(NotInTrash)
     async def not_in_trash(_, __):
