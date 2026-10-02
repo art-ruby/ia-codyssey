@@ -141,10 +141,14 @@ def run_job(store: Store, ctx: RequestContext, job: Job, adapter_factory: Callab
             "analysis_request_sent": sent,
             "analysis_total_tokens": result.total_tokens if result else None,
         }
-        if content_hash(current) != content_hash(job.snapshot):
+        # 분석 중에 AI 분석 제외를 켰거나 내용이 바뀌었으면 결과를 저장하지 않는다. 이미 보낸 요청은 되돌릴 수
+        # 없으므로 사용량 기록(`analysis_request_sent`)만 남긴다. 제외는 내용 지문에 없으므로 따로 확인한다.
+        discard = ("ai_excluded" if current.get("ai_excluded")
+                   else "input_changed" if content_hash(current) != content_hash(job.snapshot) else None)
+        if discard:
             has_content = any(current.get(name) for name in CONTENT_FIELDS)
             return {**base, "analysis_status": "awaiting_start" if has_content else "link_only",
-                    "analysis_error": "input_changed"}
+                    "analysis_error": discard}
         if error:
             return {**base, "analysis_status": "failed", "analysis_error": error}
         return {

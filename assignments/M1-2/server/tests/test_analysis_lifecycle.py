@@ -180,6 +180,21 @@ def test_edit_during_analysis_discards_result_and_keeps_edit():
     assert doc["ai_title"] is None
 
 
+def test_turning_on_ai_exclusion_during_analysis_discards_result():
+    # 리뷰 재현: 내용 지문에 ai_excluded가 없어, 분석 중 제외를 켜도 결과가 저장되던 문제.
+    c, store, adapter = make_client()
+    m = new(c, title="제목", body="본문 내용")
+    adapter.during = lambda: store.update(ME, "materials", m["id"], m["version"], {"ai_excluded": True})
+
+    analyze(c, m)
+
+    doc = store.get(ME, "materials", m["id"])
+    assert doc["ai_excluded"] is True and doc.get("ai_title") is None
+    assert doc["analysis_status"] == "awaiting_start" and doc["analysis_error"] == "ai_excluded"
+    assert doc["analysis_request_sent"] is True  # 이미 보낸 요청은 사용량에 남긴다
+    assert get(c, m)["ai_title"] is None
+
+
 def test_edit_after_completion_marks_result_outdated_and_allows_new_analysis():
     c, _, adapter = make_client()
     m = new(c)

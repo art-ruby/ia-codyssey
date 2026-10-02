@@ -40,6 +40,12 @@ test("분석 중 내용 변경으로 버린 결과를 알린다", () => {
     /내용이 바뀌어/);
 });
 
+test("분석 중 제외를 켜서 버린 결과는 제외를 끈 뒤에 사유를 알린다", () => {
+  const m = { ...base, analysis_status: "awaiting_start", analysis_error: "ai_excluded" };
+  assert.equal(analysisState({ ...m, ai_excluded: true }).label, "AI 분석 제외");
+  assert.match(analysisState(m).note, /AI 분석 제외를 켜서/);
+});
+
 test("전송 범위는 값이 있는 입력 필드만 센다", () => {
   assert.deepEqual(sendScope({ title: "제목", body: "본문 내용", description: "", save_reason: "이유", memo: null }),
     { labels: ["제목", "본문", "저장 이유"], chars: 9 });

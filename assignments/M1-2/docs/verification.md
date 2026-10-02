@@ -183,3 +183,4 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 - 다른 세션이 8012·5500 포트와 공유 `web/js/config.js`를 쓰고 있어 웹 폴더 복사본(scratchpad)을 8011로 가리켜 시험했다. 공유 `config.js`는 바꾸지 않았다.
 - 정리: 이번 시험의 표본 자료 1·접수 기록 1·중복 요청 기록 7건 삭제, 브라우저 개인 모드, 테스트 서버 종료.
 - 커밋 직전 회귀(T04.01 2차 보완 `b439902c` 이후): `pytest server/tests -q` **309 passed**, 웹 `node --test` **16 passed**, `node --check`(분석 패널·받은 자료·검토 화면)·`git diff --check` 통과.
+- 코드 리뷰 보완(같은 날): 분석 중 AI 분석 제외를 켜는 경우를 실패 테스트로 먼저 재현(결과 `ai_title`이 저장됨)한 뒤 고쳤다. 이제 결과를 버리고 `awaiting_start` + `ai_excluded`, `analysis_request_sent=true`. 웹은 제외 중에는 'AI 분석 제외', 제외를 끈 뒤에는 버린 사유를 표시. `pytest server/tests -q` **310 passed**, 웹 `node --test` **17 passed**. 화면에서 분석 도중 제외를 켜는 실제 브라우저 시험은 하지 않았다(Provider 호출이 몇십 초 걸려 타이밍 재현이 불안정함).

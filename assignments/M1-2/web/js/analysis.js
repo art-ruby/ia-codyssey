@@ -7,6 +7,7 @@ const IMPORTANCE = { high: "높음", medium: "보통", low: "낮음" };
 const KIND = { article: "글", document: "문서", note: "메모", reference: "참고 자료", tool: "도구", other: "기타" };
 const ERROR = {
   input_changed: "분석하는 동안 내용이 바뀌어 결과를 저장하지 않았습니다.",
+  ai_excluded: "분석하는 동안 AI 분석 제외를 켜서 결과를 저장하지 않았습니다.",
   rate_limited: "AI 요청 한도에 걸렸습니다. 잠시 뒤 다시 시도하세요.",
   timeout: "AI 응답 시간이 초과되었습니다.",
   invalid_output: "AI 응답 형식이 맞지 않아 저장하지 않았습니다.",
