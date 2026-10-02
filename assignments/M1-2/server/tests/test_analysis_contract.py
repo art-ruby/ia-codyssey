@@ -169,6 +169,62 @@ def test_too_short_evidence_does_not_count():
         run(output(evidence=["API"]))
 
 
+def test_quotes_only_from_user_notes_are_ungrounded():
+    # 저장 이유·메모는 사용자가 쓴 말이라 자료 내용의 근거가 될 수 없다.
+    with pytest.raises(ProviderError, match="ungrounded_output"):
+        run(output(evidence=["결제 개편 일정에 영향"]))
+
+
+def test_note_quote_is_kept_beside_content_quote():
+    fields = run(output(evidence=["결제 개편 일정에 영향", "기존 정산 API는 내년 1월에 종료된다"]))[0].to_fields()
+    assert fields["ai_evidence"] == ["결제 개편 일정에 영향", "기존 정산 API는 내년 1월에 종료된다"]
+
+
+def test_quote_spanning_two_fields_is_not_grounded():
+    with pytest.raises(ProviderError, match="ungrounded_output"):
+        run(output(evidence=["정산 API 종료 공지 다음 주 화요일까지"]))
+
+
+def test_inactive_project_passed_by_mistake_is_not_offered():
+    projects = [PROJECTS[0], {"id": "p3", "name": "보관된 프로젝트", "active": False}]
+    fields_and_fake = run(output(primary_project_id="p3"), projects=projects)
+    assert fields_and_fake[0].to_fields()["ai_primary_project_id"] is None
+    assert sent_data(fields_and_fake[1])["projects"] == [PROJECTS[0]]
+
+
+@pytest.mark.parametrize("kind, sent", [
+    ("ai_excluded", False), ("no_content", False), ("hermes_tools_enabled", False),
+    ("hermes_toolset_check_failed", False), ("invalid_output", True), ("ungrounded_output", True),
+    ("rate_limited", True), ("timeout", True), ("provider_connection_error", True),
+    ("output_truncated", True),
+])
+def test_error_tells_whether_a_request_reached_the_provider(kind, sent):
+    # T04.03 사용량: 보낸 요청은 실패해도 센다. 연결 오류는 도달 여부가 불확실해 보낸 것으로 본다.
+    assert ProviderError(kind).request_sent is sent
+
+
+def test_length_finish_is_reported_as_truncated(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.core.config import load_settings
+
+    def create(**_kwargs):
+        return SimpleNamespace(choices=[SimpleNamespace(finish_reason="length",
+                                                        message=SimpleNamespace(content="{"))],
+                               model="gpt-6-luna", usage=None)
+
+    monkeypatch.setattr(module, "OpenAI", lambda **_kwargs: SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    ))
+    monkeypatch.setattr(module.HermesProvider, "_require_tool_free_profile", lambda self: None)
+    provider = module.HermesProvider(load_settings({
+        "OPENAI_API_KEY": "k", "AI_PROVIDER_BASE_URL": "http://127.0.0.1:8642/v1",
+        "AI_PROVIDER_MODEL": "gpt-6-luna", "AI_PROVIDER_ROUTE": "openai-codex",
+    }))
+    with pytest.raises(ProviderError, match="output_truncated"):
+        provider.complete_text([{"role": "user", "content": "x"}])
+
+
 def test_link_only_material_is_refused_without_calling_provider():
     fake = FakeCompleter(json.dumps(output()))
     with pytest.raises(ProviderError, match="no_content"):

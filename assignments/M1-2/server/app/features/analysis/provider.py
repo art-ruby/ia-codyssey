@@ -26,6 +26,14 @@ from app.features.analysis.schemas import (
 )
 
 
+# Provider에 요청을 보내기 전에 멈춘 오류. 이 밖의 오류는 요청이 나갔다고 보고 사용량에 센다(T04.03).
+# 연결 오류는 도달 여부가 불확실하므로 보낸 쪽으로 센다(한도를 넘지 않는 쪽).
+PRE_SEND_KINDS = frozenset({
+    "invalid_hermes_url", "insecure_hermes_url", "missing_hermes_route",
+    "hermes_toolset_check_failed", "hermes_tools_enabled", "ai_excluded", "no_content",
+})
+
+
 class ProviderError(RuntimeError):
     """사용자에게 전달 가능한 오류 종류만 담는다."""
 
@@ -33,6 +41,10 @@ class ProviderError(RuntimeError):
         self.kind = kind
         self.status_code = status_code
         super().__init__(kind)
+
+    @property
+    def request_sent(self) -> bool:
+        return self.kind not in PRE_SEND_KINDS
 
 
 @dataclass(frozen=True)
@@ -100,6 +112,8 @@ class HermesProvider:
         except OpenAIError as exc:
             raise ProviderError("provider_connection_error") from exc
         choice = response.choices[0] if response.choices else None
+        if choice is not None and choice.finish_reason == "length":
+            raise ProviderError("output_truncated")  # 출력 한도(AI_MAX_OUTPUT_TOKENS)에 걸렸다
         if choice is None or choice.finish_reason != "stop":
             raise ProviderError("provider_incomplete_response")
         content = choice.message.content
@@ -145,7 +159,7 @@ class AnalysisAdapter:
             raise ProviderError("no_content")  # URL만 있는 자료: 본문을 읽은 것처럼 만들지 않는다
         sent = {name: material[name] for name in INPUT_FIELDS if material.get(name)}
         payload = dict(sent, url=material["url"]) if material.get("url") else dict(sent)
-        offered = [{"id": p["id"], "name": p["name"]} for p in projects]
+        offered = [{"id": p["id"], "name": p["name"]} for p in projects if p.get("active", True)]
 
         reply = self.completer.complete_text(build_messages(payload, offered))
         try:
@@ -153,10 +167,18 @@ class AnalysisAdapter:
         except ValidationError as exc:
             raise ProviderError("invalid_output") from exc
 
-        source = normalize_space(" ".join(sent.values()))
-        evidence = [q for q in out.evidence
-                    if len(normalize_space(q)) >= MIN_EVIDENCE_CHARS and normalize_space(q) in source]
-        if not evidence:
+        # 인용은 한 필드 안에 그대로 있어야 한다(필드 경계를 넘는 인용은 지어낸 문장일 수 있다).
+        # 저장 이유·메모는 사용자가 쓴 말이므로, 자료 내용(제목·설명·본문) 인용이 하나 이상 있어야 한다.
+        normalized = {name: normalize_space(value) for name, value in sent.items()}
+
+        def found_in(quote: str) -> set[str]:
+            q = normalize_space(quote)
+            if len(q) < MIN_EVIDENCE_CHARS:
+                return set()
+            return {name for name, value in normalized.items() if q in value}
+
+        evidence = [q for q in out.evidence if found_in(q)]
+        if not any(found_in(q) & set(CONTENT_FIELDS) for q in evidence):
             raise ProviderError("ungrounded_output")
 
         notes = list(out.uncertainties)
