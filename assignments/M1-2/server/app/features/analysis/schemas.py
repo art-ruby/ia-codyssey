@@ -7,6 +7,8 @@ AI 제안값은 모두 `ai_` 접두어를 붙여 사용자 최종값(`user_impor
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from typing import Literal
 
@@ -39,6 +41,12 @@ UNVERIFIED_FIELDS = ("title", "importance_reason", "recommended_action", "keywor
 
 def normalize_space(text: str) -> str:
     return " ".join(text.split())
+
+
+def content_hash(doc: dict) -> str:
+    """AI에 보내는 자료 내용(입력 필드 + URL)의 지문. 결과가 지금 내용 기준인지 비교할 때 쓴다(T04.02)."""
+    data = {name: doc.get(name) or "" for name in (*INPUT_FIELDS, "url")}
+    return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
 def sentences(text: str) -> list[str]:

@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from typing import Callable
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -21,6 +22,9 @@ from app.core.firestore import InvalidCursor, NotFound, Store, VersionConflict
 from app.core.requests import IdempotencyConflict, IdempotencyKeyRequired
 from app.features.materials.routes import router as materials_router
 from app.features.materials.schemas import LIMITS
+from app.features.analysis.provider import AnalysisAdapter, HermesProvider
+from app.features.analysis.routes import router as analysis_router
+from app.features.analysis.service import AnalysisInProgress, AnalysisRefused
 from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
                                             MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget)
 from app.features.projects.routes import router as projects_router
@@ -70,12 +74,20 @@ def _validation_message(errors: list[dict]) -> str:
     return f"{label} 입력 형식을 확인하세요"
 
 
+ANALYSIS_REFUSED = {
+    "trashed": "휴지통에 있는 자료는 분석할 수 없습니다. 복원한 뒤 다시 시도하세요",
+    "ai_excluded": "AI 분석 제외 자료입니다. 제외를 해제해야 분석할 수 있습니다",
+    "no_content": "링크만 저장된 자료라 분석할 내용이 없습니다. 제목·설명·본문을 입력하세요",
+}
+
+
 def _error(code: int, detail: str, **extra) -> JSONResponse:
     return JSONResponse({"detail": detail, **extra}, status_code=code)
 
 
 def create_app(settings: Settings | None = None, verify_token: TokenVerifier | None = None,
-               store: Store | None = None) -> FastAPI:
+               store: Store | None = None,
+               analysis_adapter_factory: Callable[[], AnalysisAdapter] | None = None) -> FastAPI:
     """테스트는 settings·verify_token·store를 직접 넘겨 실제 키·Firebase 없이 앱을 만든다.
 
     verify_token·store가 없으면 처음 필요할 때 Firebase Admin SDK로 만든다.
@@ -86,6 +98,9 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.state.settings = settings
     app.state.verify_token = verify_token
     app.state.store = store
+    # 분석 작업마다 Adapter를 만든다. 설정이 비어 있으면 그 작업만 `missing_ai_settings`로 실패한다(T04.02).
+    app.state.analysis_adapter_factory = analysis_adapter_factory or (
+        lambda: AnalysisAdapter(HermesProvider(settings)))
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -170,6 +185,14 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     async def past_revisit_date(_, __):
         return _error(422, "다시 볼 날짜는 오늘(서울 기준) 이후여야 합니다")
 
+    @app.exception_handler(AnalysisRefused)
+    async def analysis_refused(_, exc: AnalysisRefused):
+        return _error(409, ANALYSIS_REFUSED[exc.reason], reason=exc.reason)
+
+    @app.exception_handler(AnalysisInProgress)
+    async def analysis_in_progress(_, __):
+        return _error(409, "이미 분석 중입니다. 끝나면 결과가 표시됩니다", reason="analysis_in_progress")
+
     @app.exception_handler(RequestValidationError)
     async def validation_error(_, exc: RequestValidationError):
         # 사용자가 이해할 수 있는 안내를 detail로 준다. 입력값(input)은 응답에 되돌려 보내지 않는다.
@@ -180,6 +203,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(settings_router)
     app.include_router(materials_router)
     app.include_router(reviews_router)
+    app.include_router(analysis_router)
 
     if settings.allowed_origins:
         app.add_middleware(

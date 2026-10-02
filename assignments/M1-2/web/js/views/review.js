@@ -1,16 +1,13 @@
 // S07 검토·승인: 승인 요청 목록에서 묶음 선택·일부 제외, 제목·중요도·프로젝트를 고쳐 보관 승인한다(T03.03).
 // 항목별 결과를 그대로 보여준다. 충돌한 자료는 성공으로 표시하지 않고, 고친 값은 남긴 채 최신 버전을 다시 불러온다.
 // 모든 문자열은 textContent·value로만 넣는다.
+import { analysisPanel, analysisState } from "../analysis.js";
 import { request } from "../api.js";
 import { processBatches, splitBatches } from "../review-batches.js";
 import { singleFlight } from "../single-flight.js";
 
 const TITLE_LIMIT = 200; // server/app/features/materials/schemas.py와 같다
 const IMPORTANCE = [["", "판단 보류"], ["high", "높음"], ["medium", "보통"], ["low", "낮음"]];
-const STATUS = {
-  link_only: ["링크만 저장됨 · 본문 미확인", "amber"],
-  awaiting_start: ["분석 시작 대기", "mint"],
-};
 const REASON = {
   trashed: "휴지통에 있는 자료라 승인하지 않았습니다.",
   project: "연결할 프로젝트가 없거나 비활성입니다. 프로젝트를 다시 고르세요.",
@@ -129,9 +126,9 @@ export function renderReview(root, ctx) {
     if (saveApproved) saveApproved.addEventListener("click", () => saveApprovedChanges(material, saveApproved));
 
     // AI 분석 제외는 분석 상태를 덮어쓰지 않고 화면에서만 대신 보여준다(T03.04).
+    const analysis = analysisState(material);
     const [statusText, tone] = material.review_status === "approved" ? ["이미 보관 승인됨", "mint"]
-      : material.ai_excluded ? ["AI 분석 제외", ""]
-        : (STATUS[material.analysis_status] || [material.analysis_status, ""]);
+      : [analysis.label, analysis.tone];
     const context = material.description || material.body || "";
     const note = notes.get(material.id);
     return el("li", { class: "review-card", "data-id": material.id },
@@ -148,7 +145,20 @@ export function renderReview(root, ctx) {
           el("label", {}, el("span", { text: "중요도" }), importance),
           el("label", {}, el("span", { text: "주 프로젝트" }), project)),
         saveApproved,
-        note ? el("p", { class: "row-note", role: "status", text: note }) : null));
+        note ? el("p", { class: "row-note", role: "status", text: note }) : null,
+        // 분석 결과는 제안으로만 보여주고 제목·중요도 입력값을 바꾸지 않는다(T04.02).
+        analysisPanel(material, {
+          api, isCurrent: ctx.isCurrent, onError: ctx.onError,
+          onChange: (next) => {
+            items = items.map((m) => (m.id === next.id ? next : m));
+            const tag = list.querySelector(`.review-card[data-id="${CSS.escape(next.id)}"] .material-meta .tag`);
+            if (tag && next.review_status !== "approved") {
+              const state = analysisState(next);
+              tag.className = `tag ${state.tone}`;
+              tag.textContent = state.label;
+            }
+          },
+        })));
   }
 
   function renderList() {

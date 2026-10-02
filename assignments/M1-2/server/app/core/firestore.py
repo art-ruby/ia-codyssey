@@ -19,7 +19,7 @@ import threading
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Mapping, Protocol
+from typing import Any, Callable, Mapping, Protocol
 
 from app.core.config import ConfigError, Settings
 from app.core.context import RequestContext
@@ -159,6 +159,12 @@ class Store(Protocol):
     def update(self, ctx: RequestContext, collection: str, doc_id: str,
                expected_version: int, changes: Mapping[str, Any]) -> dict: ...
 
+    # 사용자 버전을 올리지 않는 원자적 수정(분석 상태·결과처럼 사용자 수정 필드와 겹치지 않는 값용, T04.02).
+    # fn(현재 문서 사본) -> 바꿀 필드. fn이 예외를 내면 아무것도 쓰지 않는다. Firestore에서는
+    # 트랜잭션 충돌 시 fn이 다시 불릴 수 있으므로 fn은 부수 효과가 없어야 한다.
+    def transform(self, ctx: RequestContext, collection: str, doc_id: str,
+                  fn: Callable[[dict], Mapping[str, Any]]) -> dict: ...
+
     # where: 같음 조건(field == value). 조건 조합마다 firestore.indexes.json에 복합 색인이 필요하다.
     def list(self, ctx: RequestContext, collection: str, limit: int = 20,
              cursor: str | None = None, descending: bool = False,
@@ -233,6 +239,17 @@ class MemoryStore:
                 raise VersionConflict(doc["version"])
             doc.update(_user_fields(changes))
             doc["version"] += 1
+            doc["updated_at"] = now_utc()
+            return copy.deepcopy(doc)
+
+    def transform(self, ctx, collection, doc_id, fn):
+        _check_collection(collection)
+        _check_doc_id(collection, doc_id)
+        with self._lock:
+            doc = self._docs[collection].get(doc_id)
+            if not _owned(doc, ctx):
+                raise NotFound(collection)
+            doc.update(_user_fields(fn(copy.deepcopy(doc))))
             doc["updated_at"] = now_utc()
             return copy.deepcopy(doc)
 
@@ -376,6 +393,25 @@ class FirestoreStore:
                 raise VersionConflict(doc["version"])
             doc.update(_user_fields(changes))
             doc["version"] += 1
+            doc["updated_at"] = now_utc()
+            tx.set(ref, doc)
+            return doc
+
+        return run(self._db.transaction())
+
+    def transform(self, ctx, collection, doc_id, fn):
+        from google.cloud import firestore as gcf
+
+        _check_collection(collection)
+        ref = self._ref(collection, doc_id)
+
+        @gcf.transactional
+        def run(tx):
+            snap = ref.get(transaction=tx)
+            doc = snap.to_dict() if snap.exists else None
+            if not _owned(doc, ctx):
+                raise NotFound(collection)
+            doc.update(_user_fields(fn(copy.deepcopy(doc))))
             doc["updated_at"] = now_utc()
             tx.set(ref, doc)
             return doc

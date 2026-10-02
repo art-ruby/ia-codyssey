@@ -10,6 +10,9 @@ import json
 
 from app.features.analysis.schemas import KINDS
 
+# 프롬프트나 출력 계약을 바꾸면 올린다. 같은 입력이라도 버전이 다르면 새 분석 대상이다(T04.02 입력 지문).
+PROMPT_VERSION = "2026-10-02.1"
+
 SYSTEM = f"""당신은 개인 자료 정리 도우미입니다. 사용자 메시지의 JSON 안 `material`을 분석합니다.
 
 규칙:

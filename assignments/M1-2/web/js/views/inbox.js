@@ -1,5 +1,6 @@
 // S02 받은 자료: URL·텍스트 접수 폼과 최신순 목록, 상세 수정.
 // URL만 받은 자료는 본문을 읽었다고 표시하지 않는다(PRD C02). 모든 문자열은 textContent·value로만 넣는다.
+import { analysisPanel, analysisState } from "../analysis.js";
 import { request } from "../api.js";
 import { loadAllLaterPages, sortLater } from "../later-list.js";
 import { processBatches, splitBatches } from "../review-batches.js";
@@ -14,10 +15,6 @@ const FIELDS = [
   ["save_reason", "저장 이유", "textarea", 2],
   ["memo", "메모", "textarea", 2],
 ];
-const STATUS = {
-  link_only: ["링크만 저장됨 · 본문 미확인", "amber"],
-  awaiting_start: ["분석 시작 대기", "mint"],
-};
 const SEOUL = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" });
 
 function el(tag, attrs = {}, ...children) {
@@ -59,9 +56,8 @@ function readFields(root) {
 
 // AI 분석 제외는 분석 상태를 덮어쓰지 않고 화면에서만 대신 보여준다(T03.04). 제외를 풀면 원래 상태가 다시 보인다.
 function statusTag(material) {
-  if (material.ai_excluded) return el("span", { class: "tag", text: "AI 분석 제외" });
-  const [text, tone] = STATUS[material.analysis_status] || [material.analysis_status, ""];
-  return el("span", { class: `tag ${tone}`, text });
+  const { label, tone } = analysisState(material);
+  return el("span", { class: `tag ${tone}`, text: label });
 }
 
 const DAY = new Intl.DateTimeFormat("ko-KR", { timeZone: "UTC", month: "long", day: "numeric" });
@@ -283,6 +279,15 @@ export function renderInbox(root, ctx) {
     const save = el("button", { class: "button primary small", type: "button", text: "수정 저장" });
     const status = el("p", { class: "form-status", role: "status" });
     detail.append(el("div", { class: "form-actions" }, save, status));
+    // 분석은 자료 버전을 올리지 않으므로 열린 수정 폼과 충돌하지 않는다(T04.02).
+    detail.append(analysisPanel(material, {
+      api, isCurrent: ctx.isCurrent, onError: ctx.onError,
+      onChange: (next) => {
+        items = items.map((m) => (m.id === next.id ? next : m));
+        laterItems = laterItems.map((m) => (m.id === next.id ? next : m));
+        li.querySelector(".material-meta .tag").replaceWith(statusTag(next));
+      },
+    }));
     li.append(detail);
 
     save.addEventListener("click", async () => {

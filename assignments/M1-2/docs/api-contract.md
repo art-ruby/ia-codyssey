@@ -175,3 +175,21 @@ Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는
 | 보관 완료 `is_kept` | `review_status=approved` + `copy_status=not_applicable` + `lifecycle=active` |
 | AI 전송 가능 `ai_allowed` | `ai_excluded`가 아님 |
 | 채팅 근거 `chat_eligible` | `is_kept` + `ai_allowed`(소유자·모드는 저장소가 보장) |
+
+## 자료 분석 (T04.02)
+
+**`POST /api/materials/{id}/analyze`** — PRD §13. `{"expected_version": n}`, `Idempotency-Key` 필요.
+- **202** `{"status": "accepted", "material"}`: 접수만 의미한다. `analysis_status=analyzing`이 되고 서버 백그라운드 작업이 AI를 1회 호출한다. 결과는 `GET /api/materials/{id}`로 조회한다(화면은 3초 간격).
+- **200** `{"status": "reused", "material"}`: 완료된 결과와 입력 지문(보낼 내용 + 활성 프로젝트 `id`·`name` + 프롬프트 버전)이 같으면 새 키여도 AI를 부르지 않는다. 모델명은 지문에 넣지 않는다.
+- **409**: 버전 불일치(`current_version`), `reason`이 `analysis_in_progress`(분석 중·기한 전) · `trashed` · `ai_excluded` · `no_content`(URL만 있는 자료). 모두 AI 호출 없음.
+- 같은 키 재전송은 처음 응답을 그대로 주며 작업을 다시 만들지 않는다.
+- 분석 쓰기는 자료 `version`을 올리지 않는다. 분석 중에도 `PUT`으로 고칠 수 있고, 끝났을 때 내용이 바뀌었으면 결과를 버리고 `awaiting_start` + `analysis_error=input_changed`가 된다.
+
+자료 응답에 더해진 필드:
+- `analysis_status`: `link_only` · `awaiting_start` · `analyzing` · `done` · `failed`. 분석 전·실패 자료의 내용을 고치면 `awaiting_start`(또는 `link_only`)로 맞춘다.
+- `analysis_error`: 오류 종류만(`rate_limited`·`timeout`·`invalid_output`·`ungrounded_output`·`output_truncated`·`missing_ai_settings`·`hermes_tools_enabled`·`provider_*`·`internal_error`·`input_changed`). 본문은 저장하지 않는다.
+- `analysis_started_at` · `analysis_deadline_at`(시작 + 요청 시간 × 2) · `analysis_finished_at`.
+- `analysis_stale`(조회 때 계산): `analyzing`인데 기한이 지났다. 서버 재시작 등으로 작업이 사라졌을 수 있어 '결과 확인 필요'로 표시하고, 사용자가 다시 시작할 때만 호출한다.
+- `analysis_outdated`(조회 때 계산): 저장된 AI 결과가 지금 내용 기준이 아니다(완료 후 내용을 고침). 상태는 `done`으로 두고 '다시 분석 필요'로 표시한다.
+- `ai_title` · `ai_summary` · `ai_importance` · `ai_importance_reason` · `ai_primary_project_id` · `ai_kind` · `ai_keywords` · `ai_uncertainties` · `ai_recommended_action` · `ai_evidence` · `ai_checked_scope` · `ai_grounding`: AI 제안값(T04.01). 사용자 최종값(`title`·`user_importance`·`primary_project_id`)을 덮어쓰지 않는다.
+- 내부 저장 필드(응답에 없음): `analysis_job_id`, `analysis_result_fp`, `ai_content_hash`, `analysis_request_sent`, `analysis_total_tokens`, `analysis_model`(T04.03 사용량용).

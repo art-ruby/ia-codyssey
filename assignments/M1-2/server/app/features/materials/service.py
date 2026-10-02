@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 from app.core.context import RequestContext
 from app.core.errors import NoChange
 from app.core.firestore import NotFound, Page, Store, VersionConflict, now_utc
+from app.features.analysis.schemas import AI_FIELDS, content_hash
 from app.features.materials.schemas import CONTENT_FIELDS, LIMITS
 from app.features.materials.url_keys import url_index_id, url_key  # noqa: F401  (url_key: 기존 import 호환)
 from app.features.projects import service as projects
@@ -42,6 +43,8 @@ PUBLIC_FIELDS = (
     "review_requested", "review_requested_at", "analysis_status", "copy_status",
     "lifecycle", "ai_excluded", "revisit_on", "registered_at", "storage_approved_at", "trashed_at",
     "version", "created_at", "updated_at",
+    # 분석(T04.02). AI 제안값은 사용자 최종값과 다른 `ai_` 필드다.
+    "analysis_error", "analysis_started_at", "analysis_deadline_at", "analysis_finished_at", *AI_FIELDS,
 )
 # 목록 보기(T03.03, docs/api-contract.md). 받은 자료와 승인 요청 목록은 겹치지 않는다.
 # 같음 조건만 쓰므로 두 보기가 같은 복합 색인을 쓴다(firestore.indexes.json).
@@ -117,11 +120,28 @@ def revisit_due(doc: dict, today: str | None = None) -> bool:
             and revisit_on <= (today or today_seoul()))
 
 
+def analysis_stale(doc: dict, now: datetime | None = None) -> bool:
+    """분석 중으로 남았지만 기한이 지났다(서버 재시작 등으로 작업이 사라졌을 수 있다). 볼 때마다 계산한다.
+
+    결과 확인 필요로 표시하고 사용자가 다시 시작하게 한다. 저절로 다시 호출하지 않는다(T04.02).
+    """
+    deadline = doc.get("analysis_deadline_at")
+    return (doc.get("analysis_status") == "analyzing" and isinstance(deadline, str)
+            and datetime.fromisoformat(deadline) < (now or datetime.now(timezone.utc)))
+
+
+def analysis_outdated(doc: dict) -> bool:
+    """저장된 AI 결과가 지금 내용 기준이 아니다(결과 뒤에 내용을 고쳤다). 화면은 '다시 분석 필요'로 표시한다."""
+    return bool(doc.get("ai_content_hash")) and doc["ai_content_hash"] != content_hash(doc)
+
+
 def public(doc: dict) -> dict:
     out = {field: doc.get(field) for field in PUBLIC_FIELDS}
     out["ai_excluded"] = bool(doc.get("ai_excluded"))
     out["display_title"], out["title_source"] = display_title(doc)
     out["revisit_due"] = revisit_due(doc)
+    out["analysis_stale"] = analysis_stale(doc)
+    out["analysis_outdated"] = analysis_outdated(doc)
     return out
 
 
@@ -295,7 +315,9 @@ def prepare_changes(store: Store, ctx: RequestContext, current: dict, changes: d
     if not merged.get("url") and not _has_content(merged):
         raise NoContent()
     if any(name in changes for name in CONTENT_FIELDS) and current.get("analysis_status") in (
-            "link_only", "awaiting_start"):
-        # 아직 분석하지 않은 자료는 내용에 맞춰 상태만 맞춘다. 분석 결과가 있는 자료의 재분석은 T04.02가 맡는다.
+            "link_only", "awaiting_start", "failed"):
+        # 분석 전·실패 자료는 내용에 맞춰 상태만 맞춘다. 완료 자료는 상태를 두고 `analysis_outdated`로 알리며,
+        # 분석 중인 자료는 작업이 끝날 때 내용 변경을 확인해 결과를 버린다(T04.02).
         changes["analysis_status"] = "awaiting_start" if _has_content(merged) else "link_only"
+        changes["analysis_error"] = None
     return changes
