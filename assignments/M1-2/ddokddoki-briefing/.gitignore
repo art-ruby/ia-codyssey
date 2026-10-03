@@ -1,0 +1,32 @@
+# 환경 변수와 인증 파일
+.env
+.env.*
+*.key
+*.pem
+*.p12
+credentials.json
+token.json
+secrets/
+
+# 개인 원본 자료
+raw-data/
+private/
+
+# 운영체제 임시 파일
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
+~$*
+
+# 에디터·IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 로그
+*.log
+
+# Node.js (향후 사용 시)
+node_modules/

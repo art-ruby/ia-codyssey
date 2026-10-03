@@ -202,4 +202,5 @@ Telegram은 AI Secretary API의 webhook(`/api/telegram/webhook`)으로 연결합
 | [docs/보안취약점.md](docs/보안취약점.md) | 보안 점검 체크리스트 63항목과 점검·보완 결과 |
 | [docs/deployment.md](docs/deployment.md) | Render·Vercel·Hermes 중계 배포 절차와 점검표 |
 | [docs/chat-evaluation.md](docs/chat-evaluation.md) | 채팅 검색 품질 평가 |
+| [ddokddoki-briefing/](ddokddoki-briefing/README.md) | 별도 실습: 생활 속 AI·기술 뉴스 브리핑 비서 "똑똑이"의 첫 작업공간(설정·아이디어·개인정보 경계). 이 서비스의 코드와는 독립 |
 | [.env.example](.env.example) | 환경변수 이름 예시 |
