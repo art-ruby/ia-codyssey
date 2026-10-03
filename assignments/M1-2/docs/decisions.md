@@ -254,3 +254,13 @@
 - **분석 제외 우회:** 제외 전에는 근거로 쓰이고, 제외 후에는 분석 409(AI 미호출)·새 질문과 같은 대화의 후속 질문 모두에서 본문이 AI 요청에 없으며 보관함 검색에는 보인다. 제외를 풀면 다시 근거가 된다.
 - **입력 HTML:** 서버는 입력을 글자 그대로 보관하고 JSON으로만 돌려준다(`application/json`). 웹 코드는 HTML 삽입 API를 쓰지 않는다는 것을 소스 검사로 확인한다(정적 검사 — 브라우저에서 `<script>`를 렌더링해 보는 동적 시험은 하지 않았다).
 - **A-ID 표시 원칙:** 이 Task는 서버·자동 시험 증거까지만 표시한다. 웹 화면·배포·모바일 항목은 T08.03 이후 최종 통과로 올린다(Task 문구).
+
+## T08.02 Render API·Vercel 웹 배포 — 준비 (2026-10-03, "다음 진행" 지시 — 착수 전 결정을 기본값으로 정함)
+- **Blueprint 경로:** Render 문서가 사용자 지정 Blueprint 경로를 지원한다고 안내해(`render.com/docs/infrastructure-as-code`) `render.yaml`을 `assignments/M1-2/`에 두고 대시보드의 Blueprint Path로 지정한다. 실제 Render에서 이 경로가 받아들여지는지는 배포할 때 확인하며, 거부되면 Web Service를 수동으로 만든다(같은 값은 `docs/deployment.md`).
+- **서비스 값:** Python·Free·Singapore(한국과 가까운 지역), `rootDir: assignments/M1-2/server`, 빌드 `pip install -r requirements.txt`, 시작 `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`, 헬스 체크 `/health`, Python 3.11.9(`PYTHON_VERSION`, 로컬 검증 버전), 커밋마다 자동 배포. 과금은 Free로 두되 실제 청구 여부는 대시보드에서 확인해야 하므로 확인하지 못했다.
+- **비밀 설정:** 파일에는 공개 가능한 모델·경로·시간 제한만 값으로 쓰고 `OPENAI_API_KEY`(중계 토큰)·`AI_PROVIDER_BASE_URL`·`FIREBASE_SERVICE_ACCOUNT_JSON`·`OWNER_UID`·`ALLOWED_ORIGINS`는 `sync: false`. 시험이 파일에 값이 없는지, 이름이 서버가 아는 변수와 `.env.example`에 모두 있는지 확인한다. `HERMES_RELAY_TOKEN`은 Render에 두지 않는다.
+- **허용 Origin(보안 변경):** `ALLOWED_ORIGINS`를 `스킴://호스트[:포트]`로만 받는다. `*`·`https://*.vercel.app`·경로·끝 슬래시·스킴 없음·공백·원격 `http`는 서버 시작 때 `ConfigError`. 끝 슬래시처럼 브라우저 Origin과 절대 일치하지 않는 값이 조용히 CORS 실패로 이어지는 것과, 와일드카드로 너무 넓게 열리는 것을 막는다. `http`는 `localhost`·`127.0.0.1`·`[::1]`만. 비우면 어떤 Origin도 허용하지 않는다.
+- **CORS 동작 확인:** 허용 Origin은 사전 요청 200과 `Access-Control-Allow-Origin` 일치, 쿠키 허용(credentials) 헤더 없음(Bearer 토큰 사용). 다른 Origin(부분 문자열·`http`·대소문자 변형·`null`)은 사전 요청 400과 허용 헤더 없음. CORS가 로그인을 대신하지 않는다(허용 Origin이어도 로그인 없는 요청은 401).
+- **웹:** `web/vercel.json`은 `framework: null`, 빌드 `node scripts/build-config.mjs`(공개 값 4개만, 하나라도 없으면 실패), 출력 `.`, 보안 헤더 `nosniff`·`DENY`·`no-referrer`. CSP 헤더는 Firebase 로그인 스크립트·팝업이 깨질 위험이 있어 이번에는 넣지 않았다.
+- **배포 순서:** Render(주소 확정) → Vercel(`API_BASE_URL`) → Render `ALLOWED_ORIGINS` 설정·재배포 → Firebase 승인 도메인 → Funnel·중계 켬. `ALLOWED_ORIGINS`가 `sync: false`라 배포 뒤에 값을 바꿀 수 있어 순환 의존이 풀린다.
+- **하지 않은 것:** 실제 배포·푸시. 저장소가 공개이고 Render·Vercel 계정, 비밀값 입력, Firebase 콘솔 설정은 사용자 계정의 일이라 사용자 확인 후에 진행한다.

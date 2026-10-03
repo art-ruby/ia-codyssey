@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -57,6 +58,25 @@ class Settings:
             raise ConfigError(f"{group} 설정 누락: {', '.join(absent)}")
 
 
+# 브라우저 Origin은 `스킴://호스트[:포트]`만 정확히 일치한다. 와일드카드·경로·끝 슬래시는 절대 맞지 않거나(조용한 실패)
+# 너무 넓게 열리므로 시작할 때 거부한다. 원격 도메인은 https만, http는 로컬 개발 주소만 허용한다.
+_ORIGIN = re.compile(r"^(?P<scheme>https?)://(?P<host>\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+)(?::(?P<port>\d{1,5}))?$")
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]"}
+
+
+def _origins(raw: str) -> tuple[str, ...]:
+    origins = []
+    for origin in (o.strip() for o in raw.split(",")):
+        if not origin:
+            continue
+        match = _ORIGIN.fullmatch(origin)
+        if not match or (match["scheme"] == "http" and match["host"] not in _LOCAL_HOSTS):
+            raise ConfigError("ALLOWED_ORIGINS는 https://도메인[:포트] 형식의 정확한 주소여야 합니다"
+                              "(와일드카드·경로·끝 슬래시 불가, http는 localhost·127.0.0.1·[::1]만)")
+        origins.append(origin)
+    return tuple(origins)
+
+
 def _positive_int(env: Mapping[str, str], name: str, default: int) -> int:
     raw = env.get(name, "").strip()
     if not raw:
@@ -80,7 +100,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         env = os.environ
     names = [n for group in REQUIRED.values() for n in group] + list(OPTIONAL)
     values = {n: env.get(n, "").strip() for n in names}
-    origins = tuple(o.strip() for o in env.get("ALLOWED_ORIGINS", "").split(",") if o.strip())
+    origins = _origins(env.get("ALLOWED_ORIGINS", ""))
     return Settings(
         values=values,
         allowed_origins=origins,

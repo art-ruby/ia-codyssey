@@ -1,0 +1,34 @@
+# Render Blueprint — AI Secretary API (T08.02)
+# 저장소 루트는 ia-codyssey이므로 이 파일은 하위 폴더에 있다. Blueprint 생성 화면의 'Blueprint Path'에
+# assignments/M1-2/render.yaml 을 지정한다(Render가 사용자 지정 경로를 지원한다). 절차는 docs/deployment.md.
+# 비밀 설정은 파일에 쓰지 않는다. sync: false 항목은 Blueprint를 만들 때 대시보드에서 직접 입력한다.
+services:
+  - type: web
+    name: ai-secretary-api
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: assignments/M1-2/server
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: AI_PROVIDER_MODEL
+        value: gpt-6-luna
+      - key: AI_PROVIDER_ROUTE
+        value: openai-codex
+      - key: AI_TIMEOUT_SECONDS
+        value: "120"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_PROVIDER_BASE_URL
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: OWNER_UID
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
