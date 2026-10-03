@@ -13,13 +13,18 @@ from app.main import create_app
 OWNER = "owner-1"
 
 
-def make_client():
-    return TestClient(create_app(load_settings({"OWNER_UID": OWNER}), verify_token=lambda t: {"uid": OWNER}))
+def make_client(**env):
+    return TestClient(create_app(load_settings({"OWNER_UID": OWNER, **env}), verify_token=lambda t: {"uid": OWNER}))
 
 
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
 def test_api_docs_are_not_exposed(path):
     assert make_client().get(path).status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_api_docs_can_be_enabled_for_submission(path):
+    assert make_client(ENABLE_API_DOCS="true").get(path).status_code == 200
 
 
 def test_oversized_body_is_rejected_before_auth_or_validation():

@@ -22,6 +22,8 @@ services:
         value: openai-codex
       - key: AI_TIMEOUT_SECONDS
         value: "120"
+      - key: ENABLE_API_DOCS
+        value: "true"
       - key: OPENAI_API_KEY
         sync: false
       - key: AI_PROVIDER_BASE_URL

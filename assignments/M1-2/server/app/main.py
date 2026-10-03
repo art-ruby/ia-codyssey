@@ -114,8 +114,12 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     그래서 Firebase 설정이 없어도 서버와 /health는 켜진다.
     """
     settings = settings or load_settings()
-    # 운영에서 API 구조(/docs·/redoc·/openapi.json)를 인증 없이 보여주지 않는다. 계약은 docs/api-contract.md가 정본이다.
-    app = FastAPI(title="AI Secretary API", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
+    # API 구조(/docs·/redoc·/openapi.json)는 인증 없이 보이므로 기본은 끈다. 과제 제출처럼 Swagger를 공개해야 하는
+    # 배포에서만 ENABLE_API_DOCS=true로 켠다. 문서에는 데이터가 없고 모든 /api 호출은 여전히 로그인이 필요하다.
+    docs_on = settings.get("ENABLE_API_DOCS").lower() == "true"
+    app = FastAPI(title="AI Secretary API", version="0.1.0",
+                  docs_url="/docs" if docs_on else None, redoc_url="/redoc" if docs_on else None,
+                  openapi_url="/openapi.json" if docs_on else None)
     app.state.settings = settings
     app.state.verify_token = verify_token
     app.state.store = store

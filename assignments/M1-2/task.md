@@ -589,6 +589,8 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ## 5. 세션 종료 기록과 다음 시작점
 
+2026-10-03 보안 보완·README: 보안 점검 5건(토큰 폐기 확인·본문 크기 제한·`/docs` 환경변수 제어·CSP·의존성 고정)을 `m1-2`(`c46f7728`)에 푸시했고, 과제의 Swagger 요구에 맞춰 `ENABLE_API_DOCS`로 `/docs`를 켜고 끌 수 있게 했으며 README를 과제 제출 형식으로 다시 썼다. 운영 API(`ai-secretary-api.onrender.com`)와 웹(`ia-codyssey-web.vercel.app`)은 응답하지만 보완 버전은 아직 반영되지 않았다. T08.02·T08.03은 배포 후 점검표 확인, T08.04는 제출 스크린샷 3장(`docs/evidence/`) 첨부 후 체크한다.
+
 2026-10-01 AI 경로 변경: T01.04에서 Hermes 로컬 API의 `openai-codex` / `gpt-6-luna` 텍스트 응답을 확인하고 서버 `.env`를 전환했다. T04.01의 Adapter에는 텍스트 호출과 도구 비활성 검사만 먼저 들어갔다. 자료 분석·채팅 기능은 아직 구현되지 않았다. 원격 Hermes 배포 경로도 미검증이므로 T08.02 완료 조건으로 남는다. 과거 T01.03 Codyssey 성공 기록은 이력으로 유지한다.
 
 2026-10-01 원격 Hermes 연결: 사용자가 Tailscale Funnel을 선택했다. Funnel 공개 대상은 Hermes 포트가 아니라 전용 인증 중계 서버로 제한한다. 로컬 relay(`127.0.0.1:8766`)로 도구 세트 비활성(29개), 잘못된 토큰 401, 경로·쿼리 거부, 합성 텍스트 응답(`gpt-6-luna`, 1,023토큰)을 확인했다. 공개 HTTPS 443의 로컬 중계 연결과 무인증 요청 401도 확인했다. 상세는 `docs/verification.md`. Render 원격 경로는 미검증이다. 설계와 계획은 `docs/superpowers/specs/2026-10-01-tailscale-funnel-hermes-relay-design.md`, `docs/superpowers/plans/2026-10-01-tailscale-funnel-hermes-relay.md`에 있다.

@@ -42,7 +42,7 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
   - Google 로그인 후 `GET /api/me`(`X-Data-Mode: personal`) → HTTP 200, `owner_id`가 로그인 UID와 일치.
   - 로그아웃 후 `GET /api/me` → HTTP 401(서버 로그로 확인).
 - 확인한 제한: 정적 서버를 `127.0.0.1`에만 바인딩하면 `localhost`가 IPv6(`::1`)로 해석되는 브라우저에서 접속되지 않았다. `python -m http.server 5500 --bind ::`로 IPv4·IPv6 모두 응답한다.
-- Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, MVP는 토큰 폐기를 요구하지 않는다(미검증 범위 아님, 결정 사항).
+- Firebase ID 토큰은 로그아웃 후에도 최대 1시간 유효하며, 당시 MVP는 토큰 폐기를 요구하지 않았다. **2026-10-03 보안 보완으로 `check_revoked=True`를 적용해 폐기·비활성 계정은 바로 거부한다**(`server/tests/test_security_hardening.py`, 실제 Firebase 폐기 흐름은 미검증).
 
 ### T02.01 최신 코드 재확인 — 2026-10-01
 
@@ -325,3 +325,10 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 - 자동 테스트: `python -m pytest server/tests/test_telegram_webhook.py -q` → **5 passed**.
 - 확인 범위: webhook secret 불일치 403, `/start` 연결 문구, 일반 질문이 기존 채팅 흐름을 거쳐 답장·대화 저장, 같은 update 재전송 시 답장 1회, 다른 chat_id 무시, `TELEGRAM_ALLOWED_CHAT_ID` 미설정 시 `/start`로 chat_id 안내.
 - 실제 Telegram/BotFather/Render webhook 등록은 사용자가 Bot Token을 발급하고 Render 환경변수를 넣은 뒤 별도 확인해야 한다.
+
+## 보안 보완 — 2026-10-03
+
+- 브랜치 `m1-2` 커밋 `c46f7728`: 토큰 폐기 확인(`check_revoked`), 요청 본문 256KiB 제한, `/docs` 기본 비공개(`ENABLE_API_DOCS=true`일 때만 공개), 웹 CSP(인라인 스크립트·스타일 제거), 의존성 버전 고정.
+- 과제가 배포 URL의 Swagger(`/docs`)를 요구하므로 `render.yaml`에 `ENABLE_API_DOCS=true`를 넣는다. 로컬·기본값은 비공개.
+- `pytest server/tests -q` **629 passed**, `node --test web/scripts/*.test.mjs` **45 passed**.
+- 미검증: 보완 버전의 Render·Vercel 실제 배포(확인 시점에 운영은 이전 버전), CSP 아래의 Google 로그인 팝업, 폐기된 실제 토큰의 거부.
