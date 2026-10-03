@@ -32,9 +32,9 @@
 |---|---|---|
 | 프론트엔드(Vercel) | https://ia-codyssey-web.vercel.app | HTTP 200 |
 | 백엔드 API(Render) | https://ai-secretary-api.onrender.com | `GET /health` → `status: ok`, AI·Firebase 설정 `ready` |
-| Swagger UI | https://ai-secretary-api.onrender.com/docs | 확인 시점의 배포 버전에서 열림 (아래 참고) |
+| Swagger UI | https://ai-secretary-api.onrender.com/docs | 현재 404(기본 비공개). `ENABLE_API_DOCS=true` 설정 후 열림 (아래·10장 참고) |
 
-- **Swagger 공개 설정:** 보안상 `/docs`는 기본으로 꺼져 있고 `ENABLE_API_DOCS=true`일 때만 열립니다. `render.yaml`에 이 값이 `true`로 들어 있어, 이 코드를 Render에 배포하면 `/docs`가 열립니다. 문서에는 데이터가 없고 모든 `/api` 호출은 로그인이 필요합니다.
+- **Swagger 공개 설정:** 보안상 `/docs`는 기본으로 꺼져 있고 `ENABLE_API_DOCS=true`일 때만 열립니다. `render.yaml`에는 `true`로 적혀 있지만 이미 만들어진 Render 서비스에는 자동 반영되지 않을 수 있어, 대시보드 Environment에 직접 추가해야 합니다. 문서에는 데이터가 없고 모든 `/api` 호출은 로그인이 필요합니다.
 - **무료 티어 첫 요청 지연:** Render 무료 서비스는 한동안 쓰지 않으면 잠들어 첫 요청이 수십 초 걸립니다(`/health`가 첫 시도에 시간 초과되는 것을 확인). 웹은 연결 실패 시 재시도 배너를 보여 주며, 같은 요청 키로 다시 보내므로 중복 등록되지 않습니다. 콜드스타트 전용 안내 문구는 아직 없습니다(10장).
 - 이 PC의 Hermes·Tailscale·중계 서버가 꺼져 있으면 AI 분석·채팅만 실패하고 나머지 기능은 동작합니다.
 
@@ -164,15 +164,24 @@ AI 연결 확인: `.\.venv\Scripts\python.exe server/scripts/smoke_hermes.py`(�
 - 웹은 `innerHTML`을 쓰지 않고 `Content-Security-Policy`·`X-Frame-Options`·`nosniff`를 적용합니다(`web/vercel.json`).
 - 의존성은 테스트한 버전으로 고정했습니다(`server/requirements*.txt`).
 
-## 10. 현재 한계와 남은 작업
+## 10. 현재 상태와 남은 작업
 
-- **MVP(Phase 01~07)** 기능과 서버·웹 자동 테스트는 구현·통과했습니다. [task.md](task.md)에서 T08.02(배포), T08.03(배포 환경 시연), T08.04(README)는 아직 체크하지 않았습니다. 3장의 주소가 열리는 것은 확인했지만 배포 후 점검표(로그인 후 `/api/me` 200, Origin 사전 요청, Render→Hermes 왕복 AI 호출, 로그 점검)를 모두 확인하지는 못했으므로 **배포 완료로 표시하지 않습니다.**
-- 보안 보완 커밋은 `m1-2` 브랜치에 푸시되어 있으나 Render·Vercel에 반영됐는지는 확인하지 못했습니다(확인 시점에 `/docs`가 열리고 CSP 헤더가 없어 이전 버전이었습니다).
+**완료**
+- MVP(Phase 01~07) 기능, 서버 테스트 634개·웹 테스트 45개 통과, 보안 보완(토큰 폐기 확인·본문 크기 제한·`/docs` 환경변수 제어·CSP·의존성 고정).
+- Render에 최신 코드 반영 확인: `/health`가 `ok`이고 `/docs`는 기본값대로 비공개(404)입니다.
+
+**남은 작업** (모두 대시보드 또는 배포 권한이 필요하며, 아래 순서대로 진행)
+1. **Swagger 공개:** Render → `ai-secretary-api` → Environment에 `ENABLE_API_DOCS` = `true`를 추가하고 재배포한 뒤 `/docs`가 열리는지 확인합니다(과제의 Swagger 요구).
+2. **웹 로그인:** Firebase Authentication → 설정 → 승인된 도메인에 `ia-codyssey-web.vercel.app`을 추가합니다(없으면 `auth/unauthorized-domain` 오류).
+3. **웹 운영 배포:** `web` 폴더에서 `vercel deploy --prod`를 실행하고 CSP 헤더, Google 로그인 팝업, 화면 이동에 오류가 없는지 확인합니다.
+4. **배포 후 점검표**([docs/deployment.md](docs/deployment.md)): 로그인 후 `/api/me` 200, Origin 사전 요청, Render → Hermes 왕복 AI 호출 1건, Render 로그의 비밀·원문 노출 여부.
+5. 위가 모두 통과하면 [task.md](task.md)의 T08.02·T08.03·T08.04를 체크하고 MVP 완료를 기록합니다. 그 전에는 **배포 완료로 표시하지 않습니다.**
+
+**알려진 한계·범위 밖**
 - AI는 이 PC의 Hermes·Tailscale·중계 서버가 켜져 있어야 동작합니다. Render 왕복 AI 호출은 미검증입니다.
-- Render 무료 티어 콜드스타트 전용 안내 문구가 없습니다(재시도 배너만).
-- 보너스 과제(Function Calling·MCP, 그래프·CSV 내보내기·다크 모드)는 구현하지 않았습니다.
-- Windows 파일 정리 기능(Phase 09~10)은 확장 단계로, MVP 범위에 없습니다.
-- 알려진 제한: 동일 URL 후보가 10건을 넘으면 일부만 표시됩니다. 실제 Firestore로 51건 일괄 승인을 브라우저에서 시연하지는 않았습니다(자동 테스트로 분할·재개 확인).
+- Render 무료 티어 콜드스타트 전용 안내 문구가 없습니다(연결 실패 시 재시도 배너만).
+- 동일 URL 후보가 10건을 넘으면 일부만 표시됩니다. 실제 Firestore로 51건 일괄 승인을 브라우저에서 시연하지는 않았습니다(자동 테스트로 분할·재개 확인).
+- 보너스 과제(Function Calling·MCP, 그래프·CSV 내보내기·다크 모드)와 Windows 파일 정리 기능(Phase 09~10)은 구현하지 않았습니다.
 
 ## 11. Telegram Bot 연동 (선택 기능)
 
