@@ -166,6 +166,26 @@ def test_unparseable_answer_is_a_provider_failure_and_keeps_tokens():
     assert used(store)["total_tokens"] == 42 and used(store)["failed_sent"] == 1
 
 
+@pytest.mark.parametrize("reply", [
+    {"from_materials": "답", "interpretation": None, "sources": None, "related_suggestions": None, "limitations": None},
+    {"from_materials": "답", "interpretation": "", "sources": [], "limitations": "한계 한 줄"},
+    {"from_materials": "답", "limitations": ["한계", None, 3]},
+])
+def test_null_or_loosely_typed_optional_fields_are_tolerated(reply):
+    # 실제 모델이 빈 값을 null이나 문자열로 내는 경우(2026-10-03 브라우저 확인에서 invalid_output). 출처 검증은 그대로.
+    c, _ = make_client(FakeAdapter(reply))
+    res = ask(c, "질문")
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["answer"]["from_materials"] == "답" and body["sources"] == []
+    assert all(isinstance(note, str) for note in body["answer"]["limitations"])
+
+
+def test_answer_text_that_is_not_a_string_is_still_invalid():
+    c, _ = make_client(FakeAdapter({"from_materials": {"x": 1}, "sources": []}))
+    assert ask(c, "질문").json()["kind"] == "invalid_output"
+
+
 def test_daily_limit_reached_does_not_call_provider():
     adapter = FakeAdapter()
     c, store = make_client(adapter, limit=1)
@@ -289,6 +309,20 @@ def test_follow_up_uses_saved_history_and_appends_to_same_conversation():
     assert second["conversation_id"] == first["conversation_id"]
     assert "FIRSTANSWER" in json.dumps(adapter.calls[1], ensure_ascii=False)
     assert len(store.get(ME, "conversations", first["conversation_id"])["messages"]) == 4
+
+
+def test_history_answers_are_sent_in_the_same_json_shape():
+    # 과거 답을 문장으로 보내면 실제 모델이 그 형식을 따라 JSON이 아닌 답을 냈다(2026-10-03 확인).
+    store = MemoryStore()
+    kept(store, doc_id="api", title="정산 API 종료 안내", body="정산 API 종료 일정")
+    adapter = FakeAdapter({"from_materials": "첫 답변", "interpretation": "첫 해석", "sources": [1]})
+    c, store = make_client(adapter, store)
+    conv = ask(c, "정산 API 종료 일정 알려줘").json()["conversation_id"]
+    ask(c, "그럼 다음은?", conversation_id=conv)
+    past = [m for m in adapter.calls[1][1:-1] if m["role"] == "assistant"]
+    assert len(past) == 1
+    assert json.loads(past[0]["content"]) == {"from_materials": "첫 답변", "interpretation": "첫 해석"}
+    assert "이전 대화의 형식과 관계없이" in adapter.calls[1][0]["content"]
 
 
 def test_conversation_from_other_mode_is_404_without_calling_provider():

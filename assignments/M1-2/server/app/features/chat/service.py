@@ -27,7 +27,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Callable
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
 from app.core.config import ConfigError
 from app.core.context import RequestContext
@@ -70,6 +70,25 @@ class ModelAnswer(BaseModel):
     related_suggestions: list = []
     limitations: list[str] = []
 
+    # 실제 모델은 빈 값을 null로, 한계 한 줄을 문자열로 내기도 한다(2026-10-03 확인). 답 문장이 문자열이 아니면
+    # 여전히 invalid_output이다. 출처 번호는 뒤에서 전달 자료와 대조하므로 여기서는 목록인지만 맞춘다.
+    @field_validator("from_materials", "interpretation", mode="before")
+    @classmethod
+    def _null_text(cls, value):
+        return "" if value is None else value
+
+    @field_validator("sources", "related_suggestions", mode="before")
+    @classmethod
+    def _null_list(cls, value):
+        return value if isinstance(value, list) else []
+
+    @field_validator("limitations", mode="before")
+    @classmethod
+    def _notes(cls, value):
+        if isinstance(value, str):
+            return [value]
+        return [v for v in value if isinstance(v, str)] if isinstance(value, list) else []
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -82,6 +101,15 @@ def _is_int(value) -> bool:
 def _norm_numbers(text: str) -> set[str]:
     """'자료 N' 표기를 뺀 숫자. 앞자리 0은 지운다(날짜 '01'과 '1일'을 같게)."""
     return {n.lstrip("0") or "0" for n in numbers(_MENTION.sub(" ", text))}
+
+
+def _history_content(message: dict) -> str:
+    """과거 답은 답 형식(JSON)으로 보낸다. 문장으로 보내면 모델이 그 형식을 따라 JSON이 아닌 답을 낸다(2026-10-03 확인)."""
+    if message["role"] != "assistant" or not isinstance(message.get("answer"), dict):
+        return message["content"]
+    answer = message["answer"]
+    return json.dumps({"from_materials": answer.get("from_materials", ""),
+                       "interpretation": answer.get("interpretation", "")}, ensure_ascii=False)
 
 
 def _call(adapter_factory: Callable, store: Store, ctx: RequestContext, day: str, messages: list[dict]):
@@ -165,7 +193,9 @@ def _verify(answer: ModelAnswer, built: ChatContext, question: str) -> dict:
         "sources": sources,
         "rejected_source_numbers": rejected,
         "related": _related(answer, built),
-        "numbers": [{**s, "virtual": s.get("source") == "sample"} for s in built.summaries],
+        # 첫 요약은 현재 모드의 기본 요약(default), 나머지는 질문이 정한 조건의 요약(question, T07.04 화면 구분용).
+        "numbers": [{**s, "virtual": s.get("source") == "sample", "role": "default" if i == 0 else "question"}
+                    for i, s in enumerate(built.summaries)],
         "unverified_numbers": unverified,
         "omitted": built.omitted,
     }
@@ -179,7 +209,7 @@ def handle_chat(store: Store, ctx: RequestContext, conversation_id: str | None, 
     past = (conversation or {}).get("messages", [])  # 다른 모드·소유자의 대화는 위에서 404
     if len(past) + 2 > MAX_MESSAGES:
         raise ConversationFull()
-    history = [{"role": m["role"], "content": m["content"], "source_ids": m.get("source_ids", [])} for m in past]
+    history = [{"role": m["role"], "content": _history_content(m), "source_ids": m.get("source_ids", [])} for m in past]
 
     try:
         built = build_context(store, ctx, question, history)

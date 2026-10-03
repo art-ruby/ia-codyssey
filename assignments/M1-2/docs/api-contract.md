@@ -299,7 +299,7 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
   - `sources`: `[{number, material_id, display_title, url, registered_at, basis: content|link_only}]`. 실제 전달한 자료만. `link_only`는 본문을 확인하지 않은 URL 자료.
   - `rejected_source_numbers`: 모델이 댔지만 전달하지 않은 자료 번호(출처에 넣지 않음).
   - `related`: `[{material_ids, numbers, status: user_confirmed|ai_suggested}]`. 사용자가 확정한 연결과 AI 제안을 구분.
-  - `numbers`: 문맥에 넣은 서버 Summary(`label`·`source`·`period`·`total`…) + `virtual`(가상 기록 여부).
+  - `numbers`: 문맥에 넣은 서버 Summary(`label`·`source`·`period`·`total`…) + `virtual`(가상 기록 여부) + `role`(`default` 현재 모드 기본 요약 | `question` 질문이 고른 조건의 요약, T07.04).
   - `unverified_numbers`: 답변 문장에서 질문·요약·자료에 없는 숫자.
   - `answer.limitations`: 서버가 붙인 한계(근거 자료 없음·없는 번호 언급·링크만·확인 안 된 숫자·한도로 빠짐·일부 자료 기준) 뒤에 모델의 한계(최대 5개).
   - `omitted`: T07.01 문맥의 생략 정보.

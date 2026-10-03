@@ -221,3 +221,14 @@ p { color: var(--muted); }
 .activity-bar { flex: 1; min-height: 2px; background: var(--teal); border-radius: 2px 2px 0 0; opacity: .8; }
 .inline-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .inline-form input { border: 1px solid #cbdad6; border-radius: 8px; padding: 4px 8px; }
+
+/* 비서에게 묻기(T07.04) */
+.chat-turns { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; }
+.chat-turn { border-top: 1px solid #e3ebe9; padding-top: 12px; }
+.chat-question { margin: 0 0 8px; padding: 8px 12px; border-radius: 8px; background: #edf3f1; font-weight: 700; overflow-wrap: anywhere; white-space: pre-wrap; }
+.chat-answer { display: grid; gap: 10px; }
+.chat-answer .detail-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-answer .analysis-caution ul { margin: 4px 0 0; padding-left: 18px; }
+.chat-summary { margin-top: 6px; padding: 8px 10px; border: 1px solid #e3ebe9; border-radius: 8px; }
+.chat-summary p, .chat-summary-panel p { margin: 4px 0 0; }
+.chat-summary-panel .analysis-head .section-title { margin: 0; }
