@@ -36,9 +36,10 @@ def firebase_verifier(settings: Settings) -> TokenVerifier:
 
     def verify(token: str) -> Mapping[str, Any]:
         try:
-            return auth.verify_id_token(token, app=app)
+            # check_revoked: 계정 탈취 등으로 토큰을 폐기하면 만료(최대 1시간)를 기다리지 않고 바로 거부한다.
+            return auth.verify_id_token(token, app=app, check_revoked=True)
         except (ValueError, auth.InvalidIdTokenError, auth.ExpiredIdTokenError,
-                auth.RevokedIdTokenError) as exc:
+                auth.RevokedIdTokenError, auth.UserDisabledError) as exc:
             raise InvalidToken(type(exc).__name__) from None
         except auth.CertificateFetchError:
             # 토큰 문제가 아니라 Google 인증서 조회 장애다. 401로 바꾸면 재로그인만 반복하게 된다.

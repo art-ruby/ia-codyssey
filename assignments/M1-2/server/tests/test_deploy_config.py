@@ -151,3 +151,22 @@ def test_vercel_headers_block_framing_and_sniffing():
     assert flat["x-content-type-options"] == "nosniff"
     assert flat["x-frame-options"] == "DENY"
     assert flat["referrer-policy"] == "no-referrer"
+
+
+def test_vercel_csp_blocks_inline_scripts_and_framing():
+    headers = json.loads((ROOT / "web" / "vercel.json").read_text(encoding="utf-8"))["headers"]
+    flat = {h["key"].lower(): h["value"] for rule in headers for h in rule["headers"]}
+    directives = {part.split()[0]: part.split()[1:] for part in flat["content-security-policy"].split("; ")}
+    assert directives["frame-ancestors"] == ["'none'"]
+    assert directives["object-src"] == ["'none'"]
+    assert "'unsafe-inline'" not in directives["script-src"] + directives["style-src"]
+    assert "*" not in directives["script-src"] + directives["connect-src"]
+
+
+def test_web_pages_have_no_inline_script_or_style():
+    import re
+
+    for page in ("index.html", "login.html"):
+        html = (ROOT / "web" / page).read_text(encoding="utf-8")
+        assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html), page
+        assert "<style" not in html and ' style="' not in html, page

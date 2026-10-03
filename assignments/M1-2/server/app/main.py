@@ -19,6 +19,7 @@ from app.core.config import Settings, load_settings
 from app.core.context import RequestContext
 from app.core.deps import get_store  # noqa: F401  (기존 테스트가 app.main에서 가져온다)
 from app.core.firestore import InvalidCursor, NotFound, Store, VersionConflict
+from app.core.limits import BodySizeLimit
 from app.core.requests import IdempotencyConflict, IdempotencyKeyRequired
 from app.features.materials.routes import router as materials_router
 from app.features.materials.schemas import LIMITS
@@ -112,7 +113,8 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     그래서 Firebase 설정이 없어도 서버와 /health는 켜진다.
     """
     settings = settings or load_settings()
-    app = FastAPI(title="AI Secretary API", version="0.1.0")
+    # 운영에서 API 구조(/docs·/redoc·/openapi.json)를 인증 없이 보여주지 않는다. 계약은 docs/api-contract.md가 정본이다.
+    app = FastAPI(title="AI Secretary API", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
     app.state.verify_token = verify_token
     app.state.store = store
@@ -254,6 +256,9 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(data_router)
     app.include_router(chat_router)
     app.include_router(conversations_router)
+
+    # CORS보다 안쪽에 둬서 413 응답에도 CORS 헤더가 붙게 한다(브라우저가 원인을 볼 수 있다).
+    app.add_middleware(BodySizeLimit)
 
     if settings.allowed_origins:
         app.add_middleware(
