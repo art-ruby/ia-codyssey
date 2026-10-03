@@ -19,6 +19,7 @@ from app.core.config import Settings, load_settings
 from app.core.context import RequestContext
 from app.core.deps import get_store  # noqa: F401  (기존 테스트가 app.main에서 가져온다)
 from app.core.firestore import InvalidCursor, NotFound, Store, VersionConflict
+from app.core.internal_error import InternalErrorJSON
 from app.core.limits import BodySizeLimit
 from app.core.requests import IdempotencyConflict, IdempotencyKeyRequired
 from app.features.materials.routes import router as materials_router
@@ -273,6 +274,8 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
 
     # CORS보다 안쪽에 둬서 413 응답에도 CORS 헤더가 붙게 한다(브라우저가 원인을 볼 수 있다).
     app.add_middleware(BodySizeLimit)
+    # 처리되지 않은 예외도 CORS 안쪽에서 JSON 500으로 바꿔, 브라우저가 연결 실패가 아닌 서버 오류로 보게 한다.
+    app.add_middleware(InternalErrorJSON)
 
     if settings.allowed_origins:
         app.add_middleware(
