@@ -1,6 +1,7 @@
 // S10 프로젝트·설정 화면: 자료 모드 안내, 관심·활동 분야와 기본 프로젝트, 프로젝트 관리.
 // 모든 문자열은 textContent·value로만 넣는다. 확인 대화상자(alert/confirm)는 쓰지 않는다.
 import { request } from "../api.js";
+import { newsSourcesPanel } from "./news-sources.js";
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -80,6 +81,7 @@ export function renderSettings(root, ctx) {
     projectStatus);
 
   root.append(modeSection, settingsSection, projectSection);
+  if (mode === "personal") root.append(newsSourcesPanel(ctx));
 
   function fillDefaultProject(selectedId) {
     const active = projects.filter((p) => p.active);

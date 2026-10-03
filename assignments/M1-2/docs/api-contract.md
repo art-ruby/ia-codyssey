@@ -325,3 +325,21 @@ AI 출력 계약에 `needs_action`(bool, 필수)이 더해졌다(`PROMPT_VERSION
 | `DELETE /api/conversations/pending/{id}` | — | `{deleted: true, id}`. 저장하지 못한 답을 버린다. Idempotency-Key 필요 |
 
 - 다른 모드·소유자의 대화·보관본은 404. 대화당 메시지 200개(넘으면 채팅 409 `conversation_full`, 재저장은 새 대화로).
+
+## 새 소식 (2026-10-04, 설계: docs/superpowers/specs/2026-10-04-ai-news-feed-design.md)
+
+모두 로그인·소유자 확인을 거치며 **개인 모드 전용**이다(표본 모드는 422 `personal_only`). 변경 요청(저장·숨기기·출처 변경)은 `Idempotency-Key`가 필요하다.
+
+| 메서드·경로 | 본문 | 응답 |
+|---|---|---|
+| `GET /api/news?cursor=` | — | `{items, next_cursor, total, keywords, state: {refreshing, last_success_at, last_attempt_at, failures: [{source_name, error}]}}`. 마지막 성공 6시간·마지막 시도 5분이 지났으면 뒤에서 수집을 시작하고 `refreshing: true` |
+| `POST /api/news/refresh` | — | 같은 형식. 수집 중이거나 5분 안에 시도했으면 수집하지 않음(키 불필요) |
+| `POST /api/news/{id}/save` | — | `{item, material_id, created}`. 받은 자료로 저장(URL·제목·본문=피드 요약), 같은 URL 자료가 있으면 연결만 하고 `created: false` |
+| `POST /api/news/{id}/hide`, `/unhide` | — | 글(`hidden`) |
+| `GET /api/news/sources` | — | `{items: [{id, name, feed_url, kind: official·community·custom, enabled, builtin, version}]}`. 처음 조회 때 기본 출처 7곳 생성 |
+| `POST /api/news/sources` | `{name(1~40자), feed_url}` | 201 출처. 저장 전 한 번 읽어 피드인지 확인. 409 `duplicate_source`, 422 `too_many_sources`(20곳)·`fetch_failed`·`not_feed`·`unsafe_feed` |
+| `PUT /api/news/sources/{id}` | `{enabled, expected_version}` | 출처. 버전 불일치 409 |
+| `DELETE /api/news/sources/{id}` | — | `{deleted: true, id}`. 기본 출처는 409 `builtin_source` |
+
+- 글 항목: `{id, title, link, summary, source_name, kind, published_at, fetched_at, saved_material_id, hidden, matched_keywords}`. 순서는 관심 키워드가 맞은 글 → 나머지, 각각 게시 시각 최신순, 30건씩.
+- 외부 접속은 URL 미리보기의 안전한 요청 함수를 쓰고, DOCTYPE·ENTITY가 든 XML은 거부한다. 저장하지 않은 글은 30일 뒤, 전체 300건 초과분은 오래된 것부터 지운다.

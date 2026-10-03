@@ -164,3 +164,10 @@ Anthropic은 공식 RSS가 없어(404) 기본 목록에 넣지 않는다.
 
 - 생성: `server/app/features/news/`(`sources.py`, `feeds.py`, `service.py`, `routes.py`, `schemas.py`), `server/tests/test_news_*.py`, `web/js/news.js`, `web/scripts/news.test.mjs`
 - 수정: `server/app/features/materials/fetcher.py`(피드용 형식 허용), `server/app/main.py`(라우터·오류), `firestore.indexes.json`(필요한 색인), `web/js/views/trends.js`, `web/js/views/settings.js`, `web/assets/app.css`, `docs/api-contract.md`, `docs/decisions.md`, `README.md`
+
+## 구현 메모 (2026-10-04)
+
+- **외부 접속:** 원격 `m1-2`에 같은 목적의 URL 미리보기(`url_preview.py`)가 먼저 들어와, 별도 `fetcher.py` 대신 그 `_request`(공개 IP 고정·리다이렉트 재검사·2MiB)를 쓴다. 피드 형식 확인은 `news/feeds.py`가 한다.
+- **수집 조건(4장 보완):** 자동 수집은 "마지막 **성공** 6시간 경과 + 마지막 **시도** 5분 경과", 수동은 "마지막 시도 5분 경과". 전부 실패해도 다음에 화면을 열 때(5분 뒤) 다시 시도하고, 수집 중 서버가 꺼져도 표시 기한(3분)이 지나면 다시 수집된다.
+- **직접 추가한 출처의 종류:** `kind`에 `custom`을 더했다(화면 표시 "직접 추가").
+- **목록 커서:** 계산된 순서라 Firestore 커서 대신 위치 숫자(`cursor=30`)를 쓴다.

@@ -271,3 +271,12 @@
 - 범위: 1차 연동은 `/start`와 일반 질문만 처리한다. 자료 저장(`/save`)과 알림 푸시는 후속 단계로 둔다.
 - 보안: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ALLOWED_CHAT_ID`는 Render 환경변수에만 둔다. webhook secret이 맞지 않으면 403, 허용 chat_id가 아니면 AI 호출 없이 무시한다.
 - 중복: Telegram 재전송은 `telegram-<update_id>` 중복 키로 한 번만 처리한다.
+
+## AI 동향 '새 소식' (2026-10-04, "A안"·"코딩해줘" 지시)
+
+- **범위 변경:** PRD의 "외부 뉴스 자동 수집은 후속 단계" 중, 사용자가 고른 RSS·Atom 피드 수집을 앞당겼다. 예약 수집·AI 요약·웹페이지 긁어오기·검색 API는 여전히 범위 밖.
+- **결정:** 출처는 공식 블로그+커뮤니티, AI 동향을 열 때 자동(6시간)·수동 새로고침, '새 소식' 칸에 두고 고른 글만 자료로 저장, 관심 분야·프로젝트 키워드 우선(AI 호출 없음), 기본 출처+설정에서 켜기·끄기·추가. 서버가 수집해 Firestore에 저장(A안).
+- **개인 모드 전용:** 표본 시연 데이터에 외부 글이 섞이지 않게 한다.
+- **외부 접속 재사용:** 같은 날 들어온 URL 미리보기(`url_preview._request`)를 재사용한다. 별도로 만들었던 링크 가져오기(`fetcher.py`)는 중복이라 `m1-2`에 넣지 않았다.
+- **기본 출처:** 실제 응답을 확인한 OpenAI·Google AI·DeepMind·Hugging Face·GeekNews·Hacker News(AI) 켜짐, Reddit r/LocalLLaMA 꺼짐(429). Anthropic은 공식 RSS가 없어 제외.
+- **알려진 한계:** "모델"·"서비스" 같은 넓은 관심어는 한국어 커뮤니티 글에 자주 맞아 위쪽이 많아진다(실제 수집에서 확인). 관심 분야를 고치면 바로 반영된다.

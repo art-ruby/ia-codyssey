@@ -31,6 +31,8 @@ from app.features.chat.context import QuestionTooLong
 from app.features.chat.routes import router as chat_router
 from app.features.chat.service import ChatFailed
 from app.features.conversations.routes import router as conversations_router
+from app.features.news.routes import router as news_router
+from app.features.news.service import NewsError
 from app.features.conversations.service import ConversationFull
 from app.features.materials.service import (DuplicateUrl, InvalidDuplicateTarget, InvalidProjectReference,
                                             MemoTooLong, MissingSeparateTarget, NoContent, TrashedTarget, MaterialDeleting)
@@ -181,6 +183,10 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     async def invalid_project_reference(_, __):
         return _error(422, "연결할 프로젝트는 활성 상태인 내 프로젝트여야 합니다")
 
+    @app.exception_handler(NewsError)
+    async def news_error(_, exc: NewsError):
+        return _error(exc.status, exc.message, reason=exc.reason)
+
     @app.exception_handler(NoContent)
     async def no_content(_, __):
         return _error(422, "URL 또는 제목·설명·본문 중 하나 이상이 남아 있어야 합니다")
@@ -262,6 +268,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(data_router)
     app.include_router(chat_router)
     app.include_router(conversations_router)
+    app.include_router(news_router)
     app.include_router(telegram_router)
 
     # CORS보다 안쪽에 둬서 413 응답에도 CORS 헤더가 붙게 한다(브라우저가 원인을 볼 수 있다).

@@ -2,13 +2,14 @@
 // 중요도를 바로 고치면 저장 후 서버 순서로 다시 그린다. 외부 인기 수치를 표시하지 않는다.
 import { request } from "../api.js";
 import { IMPORTANCE_OPTIONS, el, priorityCard, trendGroups } from "../priority.js";
+import { newsPanel } from "./news-panel.js";
 
 // root: 화면 영역, ctx: { mode, isCurrent(), onError(error, retry) }
 export function renderTrends(root, ctx) {
   const api = (path, options = {}) => request(path, { mode: ctx.mode, ...options });
   const status = el("p", { class: "form-status", role: "status", text: "불러오는 중…" });
   const body = el("div");
-  root.replaceChildren(status, body);
+  root.replaceChildren(newsPanel(ctx), status, body);
 
   async function load(message = "") {
     try {

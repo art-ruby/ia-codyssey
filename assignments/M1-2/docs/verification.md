@@ -332,3 +332,10 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 - 과제가 배포 URL의 Swagger(`/docs`)를 요구하므로 `render.yaml`에 `ENABLE_API_DOCS=true`를 넣는다. 로컬·기본값은 비공개.
 - `pytest server/tests -q` **634 passed**(Telegram 5개 포함), `node --test web/scripts/*.test.mjs` **45 passed**.
 - 미검증: 보완 버전의 Render·Vercel 실제 배포(확인 시점에 운영은 이전 버전), CSP 아래의 Google 로그인 팝업, 폐기된 실제 토큰의 거부.
+
+## AI 동향 '새 소식' — 2026-10-04
+
+- 자동 시험: `pytest server/tests -q` **678 passed**(새 `test_news_feeds.py`·`test_news_api.py` 43개: RSS·Atom 파싱·날짜 정렬·출처당 20건, DOCTYPE·ENTITY 거부, 태그 제거·길이 제한, 위험 링크·제목 없는 글·중복 링크 제외, 피드 아닌 문서 거부, 6시간·5분·수집 중 기한 규칙과 동시 요청 한 번만 수집, 전부·일부 실패, 재수집 시 숨김 유지, 키워드 분리·영문 단어 경계·한글 부분 일치와 순서, 위치 커서, 자료로 저장(새 자료·같은 URL·중복 요청), 숨기기·되돌리기, 30일·300건 정리와 저장 글 보존, 기본 출처 생성·추가 검증·중복·20곳 상한·끄기·기본 출처 삭제 거부, 로그인·표본 모드 422·소유자 격리). `node --test web/scripts/*.test.mjs` **48 passed**.
+- 실제 수집(로컬, 서버 코드 직접 호출, 메모리 저장소): 기본 출처 6곳 모두 성공·각 20건, 4.5초. 관심어 일치 글이 위로 정렬됨을 확인.
+- 화면 확인(가짜 API 시험 페이지): 첫 화면 "새 소식을 확인하는 중…" → 5초 뒤 목록, 키워드 칩·출처·상대 시각, `javascript:` 링크는 링크로 만들지 않음, 외부 링크 `target=_blank`·`rel=noopener noreferrer`, 실패 출처 한 줄 안내, 자료로 저장 → "저장됨·받은 자료에서 보기", 숨기기·되돌리기와 건수 변화, 5분 안 새로고침 안내, 표본 모드 안내, 설정의 출처 끄기·잘못된 주소 안내·추가·삭제. 콘솔 오류 없음.
+- 미검증: Render 운영 서버에서의 외부 접속·수집, 실제 로그인 화면, Firestore 색인 배포(`news_sources`·`news_items` 색인 추가).

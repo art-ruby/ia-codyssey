@@ -31,7 +31,8 @@ _APP_LOCK = threading.Lock()
 # MVP에서 쓰는 컬렉션. PC 관련 컬렉션은 확장 단계에서 추가한다.
 COLLECTIONS = frozenset(
     {"materials", "intake_records", "settings", "projects", "data", "conversations", "idempotency",
-     "url_index", "ai_usage", "material_links", "audit_events", "chat_pending"}
+     "url_index", "ai_usage", "material_links", "audit_events", "chat_pending",
+     "news_sources", "news_items", "news_state"}
 )
 # 저장소가 관리하는 필드. 호출자가 넘긴 값은 무시하고 저장소가 정한다.
 SYSTEM_FIELDS = frozenset({"id", "owner_id", "mode", "version", "created_at", "updated_at"})

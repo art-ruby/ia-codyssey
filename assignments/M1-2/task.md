@@ -589,6 +589,8 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ## 5. 세션 종료 기록과 다음 시작점
 
+2026-10-04 AI 동향 '새 소식': 고른 공식 블로그·커뮤니티 RSS를 모아 AI 동향에 보여주고 고른 글만 받은 자료로 저장하는 기능을 추가했다(설계 `docs/superpowers/specs/2026-10-04-ai-news-feed-design.md`, 결정 `docs/decisions.md`). 서버 678·웹 48 시험 통과, 로컬 실제 수집 6곳 성공. Render 반영·Firestore 색인 배포·실제 화면 확인은 남았다.
+
 2026-10-03 보안 보완·README: 보안 점검 5건(토큰 폐기 확인·본문 크기 제한·`/docs` 환경변수 제어·CSP·의존성 고정)을 `m1-2`(`c46f7728`)에 푸시했고, 과제의 Swagger 요구에 맞춰 `ENABLE_API_DOCS`로 `/docs`를 켜고 끌 수 있게 했으며 README를 과제 제출 형식으로 다시 썼다. 운영 API(`ai-secretary-api.onrender.com`)는 보완 버전이 반영됐고(`/docs` 기본 비공개), 웹(`ia-codyssey-web.vercel.app`)도 CSP가 반영된 운영 배포가 끝났다(2026-10-04). Firebase 승인 도메인 확인과 배포 후 점검표가 남았다. T08.02·T08.03은 배포 후 점검표 확인, T08.04는 README 점검 후 체크한다.
 
 2026-10-01 AI 경로 변경: T01.04에서 Hermes 로컬 API의 `openai-codex` / `gpt-6-luna` 텍스트 응답을 확인하고 서버 `.env`를 전환했다. T04.01의 Adapter에는 텍스트 호출과 도구 비활성 검사만 먼저 들어갔다. 자료 분석·채팅 기능은 아직 구현되지 않았다. 원격 Hermes 배포 경로도 미검증이므로 T08.02 완료 조건으로 남는다. 과거 T01.03 Codyssey 성공 기록은 이력으로 유지한다.
