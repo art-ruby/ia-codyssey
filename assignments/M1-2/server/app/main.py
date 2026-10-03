@@ -40,6 +40,7 @@ from app.features.reviews.routes import router as reviews_router
 from app.features.reviews.service import PastRevisitDate
 from app.features.settings.routes import router as settings_router
 from app.features.trash.routes import router as trash_router
+from app.features.telegram.routes import router as telegram_router
 from app.features.data.routes import router as data_router
 from app.features.data.summary import SourceNotAllowed
 from app.features.trash.service import NotInTrash
@@ -121,6 +122,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     # 분석 작업마다 Adapter를 만든다. 설정이 비어 있으면 그 작업만 `missing_ai_settings`로 실패한다(T04.02).
     app.state.analysis_adapter_factory = analysis_adapter_factory or (
         lambda: AnalysisAdapter(HermesProvider(settings)))
+    app.state.telegram_send_message = None
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -256,6 +258,7 @@ def create_app(settings: Settings | None = None, verify_token: TokenVerifier | N
     app.include_router(data_router)
     app.include_router(chat_router)
     app.include_router(conversations_router)
+    app.include_router(telegram_router)
 
     # CORS보다 안쪽에 둬서 413 응답에도 CORS 헤더가 붙게 한다(브라우저가 원인을 볼 수 있다).
     app.add_middleware(BodySizeLimit)

@@ -125,6 +125,23 @@ PC, Hermes, Tailscale 또는 중계 서버가 꺼져 있으면 Render의 AI 요�
 
 Render 서비스 생성(주소 확정, 이때 `ALLOWED_ORIGINS`는 임시로 비워 둠) → Vercel 배포(`API_BASE_URL` = Render 주소, 웹 주소 확정) → Render `ALLOWED_ORIGINS`를 Vercel 주소로 설정하고 재배포 → Firebase 승인 도메인 추가 → Funnel·중계 서버 켬.
 
+## Telegram Bot 연동
+
+Telegram은 Hermes에 직접 붙이지 않고 Render의 AI Secretary API에 붙인다. 흐름은 `Telegram → Render API → Firestore/채팅 문맥 → Hermes → Render API → Telegram`이다. 이렇게 해야 웹과 텔레그램이 같은 자료·대화 저장소와 같은 Hermes 호출 경계를 공유한다.
+
+1. Telegram 앱에서 `@BotFather`에게 `/newbot`을 보내 봇을 만든다. 발급된 Bot Token은 채팅·문서·저장소에 붙여넣지 말고 Render 환경변수 `TELEGRAM_BOT_TOKEN`에만 넣는다.
+2. 임의의 긴 문자열을 만들어 Render 환경변수 `TELEGRAM_WEBHOOK_SECRET`에 넣는다. 이 값은 Telegram이 보내는 `X-Telegram-Bot-Api-Secret-Token` 헤더와 대조한다.
+3. Render를 재배포한 뒤 아래 주소를 브라우저나 PowerShell에서 호출해 웹훅을 등록한다. `<BOT_TOKEN>`과 `<SECRET>`은 실제 값으로 바꾸되 기록하지 않는다.
+
+```text
+https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://ai-secretary-api.onrender.com/api/telegram/webhook&secret_token=<SECRET>
+```
+
+4. Telegram에서 봇에게 `/start`를 보낸다. `TELEGRAM_ALLOWED_CHAT_ID`가 비어 있으면 서버가 내 chat_id를 알려준다. 그 숫자를 Render 환경변수 `TELEGRAM_ALLOWED_CHAT_ID`에 넣고 다시 재배포한다.
+5. 다시 `/start`를 보내 연결 문구가 오면 일반 질문을 보낸다. 서버는 현재 MVP에서 `personal` 모드로만 처리한다. 자료 저장 명령(`/save`)은 아직 구현하지 않았다.
+
+보안 기준: Bot Token, Webhook Secret, chat_id는 모두 Render 환경변수에 둔다. 허용 chat_id와 다른 대화방의 메시지는 AI 호출 없이 무시한다. Telegram이 같은 update를 재전송해도 `telegram-<update_id>` 중복 키로 답장을 한 번만 보낸다.
+
 ## 배포 후 검증 체크리스트 (T08.02 완료 조건)
 
 - [ ] `GET <API>/health`가 `status: ok`, 설정 묶음 `ready`.

@@ -318,3 +318,10 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 - Render 문서 확인: 사용자 지정 Blueprint 경로 지원, `rootDir`·`healthCheckPath`·`plan: free`·`region: singapore`·`sync: false`·`PYTHON_VERSION` 모두 명세에 있음(2026-10-03 조회). **실제 Render에서 이 경로를 받아들이는지는 확인하지 못했다.**
 - 현재 환경 확인(읽기 전용): `m1-2` 브랜치는 점검 시점에 `origin`에 없었고(같은 날 사용자 승인 후 푸시), 저장소 `art-ruby/ia-codyssey`는 공개, Vercel CLI 56.4.1 설치됐으나 로그인 안 됨(`vercel whoami`가 로그인 입력에서 멈춤), Render CLI 없음, Tailscale Funnel 켜져 있음(공개 호스트명은 `docs/deployment.md`에 기록된 것).
 - **하지 못한 것(배포 완료 조건 미충족):** Render·Vercel 실제 배포, HTTPS 웹의 인증된 API 호출, Swagger 접근, 실제 잘못된 Origin 거부 확인, Render → Funnel → 중계 → Hermes 왕복, Render 로그의 비밀 노출 점검, Free 플랜의 중지 정책·과금 확인. 체크리스트는 `docs/deployment.md`. 이 항목이 모두 통과하기 전에는 T08.02를 완료로 표시하지 않는다.
+
+
+## Telegram Bot 연동 — 2026-10-03
+
+- 자동 테스트: `python -m pytest server/tests/test_telegram_webhook.py -q` → **5 passed**.
+- 확인 범위: webhook secret 불일치 403, `/start` 연결 문구, 일반 질문이 기존 채팅 흐름을 거쳐 답장·대화 저장, 같은 update 재전송 시 답장 1회, 다른 chat_id 무시, `TELEGRAM_ALLOWED_CHAT_ID` 미설정 시 `/start`로 chat_id 안내.
+- 실제 Telegram/BotFather/Render webhook 등록은 사용자가 Bot Token을 발급하고 Render 환경변수를 넣은 뒤 별도 확인해야 한다.

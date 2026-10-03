@@ -110,7 +110,8 @@ def test_render_blueprint_points_at_server_folder_with_health_check_and_port():
 
 def test_render_secrets_are_never_written_in_the_file():
     blocks = render_env_blocks()
-    secrets = {"OPENAI_API_KEY", "FIREBASE_SERVICE_ACCOUNT_JSON", "OWNER_UID", "AI_PROVIDER_BASE_URL", "ALLOWED_ORIGINS"}
+    secrets = {"OPENAI_API_KEY", "FIREBASE_SERVICE_ACCOUNT_JSON", "OWNER_UID", "AI_PROVIDER_BASE_URL", "ALLOWED_ORIGINS",
+               "TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_CHAT_ID", "TELEGRAM_WEBHOOK_SECRET"}
     assert secrets <= set(blocks)
     for name in secrets:
         assert re.search(r"sync:\s*false", blocks[name]), f"{name}은 대시보드에서 직접 입력(sync: false)해야 한다"

@@ -264,3 +264,10 @@
 - **웹:** `web/vercel.json`은 `framework: null`, 빌드 `node scripts/build-config.mjs`(공개 값 4개만, 하나라도 없으면 실패), 출력 `.`, 보안 헤더 `nosniff`·`DENY`·`no-referrer`. CSP 헤더는 Firebase 로그인 스크립트·팝업이 깨질 위험이 있어 이번에는 넣지 않았다.
 - **배포 순서:** Render(주소 확정) → Vercel(`API_BASE_URL`) → Render `ALLOWED_ORIGINS` 설정·재배포 → Firebase 승인 도메인 → Funnel·중계 켬. `ALLOWED_ORIGINS`가 `sync: false`라 배포 뒤에 값을 바꿀 수 있어 순환 의존이 풀린다.
 - **하지 않은 것:** 실제 배포·푸시. 저장소가 공개이고 Render·Vercel 계정, 비밀값 입력, Firebase 콘솔 설정은 사용자 계정의 일이라 사용자 확인 후에 진행한다.
+
+
+## Telegram Bot 연동 (2026-10-03, "추천안대로 해줘" 지시)
+- 구조: Telegram은 Hermes에 직접 연결하지 않는다. Render의 AI Secretary API가 webhook을 받고, 기존 채팅 문맥·저장소·Hermes Provider를 재사용해 답장을 보낸다.
+- 범위: 1차 연동은 `/start`와 일반 질문만 처리한다. 자료 저장(`/save`)과 알림 푸시는 후속 단계로 둔다.
+- 보안: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ALLOWED_CHAT_ID`는 Render 환경변수에만 둔다. webhook secret이 맞지 않으면 403, 허용 chat_id가 아니면 AI 호출 없이 무시한다.
+- 중복: Telegram 재전송은 `telegram-<update_id>` 중복 키로 한 번만 처리한다.
