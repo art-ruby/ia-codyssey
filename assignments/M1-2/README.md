@@ -35,7 +35,7 @@
 | Swagger UI | https://ai-secretary-api.onrender.com/docs | 확인 시점의 배포 버전에서 열림 (아래 참고) |
 
 - **Swagger 공개 설정:** 보안상 `/docs`는 기본으로 꺼져 있고 `ENABLE_API_DOCS=true`일 때만 열립니다. `render.yaml`에 이 값이 `true`로 들어 있어, 이 코드를 Render에 배포하면 `/docs`가 열립니다. 문서에는 데이터가 없고 모든 `/api` 호출은 로그인이 필요합니다.
-- **무료 티어 첫 요청 지연:** Render 무료 서비스는 한동안 쓰지 않으면 잠들어 첫 요청이 수십 초 걸립니다(`/health`가 첫 시도에 시간 초과되는 것을 확인). 웹은 연결 실패 시 재시도 배너를 보여 주며, 같은 요청 키로 다시 보내므로 중복 등록되지 않습니다. 콜드스타트 전용 안내 문구는 아직 없습니다(11장).
+- **무료 티어 첫 요청 지연:** Render 무료 서비스는 한동안 쓰지 않으면 잠들어 첫 요청이 수십 초 걸립니다(`/health`가 첫 시도에 시간 초과되는 것을 확인). 웹은 연결 실패 시 재시도 배너를 보여 주며, 같은 요청 키로 다시 보내므로 중복 등록되지 않습니다. 콜드스타트 전용 안내 문구는 아직 없습니다(10장).
 - 이 PC의 Hermes·Tailscale·중계 서버가 꺼져 있으면 AI 분석·채팅만 실패하고 나머지 기능은 동작합니다.
 
 ## 4. 과제 요구 사항과 구현 위치
@@ -164,19 +164,9 @@ AI 연결 확인: `.\.venv\Scripts\python.exe server/scripts/smoke_hermes.py`(�
 - 웹은 `innerHTML`을 쓰지 않고 `Content-Security-Policy`·`X-Frame-Options`·`nosniff`를 적용합니다(`web/vercel.json`).
 - 의존성은 테스트한 버전으로 고정했습니다(`server/requirements*.txt`).
 
-## 10. 제출 스크린샷
+## 10. 현재 한계와 남은 작업
 
-과제가 요구하는 3장입니다. **아직 촬영·첨부하지 않았습니다.** 로그인이 필요한 화면이라 배포 환경에서 직접 캡처해 `docs/evidence/`에 넣고, 아래 파일명으로 저장하면 됩니다. 커밋할 화면은 **표본 모드**로 찍어 개인 자료·URL·계정 정보가 보이지 않게 합니다.
-
-| 필수 화면 | 파일명(제안) | 상태 |
-|---|---|---|
-| 데이터 요약이 보이는 채팅 화면(질문+답변 포함) | `docs/evidence/chat-with-summary.png` | 미첨부 |
-| 데이터 관리 화면(CRUD 중 1개 동작) | `docs/evidence/data-crud.png` | 미첨부 |
-| 대화 기록 화면(불러오기 동작) | `docs/evidence/conversation-history.png` | 미첨부 |
-
-## 11. 현재 한계와 남은 작업
-
-- **MVP(Phase 01~07)** 기능과 서버·웹 자동 테스트는 구현·통과했습니다. [task.md](task.md)에서 T08.02(배포), T08.03(배포 환경 시연), T08.04(README·제출 화면)는 아직 체크하지 않았습니다. 3장의 주소가 열리는 것은 확인했지만 배포 후 점검표(로그인 후 `/api/me` 200, Origin 사전 요청, Render→Hermes 왕복 AI 호출, 로그 점검)를 모두 확인하지는 못했으므로 **배포 완료로 표시하지 않습니다.**
+- **MVP(Phase 01~07)** 기능과 서버·웹 자동 테스트는 구현·통과했습니다. [task.md](task.md)에서 T08.02(배포), T08.03(배포 환경 시연), T08.04(README)는 아직 체크하지 않았습니다. 3장의 주소가 열리는 것은 확인했지만 배포 후 점검표(로그인 후 `/api/me` 200, Origin 사전 요청, Render→Hermes 왕복 AI 호출, 로그 점검)를 모두 확인하지는 못했으므로 **배포 완료로 표시하지 않습니다.**
 - 보안 보완 커밋은 `m1-2` 브랜치에 푸시되어 있으나 Render·Vercel에 반영됐는지는 확인하지 못했습니다(확인 시점에 `/docs`가 열리고 CSP 헤더가 없어 이전 버전이었습니다).
 - AI는 이 PC의 Hermes·Tailscale·중계 서버가 켜져 있어야 동작합니다. Render 왕복 AI 호출은 미검증입니다.
 - Render 무료 티어 콜드스타트 전용 안내 문구가 없습니다(재시도 배너만).
@@ -184,11 +174,11 @@ AI 연결 확인: `.\.venv\Scripts\python.exe server/scripts/smoke_hermes.py`(�
 - Windows 파일 정리 기능(Phase 09~10)은 확장 단계로, MVP 범위에 없습니다.
 - 알려진 제한: 동일 URL 후보가 10건을 넘으면 일부만 표시됩니다. 실제 Firestore로 51건 일괄 승인을 브라우저에서 시연하지는 않았습니다(자동 테스트로 분할·재개 확인).
 
-## 12. Telegram Bot 연동 (선택 기능)
+## 11. Telegram Bot 연동 (선택 기능)
 
 Telegram은 AI Secretary API의 webhook(`/api/telegram/webhook`)으로 연결합니다. 서버가 기존 채팅 문맥과 Hermes Provider를 재사용하므로 Hermes에 직접 연결하지 않습니다. 필요한 Render 환경변수는 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`이며 설정 절차는 [docs/deployment.md](docs/deployment.md)의 "Telegram Bot 연동"을 따릅니다. 자동 테스트는 통과했지만 실제 BotFather·webhook 등록은 [docs/verification.md](docs/verification.md)대로 미확인입니다. 과제 필수 범위 밖의 확장입니다.
 
-## 13. 문서
+## 12. 문서
 
 | 문서 | 내용 |
 |---|---|
@@ -202,5 +192,5 @@ Telegram은 AI Secretary API의 webhook(`/api/telegram/webhook`)으로 연결합
 | [docs/보안취약점.md](docs/보안취약점.md) | 보안 점검 체크리스트 63항목과 점검·보완 결과 |
 | [docs/deployment.md](docs/deployment.md) | Render·Vercel·Hermes 중계 배포 절차와 점검표 |
 | [docs/chat-evaluation.md](docs/chat-evaluation.md) | 채팅 검색 품질 평가 |
-| [ddokddoki-briefing/](ddokddoki-briefing/README.md) | 별도 실습: 생활 속 AI·기술 뉴스 브리핑 비서 "똑똑이"의 첫 작업공간(설정·아이디어·개인정보 경계). 이 서비스의 코드와는 독립 |
+| [docs/assistant-soul.md](docs/assistant-soul.md) · [idea-seed.md](docs/idea-seed.md) · [privacy-boundaries.md](docs/privacy-boundaries.md) | 별도 실습: AI·기술 뉴스 브리핑 비서 "똑똑이"의 설정·아이디어·개인정보 경계. 이 서비스의 코드와는 독립 |
 | [.env.example](.env.example) | 환경변수 이름 예시 |
