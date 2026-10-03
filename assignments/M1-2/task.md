@@ -59,7 +59,7 @@
 ## 1. 문서 기준과 사용 방법
 
 - 작성일: 2026-10-01.
-- 기준: [prd.md](prd.md) **v1.10**, 기준 커밋 `c324ede9`.
+- 기준: [prd.md](docs/prd.md) **v1.10**, 기준 커밋 `c324ede9`.
 - 현재 작업 폴더: `C:\ia-codyssey-m1-2\assignments\M1-2`, Git 브랜치 `m1-2`.
 - 저장소 안의 기준 경로: `assignments/M1-2/`. 다른 체크아웃에서 작업할 때도 이 상대 경로를 사용한다.
 - 확인된 현재 산출물: PRD, 사용자 시나리오, 단일 HTML 목업, README, `.env.example`, `.gitignore`. 서비스 서버·웹 구현과 실제 배포는 아직 없다.
@@ -198,7 +198,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ### T01.01 최신 PRD·작업 경로·미결정 사항 확인
 
-- **파일:** 읽기 `prd.md`, `README.md`, `mockup/index.html`, `ai-secretary/AI_SECRETARY_SCENARIO.md`; 생성 `docs/decisions.md`.
+- **파일:** 읽기 `docs/prd.md`, `README.md`, `docs/mockup/index.html`, `docs/ai-secretary/AI_SECRETARY_SCENARIO.md`; 생성 `docs/decisions.md`.
 - **작업:** `git status`·브랜치·PRD 버전을 확인하고 진행 중인 변경을 보존한다. PRD §3·§16으로 MVP 경계를 고정한다. Open Decisions 1·2의 결정 시점을 기록한다. 과제 원문이 외부에 있으면 접근 여부를 기록하고 PRD만으로 새 과제 조건을 만들어내지 않는다.
 - **산출/연결:** 다음 Task들이 참조할 작업 경로, 단계별 범위, 결정 기록. §17은 이 문서의 해석 원칙에 따라 실제 화면 확인 목록으로 사용한다.
 - **완료/검증:** 현재 기준 커밋과 10개 화면 키를 기록하고 Phase 08까지 파일 업로드·PC 작업이 들어가지 않았는지 대조한다.
@@ -589,7 +589,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 
 ## 5. 세션 종료 기록과 다음 시작점
 
-2026-10-03 보안 보완·README: 보안 점검 5건(토큰 폐기 확인·본문 크기 제한·`/docs` 환경변수 제어·CSP·의존성 고정)을 `m1-2`(`c46f7728`)에 푸시했고, 과제의 Swagger 요구에 맞춰 `ENABLE_API_DOCS`로 `/docs`를 켜고 끌 수 있게 했으며 README를 과제 제출 형식으로 다시 썼다. 운영 API(`ai-secretary-api.onrender.com`)는 보완 버전이 반영됐고(`/docs` 기본 비공개), 웹(`ia-codyssey-web.vercel.app`)은 CSP 반영을 위한 운영 배포가 남았다. T08.02·T08.03은 배포 후 점검표 확인, T08.04는 README 점검 후 체크한다.
+2026-10-03 보안 보완·README: 보안 점검 5건(토큰 폐기 확인·본문 크기 제한·`/docs` 환경변수 제어·CSP·의존성 고정)을 `m1-2`(`c46f7728`)에 푸시했고, 과제의 Swagger 요구에 맞춰 `ENABLE_API_DOCS`로 `/docs`를 켜고 끌 수 있게 했으며 README를 과제 제출 형식으로 다시 썼다. 운영 API(`ai-secretary-api.onrender.com`)는 보완 버전이 반영됐고(`/docs` 기본 비공개), 웹(`ia-codyssey-web.vercel.app`)도 CSP가 반영된 운영 배포가 끝났다(2026-10-04). Firebase 승인 도메인 확인과 배포 후 점검표가 남았다. T08.02·T08.03은 배포 후 점검표 확인, T08.04는 README 점검 후 체크한다.
 
 2026-10-01 AI 경로 변경: T01.04에서 Hermes 로컬 API의 `openai-codex` / `gpt-6-luna` 텍스트 응답을 확인하고 서버 `.env`를 전환했다. T04.01의 Adapter에는 텍스트 호출과 도구 비활성 검사만 먼저 들어갔다. 자료 분석·채팅 기능은 아직 구현되지 않았다. 원격 Hermes 배포 경로도 미검증이므로 T08.02 완료 조건으로 남는다. 과거 T01.03 Codyssey 성공 기록은 이력으로 유지한다.
 
