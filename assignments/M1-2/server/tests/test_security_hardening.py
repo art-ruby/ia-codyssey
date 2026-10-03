@@ -18,7 +18,7 @@ def make_client(**env):
 
 
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
-def test_api_docs_are_not_exposed(path):
+def test_api_docs_are_not_exposed_by_default(path):
     assert make_client().get(path).status_code == 404
 
 

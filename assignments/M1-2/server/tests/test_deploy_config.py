@@ -135,6 +135,11 @@ def test_render_ai_values_match_verified_hermes_route():
     assert re.search(r"value:\s*openai-codex", blocks["AI_PROVIDER_ROUTE"])
 
 
+def test_render_enables_swagger_for_submission_verification():
+    blocks = render_env_blocks()
+    assert re.search(r"value:\s*\"?true\"?", blocks["ENABLE_API_DOCS"])
+
+
 def test_vercel_config_builds_public_config_only():
     config = json.loads((ROOT / "web" / "vercel.json").read_text(encoding="utf-8"))
     assert "build-config.mjs" in config["buildCommand"]

@@ -106,6 +106,7 @@ PC, Hermes, Tailscale 또는 중계 서버가 꺼져 있으면 Render의 AI 요�
    | `PYTHON_VERSION` | `3.11.9` | 파일 |
    | `AI_PROVIDER_MODEL` / `AI_PROVIDER_ROUTE` | `gpt-6-luna` / `openai-codex` | 파일 |
    | `AI_TIMEOUT_SECONDS` | `120` | 파일 |
+   | `ENABLE_API_DOCS` | `true` | 파일 |
    | `OPENAI_API_KEY` | **Hermes 중계 토큰**(Hermes API 키 아님) | 대시보드 |
    | `AI_PROVIDER_BASE_URL` | `https://<Funnel 호스트명>/v1` | 대시보드 |
    | `FIREBASE_SERVICE_ACCOUNT_JSON` | 서비스 계정 키 JSON 전체(한 줄) | 대시보드 |

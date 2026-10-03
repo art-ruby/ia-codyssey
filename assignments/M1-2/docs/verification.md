@@ -297,7 +297,7 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 | A18 | 흐름 시험: 같은 URL 409 `duplicate_url`. `test_url_duplicates` | 없음 |
 | A19 | `test_related_materials`(T05.02): 근거 있는 후보만, 연결·관련 없음 저장, 약한 후보는 강제 연결 없음 | 이번 통합 흐름에는 넣지 않았다 |
 | A23 | 흐름 시험: 분석 1·채팅 1로 사용량 구분. `test_ai_usage`: 한도 도달 시 `quota_waiting`·사용량과 대기 구분 | 없음 |
-| A24 | 서버 쪽: 표본 CRUD→요약→같은 질문의 숫자 변화(`test_chat_evaluation`), 흐름 시험, 대화 저장·불러오기 | Render/Vercel 배포·Swagger·제출 화면·모바일 웹(T08.02~T08.03) |
+| A24 | 서버 쪽: 표본 CRUD→요약→같은 질문의 숫자 변화(`test_chat_evaluation`), 흐름 시험, 대화 저장·불러오기 | Render/Vercel 배포·Swagger·모바일 웹(T08.02~T08.03) |
 | A25 | **오늘 실제 호출**(`server/scripts/smoke_hermes.py`, 1회): `route=openai-codex`, 요청·응답 모델 `gpt-6-luna`, 비어 있지 않은 텍스트·`finish_reason=stop`, 1,024토큰, 성공. 호출 전에 Hermes 도구 세트가 모두 꺼져 있는지 확인(`HermesProvider.complete_text`가 먼저 확인하므로 성공은 도구 비활성을 뜻함). 응답 원문은 출력하지 않음 | Render → Funnel → relay → Hermes 왕복은 T08.02에서 확인 |
 | A26 | 흐름 시험: 휴지통 → 검색·새 채팅 문맥에서 빠지고 보관 수 2→1, 복원 → 2, 확인 값 없는 영구 삭제 422, 확인 후 삭제(자료 404·검색에서 사라짐·대화 출처 `deleted`). `test_web_trash`(접수 기록·URL 예약·관련 자료 기록·요청 기록까지 제거) | 없음 |
 
