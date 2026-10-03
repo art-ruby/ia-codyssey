@@ -280,3 +280,34 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 - 실제 브라우저(테스트 서버 8011·5511, 실제 Firestore·Hermes, 표본 모드): S05 기본 요약 패널 '가상 보관 기록 · 가상 기록 · 2026-08-02 ~ 2026-09-30 · 합계 215건 · 일평균 3.58 · 최소 0 · 최대 8 · 60일 · 증가 +69%'. q01 → 근거 1건(본문 확인)과 기본 요약. 같은 대화의 n03 → `invalid_output` 2회(원인: 과거 답을 문장으로 보냄, 진단 호출 2회로 재현·확인) → 수정 후 한계 첫 줄·근거 0건·요약/해석 분리. 새 대화 q10 → 근거 4건(기대 자료 포함). S06 목록(2개, 최근 만든 순, 메시지 4·2개 — 실패한 시도는 저장 안 됨) → '열기'로 S05에 2묶음과 출처 '현재 보관 중' → 삭제 확인 단계 문구 → 두 대화 삭제 → 빈 목록. 콘솔 오류 없음.
 - Provider 요청: 브라우저 5회(q01, n03 실패 2·성공 1, q10) + 진단 스크립트 2회 = 7회. 실패 2회는 보낸 요청이라 사용량에 남았다.
 - 정리: 시험 대화 2개는 화면에서 삭제(저장 대기 답변 없음). 브라우저는 개인 모드로 되돌림, 테스트 서버 종료.
+
+## T08.01 MVP 인수 기준과 보안·실패 흐름 검증 — 2026-10-03
+
+**결과 요약:** `pytest server/tests -q` **583 passed**(새 `test_mvp_flow.py` 9개), 웹 `node --test` **45 passed**. 아래 표의 '자동 시험' 증거는 위 실행에서 통과했다. **최종 통과 표시는 하지 않았다** — 웹 화면·배포·모바일이 걸린 항목은 T08.02~T08.03 이후에 올린다.
+
+| A-ID | 이번까지의 증거 | 아직 남은 것(최종 통과 조건) |
+|---|---|---|
+| A01 | `test_full_mvp_flow`: URL만 접수 → `link_only`, 요약 없음, AI 호출 0. `test_material_intake`. 웹 문구 '링크만 저장됨 · 본문 미확인'(`web/js/analysis.js`) | 배포 화면에서 확인(T08.03) |
+| A02 | 흐름 시험: 사용량 0 확인 → 분석 시작 202 → 완료 → AI 'high'를 'low'로 고쳐 승인 → 다시 불러와도 유지. 브라우저 확인은 T04.02·T04.03에 기록 | 배포 화면에서 새로고침 유지 확인(T08.03) |
+| A13 | `test_ai_excluded_material_cannot_reach_ai_by_analysis_chat_or_history`, `test_material_eligibility`, `test_chat_context`(요청 캡처에서 미승인·휴지통·삭제 진행·제외 자료 없음), `test_chat_answers`(지시문 삽입) | 없음(MVP 웹 자료 범위) |
+| A14 | `test_chat_evaluation` + `docs/chat-evaluation.md`: 정답 10/10, 무근거 3/3 한계 표시, 없는 출처 0건. 실제 AI 3문항 확인(T07.04) | 없음 |
+| A15 | `test_sample_seed`(고정 120건), `test_data_crud`, `test_data_summary`(독립 계산 대조), 흐름의 표본 모드 시험: 기록 추가·수정·삭제에 따라 합계 12→19→15, 개인 실제 값은 0으로 분리 | 없음(화면은 T06.04 브라우저 기록) |
+| A16(웹) | `test_every_api_route_rejects_missing_invalid_and_non_owner_tokens`: OpenAPI의 `/api/` 작업 33개 전부 로그인 없음 401·잘못된 토큰 401·허용 밖 계정 403. `firestore.rules` 전면 거부 | PC 오프라인·승인 만료는 확장 단계 |
+| A17(웹) | 흐름 시험과 `test_conversations`: 대화 자동 저장·불러오기·삭제, 저장 실패 보관·재저장. 실제 Firestore 왕복(T07.03) | Render API·Swagger·Vercel 웹 배포(T08.02), README(T08.04) |
+| A18 | 흐름 시험: 같은 URL 409 `duplicate_url`. `test_url_duplicates` | 없음 |
+| A19 | `test_related_materials`(T05.02): 근거 있는 후보만, 연결·관련 없음 저장, 약한 후보는 강제 연결 없음 | 이번 통합 흐름에는 넣지 않았다 |
+| A23 | 흐름 시험: 분석 1·채팅 1로 사용량 구분. `test_ai_usage`: 한도 도달 시 `quota_waiting`·사용량과 대기 구분 | 없음 |
+| A24 | 서버 쪽: 표본 CRUD→요약→같은 질문의 숫자 변화(`test_chat_evaluation`), 흐름 시험, 대화 저장·불러오기 | Render/Vercel 배포·Swagger·제출 화면·모바일 웹(T08.02~T08.03) |
+| A25 | **오늘 실제 호출**(`server/scripts/smoke_hermes.py`, 1회): `route=openai-codex`, 요청·응답 모델 `gpt-6-luna`, 비어 있지 않은 텍스트·`finish_reason=stop`, 1,024토큰, 성공. 호출 전에 Hermes 도구 세트가 모두 꺼져 있는지 확인(`HermesProvider.complete_text`가 먼저 확인하므로 성공은 도구 비활성을 뜻함). 응답 원문은 출력하지 않음 | Render → Funnel → relay → Hermes 왕복은 T08.02에서 확인 |
+| A26 | 흐름 시험: 휴지통 → 검색·새 채팅 문맥에서 빠지고 보관 수 2→1, 복원 → 2, 확인 값 없는 영구 삭제 422, 확인 후 삭제(자료 404·검색에서 사라짐·대화 출처 `deleted`). `test_web_trash`(접수 기록·URL 예약·관련 자료 기록·요청 기록까지 제거) | 없음 |
+
+**보안·실패 흐름(이번 Task의 새 시험)**
+- 인증 우회: 위 A16. 모드 혼합: `test_other_mode_material_is_invisible_everywhere_and_never_sent_to_ai` — 표본 자료는 개인 모드에서 조회·검색·수정·분석·승인·복원이 모두 404/`not_found`이고, 개인 질문의 AI 요청에 표본 본문이 없으며 표본 대화도 보이지 않는다.
+- 오래된 승인: `test_approval_with_an_old_version_does_not_keep_the_material`(보관되지 않고 수정이 유지, 새 버전으로는 승인), `test_analysis_started_from_an_old_version_is_refused_without_calling_ai`(409, 호출·사용량 0).
+- 분석 제외 우회: 분석 409(호출 없음), 새 질문과 같은 대화의 후속 질문 모두에서 본문이 AI 요청에 없고 보관함에는 보인다. 제외 해제 후 다시 근거.
+- 입력 HTML: `<script>`·`onerror` 입력이 글자 그대로 보관되고 모든 응답이 `application/json`. `test_web_code_never_inserts_strings_as_html`: `web/js`에 `innerHTML`·`outerHTML`·`insertAdjacentHTML`·`document.write`·`eval(`·`new Function(`·`srcdoc`이 없다. **정적 검사이며 브라우저에서 실제로 렌더링해 본 시험은 아니다.**
+- 시험 작성 중 고친 것(모두 시험 쪽 오류, 제품 변경 없음): 포함된 라우터가 `app.routes`에 펼쳐지지 않아 OpenAPI 명세로 경로를 모으도록 바꿈, 질문마다 새 대화가 생기는 점을 반영해 대화 목록 단언을 고침.
+
+**배포 전 점검:** `git ls-files`에서 `.env`·서비스 계정 원본·`.pem`은 없고 `.env.example`만 추적된다. 이 검사는 키의 유효성이나 과제의 Provider 인정 여부를 대신하지 않는다.
+
+**확인하지 못한 것:** A25의 배포 경로(Render 경유), 실제 브라우저에서의 HTML 입력 렌더링, 모바일 화면, A19를 한 흐름으로 잇는 시험. 실제 Provider 요청은 이번 Task에서 1회(A25)다.

@@ -36,7 +36,7 @@
   - [x] **T07.03** 대화 자동 저장·불러오기·삭제
   - [x] **T07.04** 채팅 화면과 검색 품질 평가
 - [ ] **Phase 08. MVP 통합 검증과 배포 — MVP 완료 지점**
-  - [ ] **T08.01** MVP 인수 기준과 보안·실패 흐름 검증
+  - [x] **T08.01** MVP 인수 기준과 보안·실패 흐름 검증
   - [ ] **T08.02** Render API·Vercel 웹 배포
   - [ ] **T08.03** 실제 배포 환경과 모바일 시연 검증
   - [ ] **T08.04** README·제출 화면·MVP 완료 기록
@@ -446,6 +446,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **파일:** 생성 `server/tests/test_mvp_flow.py`; 수정 `docs/verification.md`.
 - **작업:** URL 접수→분석 동의→검토→보관→검색→질문→대화 복원→휴지통→복원→영구 삭제 흐름을 확인한다. 숫자 CRUD/요약 시연은 표본 모드에서 수행한다. 인증 우회, 모드 혼합, 오래된 승인, 분석 제외 우회, 입력 HTML 실행을 검사한다.
 - **완료/검증:** `python -m pytest server/tests -q` 결과와 A01·A02·A13·A14·A15·A16(웹)·A17(웹)·A18·A19·A23·A24·A25·A26의 증거를 남긴다. A25는 실제 호출 증거가 필요하다. UI 및 배포 항목은 T08.03까지 완료된 뒤 최종 통과로 표시한다.
+- **착수 전 결정(2026-10-03, `docs/decisions.md`):** 한 개의 통합 흐름 시험(`test_mvp_flow.py`)에 접수→분석→승인→검색→질문→대화→휴지통→복원→영구 삭제를 잇고, 보안 5종은 별도 시험으로 둔다. 인증은 OpenAPI 명세의 모든 `/api/` 작업(33개)에 대해 로그인 없음·잘못된 토큰·다른 계정을 검사한다. A25는 `smoke_hermes.py`로 오늘 실제 1회 호출. A-ID는 이 Task에서 '서버·자동 시험' 증거까지만 표시하고, 웹·배포 항목은 T08.03 뒤 최종 통과로 올린다.
 
 ### T08.02 Render API·Vercel 웹 배포
 
@@ -594,8 +595,8 @@ Phase 01(T01.01~T01.04)과 Phase 02(T02.01~T02.04)를 완료했다. Firestore는
 
 | 항목 | 현재 기록 |
 |---|---|
-| 마지막 완료 Task | T07.04 — S05 채팅·요약 패널, S06 대화 기록, 검색 품질 평가 10/10·3/3·없는 출처 0건, 실제 AI 3문항(과거 대화 형식 문제 수정) |
-| 다음 Task | T08.01 — MVP 인수 기준과 보안·실패 흐름 검증 |
+| 마지막 완료 Task | T08.01 — MVP 통합 흐름·보안(인증·모드·오래된 승인·분석 제외·HTML) 시험 9개, A-ID 증거표(`docs/verification.md`), A25 실제 호출 |
+| 다음 Task | T08.02 — Render API·Vercel 웹 배포 |
 | 작업 기준 | PRD v1.11 / `m1-2` 브랜치. 초기 기준 커밋 `c324ede9`, T01.01·T01.02 `424961b8`, T01.03 준비 `94af8d50` |
 | 검증 보완 파일 | `server/scripts/smoke_ai.py`, `server/tests/test_smoke_ai.py`, `docs/verification.md` |
 | 실제 실행 결과 | T01.02: Python 3.11.9, `pytest server/tests -q` 7 passed, `/health`·`/docs` HTTP 200, 비밀값 미노출·Git 제외 확인. T01.03: Codyssey `gpt-5-mini` 실제 호출 성공, 응답 모델 `gpt-5-mini`, OpenAI SDK `3.22.1`, 비어 있지 않은 텍스트 응답, `finish_reason=stop`. Phase 01 연결 검증 보충에서 `max_completion_tokens=1500` 호출도 성공했고 usage는 `completion=74`, `prompt=14`, `total=88`이었다. 서버 `.env`는 Codyssey로 전환했고 Hermes는 `.env.hermes`로 보존했다. `finish_reason=stop` 성공 판정과 잘린 응답 실패 판정을 모의 응답으로 검증했다. T02.01: `pytest server/tests -q` 27 passed(401 6종·인증 전 모드 확인 안 함·403·OWNER_UID 누락 503·422 4종·소유자 통과·Firebase 미설정 503·서비스 계정 내용 미노출), 실제 서버에서 토큰 없음 401·Firebase 미설정 시 503 확인. 실제 Google 로그인 후 `/api/me` 200·로그아웃 후 401 확인(`docs/verification.md`). 리뷰 보완: 인증서 조회 실패 503, `apiFetch` 모드 필수 |
