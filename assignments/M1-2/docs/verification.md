@@ -330,5 +330,5 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 
 - 브랜치 `m1-2` 커밋 `c46f7728`: 토큰 폐기 확인(`check_revoked`), 요청 본문 256KiB 제한, `/docs` 기본 비공개(`ENABLE_API_DOCS=true`일 때만 공개), 웹 CSP(인라인 스크립트·스타일 제거), 의존성 버전 고정.
 - 과제가 배포 URL의 Swagger(`/docs`)를 요구하므로 `render.yaml`에 `ENABLE_API_DOCS=true`를 넣는다. 로컬·기본값은 비공개.
-- `pytest server/tests -q` **629 passed**, `node --test web/scripts/*.test.mjs` **45 passed**.
+- `pytest server/tests -q` **634 passed**(Telegram 5개 포함), `node --test web/scripts/*.test.mjs` **45 passed**.
 - 미검증: 보완 버전의 Render·Vercel 실제 배포(확인 시점에 운영은 이전 버전), CSP 아래의 Google 로그인 팝업, 폐기된 실제 토큰의 거부.

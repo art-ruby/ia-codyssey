@@ -121,7 +121,7 @@ node web/scripts/build-config.mjs
 테스트:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest server/tests -q      # 서버 629개
+.\.venv\Scripts\python.exe -m pytest server/tests -q      # 서버 634개
 node --test web/scripts/*.test.mjs                        # 웹 45개
 ```
 
