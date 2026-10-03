@@ -96,9 +96,16 @@ export function renderInbox(root, ctx) {
   // ── 접수 폼 ──
   const form = el("section", { class: "panel form" },
     el("h2", { text: "새 자료 보내기" }),
-    el("p", { text: "URL만 넣어도 접수됩니다. 이 서비스는 링크 본문을 자동으로 읽지 않으므로, 내용을 분석하려면 설명이나 본문을 직접 붙여 넣으세요." }),
+    el("p", { text: "URL을 입력하고 내용을 가져오면 제목·설명·본문을 확인한 뒤 접수할 수 있습니다." }),
     field("url", "URL", "input"),
+    el("div", { class: "url-preview-actions" }),
     ...FIELDS.map(([name, label, kind, rows]) => field(name, label, kind, rows)));
+  const urlPreviewActions = form.querySelector(".url-preview-actions");
+  const previewButton = el("button", { class: "button secondary small", type: "button", text: "URL 내용 가져오기" });
+  const previewStatus = el("span", { class: "form-status", role: "status" });
+  urlPreviewActions.append(previewButton, previewStatus);
+  const previewPanel = el("section", { class: "url-preview panel", hidden: "" });
+  form.append(previewPanel);
   const submit = el("button", { class: "button primary small", type: "button", text: "자료 접수" });
   const formStatus = el("p", { class: "form-status", role: "status" });
   form.append(el("div", { class: "form-actions" }, submit, formStatus));
@@ -458,6 +465,52 @@ export function renderInbox(root, ctx) {
     }
   }
 
+  function showPreview(result) {
+    const title = result.title || "(페이지 제목을 찾지 못했습니다)";
+    const description = result.description || "(페이지 설명을 찾지 못했습니다)";
+    const body = result.body || "(본문을 찾지 못했습니다)";
+    const useButton = el("button", { class: "button secondary small", type: "button", text: "가져온 내용을 입력란에 넣기" });
+    useButton.addEventListener("click", () => {
+      form.querySelector('[data-field="title"]').value = result.title || "";
+      form.querySelector('[data-field="description"]').value = result.description || "";
+      form.querySelector('[data-field="body"]').value = result.body || "";
+      previewStatus.textContent = "가져온 내용을 입력란에 넣었습니다. 확인한 뒤 자료를 접수하세요.";
+    });
+    previewPanel.replaceChildren(
+      el("h3", { text: "가져온 내용 미리보기" }),
+      el("p", { class: "field-note", text: result.notice || "저장 전에 내용을 확인해 주세요." }),
+      el("strong", { text: "제목" }), el("p", { class: "url-preview-title", text: title }),
+      el("strong", { text: "설명" }), el("p", { text: description }),
+      el("strong", { text: "본문" }), el("pre", { class: "url-preview-body", text: body }),
+      useButton,
+    );
+    previewPanel.hidden = false;
+    previewStatus.textContent = "내용을 가져왔습니다. 아래 미리보기를 확인하세요.";
+  }
+
+  async function fetchPreview() {
+    const url = form.querySelector('[data-field="url"]').value.trim();
+    if (!url) {
+      previewStatus.textContent = "먼저 URL을 입력하세요.";
+      return;
+    }
+    previewButton.disabled = true;
+    previewStatus.textContent = "페이지 내용을 가져오는 중…";
+    previewPanel.hidden = true;
+    try {
+      const result = await guarded(api("/api/materials/preview", { method: "POST", body: { url } }));
+      showPreview(result);
+    } catch (error) {
+      fail(error, previewStatus, () => error.retry().then((result) => {
+        if (!ctx.isCurrent()) throw new Error("stale");
+        showPreview(result);
+      }).catch((e) => fail(e, previewStatus)));
+    } finally {
+      previewButton.disabled = false;
+    }
+  }
+
+  previewButton.addEventListener("click", fetchPreview);
   submit.addEventListener("click", send);
   moveBtn.addEventListener("click", moveSelected);
   laterBtn.addEventListener("click", laterSelectedItems);

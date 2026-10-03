@@ -17,9 +17,19 @@ from app.core.firestore import Store
 from app.core.requests import Result, run_idempotent
 from app.features.analysis.schemas import KINDS
 from app.features.materials import priority, related, search, service
-from app.features.materials.schemas import MaterialCreate, MaterialUpdate
+from app.features.materials.schemas import MaterialCreate, MaterialUpdate, UrlPreview
+from app.features.materials.url_preview import PreviewError, preview_url
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
+
+
+@router.post("/preview")
+def preview_material_url(body: UrlPreview, ctx: RequestContext = Depends(get_context)) -> dict:
+    """주소의 공개 제목·설명·본문을 가져와 보여준다. 자료 저장이나 AI 호출은 하지 않는다."""
+    try:
+        return preview_url(body.url)
+    except PreviewError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
 @router.post("", status_code=201, responses={200: {"description": "같은 URL 자료에 메모를 더함"}, 409: {"description": "같은 URL 자료가 있음"}})

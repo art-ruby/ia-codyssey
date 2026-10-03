@@ -79,6 +79,18 @@ class MaterialCreate(_Fields):
         return self
 
 
+class UrlPreview(BaseModel):
+    """URL 접수 전에 외부 페이지 내용을 미리 가져오는 요청."""
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    url: str = Field(min_length=1, max_length=LIMITS["url"])
+
+    @field_validator("url")
+    @classmethod
+    def valid_url(cls, value):
+        return check_url(value)
+
+
 class MaterialUpdate(_Fields):
     """원래 URL은 출처이므로 고칠 수 없다(url 필드를 보내면 422)."""
 

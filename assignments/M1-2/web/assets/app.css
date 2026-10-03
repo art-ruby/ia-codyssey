@@ -73,11 +73,17 @@ p { color: var(--muted); }
 .panel h2 { font-size: 17px; margin-bottom: 6px; }
 .form label { display: block; margin: 14px 0 0; }
 .form label > span { display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 5px; }
-.form textarea, .form select, .form input[type="text"] {
+.form textarea, .form select, .form input[type="text"], .form input[type="url"] {
   width: 100%; border: 1px solid #cbdad6; border-radius: 9px; padding: 9px 11px; background: #fff; color: var(--ink);
 }
 .form textarea { resize: vertical; }
 .form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.url-preview-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.url-preview { margin-top: 14px; }
+.url-preview h3 { margin: 0 0 8px; font-size: 15px; }
+.url-preview p { overflow-wrap: anywhere; white-space: pre-wrap; }
+.url-preview-title { font-weight: 700; }
+.url-preview-body { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 13px; }
 .form-status { margin: 8px 0 0; font-size: 12px; color: var(--teal); overflow-wrap: anywhere; }
 .form-actions .form-status { margin: 0; }
 .field-note { font-size: 12px; color: var(--amber); margin: 0; }
