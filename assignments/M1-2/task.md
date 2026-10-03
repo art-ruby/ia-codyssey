@@ -457,7 +457,7 @@ Task 상세에 나온 `server/tests/test_*.py`는 그 Task에서 작성할 테�
 - **산출/연결:** 실제 웹 주소·API 주소·Swagger 주소, 배포 재현 절차. 기본 경로와 정적 파일 경로를 배포 설정에 맞춘다.
 - **완료/검증:** HTTPS 웹에서 인증된 API와 Swagger가 동작하고 잘못된 Origin 요청을 허용하지 않는지 확인한다. 접근권한/설정이 없어 배포하지 못하면 배포 미완료로 기록한다. A17에 대응한다.
 - **착수 전 결정(2026-10-03, `docs/decisions.md`):** `render.yaml`은 `assignments/M1-2/`에 두고 Blueprint Path로 지정(Render 문서의 사용자 지정 경로 지원 확인, 거부되면 대시보드 수동 설정), Free·Singapore·Python 3.11.9, 비밀 5개는 `sync: false`, `web/vercel.json`은 공개 설정 빌드와 보안 헤더만, `ALLOWED_ORIGINS`는 정확한 https 주소만 허용(와일드카드·경로·끝 슬래시·원격 http는 시작 시 거부).
-- **현재 상태(2026-10-03):** 설정 파일·Origin 검증·절차 문서 준비 완료(자동 시험 통과). **실제 Render·Vercel 배포는 미완료** — `m1-2` 브랜치가 아직 푸시되지 않았고(저장소는 공개), Render 계정·Vercel 로그인·비밀값 입력·Firebase 승인 도메인은 사용자가 직접 해야 한다. 완료 체크는 `docs/deployment.md`의 배포 후 검증 체크리스트를 모두 통과한 뒤에 한다.
+- **현재 상태(2026-10-03):** 설정 파일·Origin 검증·절차 문서 준비 완료(자동 시험 통과). **실제 Render·Vercel 배포는 미완료** — `m1-2` 브랜치는 2026-10-03에 사용자 승인으로 `origin`에 푸시했고(저장소는 공개), Render 계정·Vercel 로그인·비밀값 입력·Firebase 승인 도메인은 사용자가 직접 해야 한다. 완료 체크는 `docs/deployment.md`의 배포 후 검증 체크리스트를 모두 통과한 뒤에 한다.
 
 ### T08.03 실제 배포 환경과 모바일 시연 검증
 
