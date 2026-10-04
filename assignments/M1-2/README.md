@@ -289,6 +289,7 @@ Telegram은 과제 필수 기능이 아니라 확장 기능입니다. 웹과 API
 | `task.md` | Phase별 작업 기록 |
 | `docs/ai-secretary/AI_SECRETARY_SCENARIO.md` | 사용자 시나리오 |
 | `docs/mockup/index.html` | 초기 UI 목업 |
+| `docs/system-architecture.html` | 시스템 구성도: Vercel·Render·Firestore·Hermes·Tailscale·Telegram의 역할과 웹·Telegram 요청 경로 |
 | `docs/api-contract.md` | API 계약 |
 | `docs/decisions.md` | 설계 결정 기록 |
 | `docs/deployment.md` | Render·Vercel·Firebase·Telegram 배포 절차 |

@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Secretary 시스템 구성</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 레이아웃: 좁은 본문 칼럼 → 연결도 → 두 경로 비교 → 계층별 구성 요소 카드 → 처리 순서·운영·영향·검증 */
+:root {
+  --bg: #f3f6f5;
+  --surface: #ffffff;
+  --ink: #17343a;
+  --muted: #5b7375;
+  --line: #d6e2df;
+  --accent: #137e77;
+  --accent-soft: #e2f1ee;
+  --warn: #9a5b12;
+  --warn-soft: #fbf0de;
+  --ok: #1f7a4d;
+  --ok-soft: #e3f3ea;
+  --code-bg: #eaf1ef;
+  --font-body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1d20; --surface: #152a2e; --ink: #e3eeec; --muted: #9db3b3; --line: #27444a;
+    --accent: #4fc2b6; --accent-soft: #173b3a; --warn: #e6b169; --warn-soft: #3a2c17;
+    --ok: #6fd3a0; --ok-soft: #173a2b; --code-bg: #1b3337; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1d20; --surface: #152a2e; --ink: #e3eeec; --muted: #9db3b3; --line: #27444a;
+  --accent: #4fc2b6; --accent-soft: #173b3a; --warn: #e6b169; --warn-soft: #3a2c17;
+  --ok: #6fd3a0; --ok-soft: #173a2b; --code-bg: #1b3337; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: grid; gap: 44px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.3; }
+h1 { font-size: clamp(28px, 4.2vw, 40px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 22px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.lede { max-width: 66ch; color: var(--muted); font-size: 16px; }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+header { display: grid; gap: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+section { display: grid; gap: 16px; }
+.section-head { display: grid; gap: 6px; }
+.section-head p { color: var(--muted); max-width: 70ch; }
+
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; min-width: 680px; text-align: center; background: transparent; }
+
+.routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.route { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.hops { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13.5px; }
+.hops li { padding: 3px 10px; border-radius: 8px; background: var(--code-bg); }
+.hops li.pc { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+.hops li.arrow { background: transparent; padding: 0; color: var(--muted); }
+.route p { color: var(--muted); font-size: 14px; }
+
+.layer { display: grid; gap: 10px; }
+.layer-label { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.where { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-family: var(--font-mono); font-size: 11.5px; padding: 2px 8px; border-radius: 6px; background: var(--code-bg); color: var(--muted); overflow-wrap: anywhere; }
+.tag.pc { background: var(--warn-soft); color: var(--warn); }
+.role { font-weight: 600; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.card li::marker { color: var(--accent); }
+
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 44px 1fr; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--line); }
+.steps li:first-child { border-top: 0; }
+.steps li::before { content: counter(s); font-family: var(--font-mono); font-weight: 500; color: var(--accent); background: var(--accent-soft); border-radius: 8px; height: 30px; display: grid; place-items: center; }
+.who { font-family: var(--font-mono); font-size: 12px; color: var(--muted); display: block; }
+.note { background: var(--accent-soft); border-radius: 10px; padding: 12px 16px; font-size: 14px; }
+.note.warn { background: var(--warn-soft); }
+
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: 14px; }
+th, td { text-align: left; padding: 11px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th { border-top: 0; font-size: 12px; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; background: var(--bg); }
+td:first-child { font-weight: 600; }
+
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.stop { background: var(--warn-soft); color: var(--warn); }
+.pill.pending { background: var(--code-bg); color: var(--muted); }
+.status { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 520px) { .steps li { grid-template-columns: 34px 1fr; padding: 12px; } body { font-size: 14.5px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">M1-2 · 나만의 AI 비서</span>
+    <h1>AI Secretary 시스템 구성</h1>
+    <p class="lede">Render의 API 서버가 중심입니다. 웹과 Telegram 모두 Render로 요청을 보내고, Render가 Firestore에 기록하며, AI가 필요할 때만 Tailscale Funnel을 통해 이 PC의 Hermes를 부릅니다.</p>
+    <div class="chips">
+      <span class="chip">단일 사용자</span><span class="chip">개인 / 표본 모드</span><span class="chip">FastAPI + 바닐라 JS</span><span class="chip">2026-10-04 기준</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="map">
+    <div class="section-head">
+      <h2 id="map">전체 연결도</h2>
+      <p>화살표는 요청이 가는 방향입니다. "이 PC" 상자 안은 이 컴퓨터가 켜져 있어야 동작합니다.</p>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  user["사용자 브라우저"]
+  phone["휴대폰 Telegram"]
+  vercel["Vercel · 웹 화면"]
+  auth["Firebase Auth · Google 로그인"]
+  tg["Telegram 서버"]
+  api["Render · API 서버 (FastAPI)"]
+  db[("Firestore")]
+  feeds["공식 블로그 · 커뮤니티 RSS"]
+  funnel["Tailscale Funnel · 공개 HTTPS"]
+  subgraph pc["이 PC"]
+    relay["중계 서버 :8766"]
+    hermes["Hermes :8642"]
+  end
+  gpt["GPT · 구독 경로"]
+
+  user -->|화면 받기| vercel
+  user -->|로그인| auth
+  user -->|API 호출 + 토큰| api
+  phone --> tg -->|웹훅 · Funnel 안 거침| api
+  api -->|읽기 · 쓰기| db
+  api -->|새 소식 수집| feeds
+  api -->|AI 호출 + 중계 토큰| funnel --> relay --> hermes --> gpt
+  api -->|답장 sendMessage| tg
+</pre>
+    </div>
+  </section>
+
+  <section aria-labelledby="routes">
+    <div class="section-head">
+      <h2 id="routes">웹 경로와 Telegram 경로</h2>
+      <p>두 입구는 Render에서 만납니다. Funnel은 들어오는 길이 아니라, Render가 이 PC의 Hermes로 나가는 길입니다.</p>
+    </div>
+    <div class="routes">
+      <article class="route">
+        <h3>웹에서 AI 사용</h3>
+        <ol class="hops">
+          <li>브라우저</li><li class="arrow" aria-hidden="true">→</li><li>Vercel 웹</li><li class="arrow" aria-hidden="true">→</li>
+          <li>Render API</li><li class="arrow" aria-hidden="true">→</li><li>Tailscale Funnel</li><li class="arrow" aria-hidden="true">→</li>
+          <li class="pc">중계 서버</li><li class="arrow" aria-hidden="true">→</li><li class="pc">Hermes</li>
+        </ol>
+        <p>Render는 그 사이에 Firestore에서 자료와 숫자 요약을 읽고, 답과 대화를 저장합니다.</p>
+      </article>
+      <article class="route">
+        <h3>Telegram에서 AI 사용</h3>
+        <ol class="hops">
+          <li>Telegram</li><li class="arrow" aria-hidden="true">→</li><li>Render 웹훅</li><li class="arrow" aria-hidden="true">→</li>
+          <li>같은 채팅·자료 처리</li><li class="arrow" aria-hidden="true">→</li><li>Tailscale Funnel</li><li class="arrow" aria-hidden="true">→</li>
+          <li class="pc">중계 서버</li><li class="arrow" aria-hidden="true">→</li><li class="pc">Hermes</li>
+        </ol>
+        <p>답은 Render가 Telegram Bot API(<code>sendMessage</code>)로 보냅니다. 웹훅 자체는 Funnel을 거치지 않습니다.</p>
+      </article>
+    </div>
+    <p class="note warn">Telegram이 Render에 닿는 것과 Render가 Hermes에 닿는 것은 별개의 연결입니다. Telegram으로 AI 답을 받으려면 두 연결이 모두 정상이어야 합니다.</p>
+  </section>
+
+  <section aria-labelledby="parts">
+    <div class="section-head">
+      <h2 id="parts">구성 요소별 역할</h2>
+      <p>요청이 지나가는 순서대로 묶었습니다. 회색 꼬리표는 실제 주소·경로·설정 이름입니다.</p>
+    </div>
+
+    <div class="layer">
+      <div class="layer-label">화면과 로그인</div>
+      <div class="cards">
+        <article class="card">
+          <h3>Vercel · 웹 화면</h3>
+          <div class="where"><span class="tag">ia-codyssey-web.vercel.app</span><span class="tag">web/</span></div>
+          <p class="role">사용자가 보는 화면 전부를 내려줍니다.</p>
+          <ul>
+            <li>프레임워크 없는 HTML·CSS·JavaScript 정적 사이트입니다.</li>
+            <li>빌드 때 공개 값 4개(API 주소, Firebase 웹 설정)로 <code>config.js</code>를 만듭니다. 비밀값은 넣지 않습니다.</li>
+            <li>보안 헤더(CSP, 프레임 차단, MIME 고정)를 붙입니다.</li>
+            <li>API를 부를 때 토큰, 자료 모드(<code>X-Data-Mode</code>), 중복 요청 키를 함께 보냅니다.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Firebase Auth · 로그인</h3>
+          <div class="where"><span class="tag">Google 로그인</span><span class="tag">OWNER_UID</span></div>
+          <p class="role">누가 쓰는지 증명합니다.</p>
+          <ul>
+            <li>브라우저에서 Google 로그인을 하면 ID 토큰을 받습니다.</li>
+            <li>서버는 요청마다 토큰의 서명·만료·폐기 여부를 확인합니다.</li>
+            <li>토큰의 사용자가 <code>OWNER_UID</code>와 다르면 거부합니다(403). 한 사람만 쓰는 서비스입니다.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+
+    <div class="layer">
+      <div class="layer-label">중심 서버와 데이터</div>
+      <div class="cards">
+        <article class="card">
+          <h3>Render · API 서버</h3>
+          <div class="where"><span class="tag">ai-secretary-api.onrender.com</span><span class="tag">server/</span><span class="tag">/docs</span></div>
+          <p class="role">웹과 Telegram이 모두 찾아오는 중심입니다.</p>
+          <ul>
+            <li>FastAPI 서버입니다. 자료 접수·검토·분석, 숫자 기록과 요약, 채팅, 대화 기록, 휴지통, 새 소식, URL 미리보기를 처리합니다.</li>
+            <li>비밀값(서비스 계정, AI 중계 토큰, Telegram 토큰)은 Render 환경변수에만 있습니다.</li>
+            <li>허용한 웹 주소에서 온 요청만 받습니다(CORS). Swagger 문서는 <code>/docs</code>입니다.</li>
+            <li><code>/health</code>의 <code>ready</code>는 설정이 들어 있다는 뜻일 뿐, Hermes 호출이 성공한다는 뜻은 아닙니다.</li>
+            <li>무료 플랜이라 한동안 안 쓰면 잠들고, 첫 요청이 50초 이상 걸릴 수 있습니다.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Firestore · 데이터베이스</h3>
+          <div class="where"><span class="tag">materials</span><span class="tag">data</span><span class="tag">conversations</span><span class="tag">news_items</span></div>
+          <p class="role">모든 기록을 보관합니다.</p>
+          <ul>
+            <li>자료, 숫자 기록, 대화, 프로젝트, 설정, 새 소식이 들어갑니다.</li>
+            <li>보안 규칙으로 브라우저의 직접 읽기·쓰기를 전부 막았습니다. 서버만 관리자 SDK로 접근합니다.</li>
+            <li>모든 문서에 소유자와 모드(개인·표본)가 붙어 서로 섞이지 않습니다.</li>
+            <li>목록 조회에는 복합 색인이 필요하고, 색인은 Firebase CLI로 배포합니다.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+
+    <div class="layer">
+      <div class="layer-label">AI 연결 · 이 PC</div>
+      <div class="cards">
+        <article class="card">
+          <h3>Hermes · AI 게이트웨이</h3>
+          <div class="where"><span class="tag pc">127.0.0.1:8642/v1</span><span class="tag">gpt-5.5</span><span class="tag">openai-codex</span></div>
+          <p class="role">GPT를 OpenAI API와 같은 방식으로 부를 수 있게 해 줍니다.</p>
+          <ul>
+            <li>이 PC에서 돌며, 구독 경로 <code>openai-codex</code>로 현재 <code>gpt-5.5</code>를 씁니다(처음 연결 검증은 <code>gpt-6-luna</code>로 했습니다).</li>
+            <li>서버는 Python <code>openai</code> SDK로 호출합니다. 과제가 요구한 OpenAI API 형식과 같습니다.</li>
+            <li>파일·터미널·MCP 도구를 꺼 두었고, 서버도 호출 전마다 도구가 꺼졌는지 확인합니다.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>중계 서버 + Tailscale Funnel</h3>
+          <div class="where"><span class="tag pc">127.0.0.1:8766</span><span class="tag">HERMES_RELAY_TOKEN</span></div>
+          <p class="role">Render가 이 PC의 Hermes에 닿도록 길을 엽니다.</p>
+          <ul>
+            <li>Render는 이 PC의 <code>127.0.0.1</code>에 직접 닿지 못합니다. Funnel이 공개 HTTPS 주소를 열어 중계 서버로 넘깁니다.</li>
+            <li>중계 서버는 전용 토큰을 확인하고 <code>GET /v1/toolsets</code>, <code>POST /v1/chat/completions</code> 두 경로만 Hermes로 전달합니다.</li>
+            <li>Render의 <code>OPENAI_API_KEY</code>에는 Hermes 키가 아니라 이 중계 토큰을 넣습니다.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+
+    <div class="layer">
+      <div class="layer-label">다른 입구와 바깥 정보</div>
+      <div class="cards">
+        <article class="card">
+          <h3>Telegram Bot</h3>
+          <div class="where"><span class="tag">/api/telegram/webhook</span><span class="tag">TELEGRAM_ALLOWED_CHAT_ID</span></div>
+          <p class="role">휴대폰 메신저에서 비서에게 묻는 입구입니다.</p>
+          <ul>
+            <li>Telegram이 메시지를 Render의 웹훅으로 직접 보냅니다. 서버는 비밀 헤더(<code>TELEGRAM_WEBHOOK_SECRET</code>)와 허용한 chat_id를 확인합니다.</li>
+            <li>답은 웹 채팅과 같은 처리로 만들고 Telegram의 <code>sendMessage</code>로 돌려보냅니다. 이때 Hermes까지 가는 Funnel 연결이 필요합니다.</li>
+            <li>같은 메시지가 다시 와도 한 번만 처리합니다. 처음엔 <code>/start</code>로 내 chat_id를 확인합니다.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>공식 블로그 · 커뮤니티 피드</h3>
+          <div class="where"><span class="tag">/api/news</span><span class="tag">RSS · Atom</span></div>
+          <p class="role">AI 동향의 '새 소식'을 채웁니다.</p>
+          <ul>
+            <li>AI 동향을 열 때 마지막 수집이 6시간 넘었으면 서버가 OpenAI, Google AI, DeepMind, Hugging Face, GeekNews, Hacker News 피드를 읽습니다.</li>
+            <li>관심 분야와 맞는 글을 먼저 보여 주고, 고른 글만 받은 자료로 저장합니다.</li>
+            <li>외부 접속은 공개 주소만 허용하고 크기·시간·리다이렉트를 제한합니다. Hermes는 쓰지 않습니다.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="journey">
+    <div class="section-head">
+      <h2 id="journey">질문 하나가 처리되는 순서</h2>
+      <p>웹의 '비서에게 묻기'에서 질문을 보냈을 때입니다.</p>
+    </div>
+    <ol class="steps">
+      <li><div><span class="who">브라우저 → Render</span>웹이 Firebase 토큰을 붙여 <code>POST /api/chat</code>을 보냅니다.</div></li>
+      <li><div><span class="who">Render → Firestore</span>서버가 토큰과 소유자를 확인하고, 보관 승인된 자료와 숫자 요약을 찾습니다.</div></li>
+      <li><div><span class="who">Render</span>찾은 자료와 요약을 "지시가 아닌 참고 데이터" 구획에 넣어 시스템 메시지를 만듭니다. 자료 안의 문장은 명령으로 따르지 않습니다.</div></li>
+      <li><div><span class="who">Render → Funnel → 중계 → Hermes → GPT</span>질문이 이 PC를 거쳐 GPT로 가고, 답이 같은 길로 돌아옵니다.</div></li>
+      <li><div><span class="who">Render → Firestore → 브라우저</span>서버가 답에 적힌 출처 번호를 검증하고, 대화를 저장한 뒤 화면에 보여 줍니다.</div></li>
+    </ol>
+    <p class="note">Telegram에서 물으면 1번이 웹훅으로 바뀌고 2~5번은 같습니다. 마지막에 화면 대신 Telegram 답장을 보냅니다.</p>
+  </section>
+
+  <section aria-labelledby="tools">
+    <div class="section-head">
+      <h2 id="tools">운영에 쓰는 도구와 CLI</h2>
+      <p>코드 원본은 GitHub 한 곳이고, 배포는 서비스마다 따로 합니다.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>도구</th><th>하는 일</th><th>쓰는 때</th></tr></thead>
+        <tbody>
+          <tr><td>git · GitHub</td><td><code>art-ruby/ia-codyssey</code>의 <code>m1-2</code> 브랜치가 코드 원본입니다.</td><td>모든 변경</td></tr>
+          <tr><td>Render 대시보드</td><td>서버 배포(현재 수동 "Deploy latest commit"), 환경변수, 로그</td><td>서버 코드를 바꾼 뒤</td></tr>
+          <tr><td>Vercel CLI</td><td><code>vercel deploy --prod</code>로 웹을 운영 배포합니다.</td><td>화면 코드를 바꾼 뒤</td></tr>
+          <tr><td>Firebase CLI</td><td><code>firebase deploy --only firestore:indexes</code> 등으로 규칙·색인을 배포합니다.</td><td>저장 구조를 바꾼 뒤</td></tr>
+          <tr><td>Tailscale CLI</td><td><code>tailscale funnel</code>로 중계 서버를 공개 HTTPS로 엽니다.</td><td>AI 연결을 켤 때</td></tr>
+          <tr><td>Python 스크립트</td><td><code>run_hermes_relay.py</code>(중계 실행), <code>smoke_hermes.py</code>(AI 연결 확인), <code>seed_sample.py</code>(표본 120건), <code>check_firestore.py</code>(저장소 점검)</td><td>로컬 점검 · 시연 준비</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="impact">
+    <div class="section-head">
+      <h2 id="impact">무엇이 꺼지면 무엇이 멈추나</h2>
+      <p>AI 답변만 이 PC에 기대고, 나머지는 클라우드에서 돌아갑니다.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>꺼진 것</th><th>멈추는 기능</th><th>계속 되는 기능</th></tr></thead>
+        <tbody>
+          <tr><td>이 PC · Hermes · 중계 · Funnel</td><td><span class="pill stop">멈춤</span> AI 분석, 웹 채팅 답변, Telegram 답변</td><td><span class="pill ok">정상</span> 자료 저장·검토, 숫자 기록·요약, 대화 기록, 새 소식, 휴지통, Telegram <code>/start</code></td></tr>
+          <tr><td>Render 서버(잠듦)</td><td><span class="pill pending">지연</span> 첫 요청이 50초 이상 걸림</td><td>깨어난 뒤에는 모두 정상</td></tr>
+          <tr><td>Firestore 색인 미배포</td><td><span class="pill stop">멈춤</span> 해당 목록 조회(서버 오류 안내 표시)</td><td>색인이 필요 없는 조회</td></tr>
+          <tr><td>Telegram 웹훅·비밀값·chat_id 문제</td><td><span class="pill stop">멈춤</span> Telegram 입구</td><td><span class="pill ok">정상</span> 웹 전체</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="verified">
+    <div class="section-head">
+      <h2 id="verified">확인한 것과 아직 확인하지 못한 것</h2>
+    </div>
+    <div class="status">
+      <article class="card">
+        <h3><span class="pill ok">확인됨</span></h3>
+        <ul>
+          <li>Render·Vercel에 최신 코드 배포, <code>/health</code>의 <code>ai</code>·<code>firebase</code> 설정 <code>ready</code></li>
+          <li>Swagger(<code>/docs</code>), 로그인 없는 요청 401, 웹 보안 헤더와 CORS</li>
+          <li>Telegram 코드와 자동 시험, 서버 680개 · 웹 48개 자동 시험 통과</li>
+          <li><code>/start</code> 연결 메시지 수신: Telegram이 Render에 닿는다는 정황</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3><span class="pill pending">미확인</span></h3>
+        <ul>
+          <li>Render → Funnel → 중계 → Hermes 왕복 AI 호출(<code>/health</code>로는 대신할 수 없음)</li>
+          <li>Telegram 일반 질문에 대한 AI 답변</li>
+          <li>Render 운영 서버에서의 새 소식 수집</li>
+        </ul>
+      </article>
+    </div>
+    <ol class="steps" aria-label="전체 연결 확인 시험">
+      <li><div><span class="who">시험 1 · 웹 → Hermes</span>로그인한 웹의 '비서에게 묻기'에서 짧은 질문을 보내 답이 돌아오는지 봅니다. 실패하면 이 PC의 Hermes·중계·Funnel과 Render의 <code>AI_PROVIDER_BASE_URL</code>·<code>OPENAI_API_KEY</code>(중계 토큰)를 확인합니다.</div></li>
+      <li><div><span class="who">시험 2 · Telegram → Hermes</span>Telegram에서 <code>/start</code>가 아닌 일반 질문을 보냅니다. 시험 1이 성공했는데 답이 없으면 웹훅 등록, 비밀값, 허용 chat_id를 차례로 점검합니다.</div></li>
+    </ol>
+  </section>
+
+  <footer>
+    근거: <code>assignments/M1-2</code>의 서버 코드, <code>render.yaml</code>, <code>web/vercel.json</code>, <code>docs/deployment.md</code>, 2026-10-04 배포 점검 결과.
+  </footer>
+</div>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral" });
+</script>
+</body>
+</html>
