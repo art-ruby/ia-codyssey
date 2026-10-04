@@ -11,6 +11,7 @@ Provider를 한 번만 부르고, 분류·중요도는 그 결과에서 꺼낸�
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlparse
@@ -26,6 +27,7 @@ from app.features.analysis.schemas import (
     AnalysisResult, ModelOutput, normalize_space, numbers, overlap_ratio, sentences, word_chars,
 )
 
+log = logging.getLogger("ai_secretary.analysis")
 
 # Provider에 요청을 보내기 전에 멈춘 오류. 이 밖의 오류는 요청이 나갔다고 보고 사용량에 센다(T04.03).
 # 연결 오류는 도달 여부가 불확실하므로 보낸 쪽으로 센다(한도를 넘지 않는 쪽).
@@ -90,6 +92,8 @@ class HermesProvider:
             with urlopen(request, timeout=min(self.timeout, 10)) as response:
                 payload = json.load(response)
         except Exception as exc:
+            # 원인(HTTP 상태·연결 오류 종류)만 남긴다. 주소·토큰·응답 본문은 남기지 않는다.
+            log.warning("hermes toolset check failed: %s status=%s", type(exc).__name__, getattr(exc, "code", None))
             raise ProviderError("hermes_toolset_check_failed") from exc
         rows = payload.get("data") if isinstance(payload, dict) else None
         if not isinstance(rows, list) or not rows or any(not isinstance(row, dict) for row in rows):

@@ -83,3 +83,22 @@ def test_hermes_rejects_unverifiable_toolsets(monkeypatch):
     with pytest.raises(module.ProviderError, match="hermes_toolset_check_failed"):
         provider.complete_text([{"role": "user", "content": "test"}])
     assert calls == []
+
+
+def test_toolset_check_failure_logs_cause_without_secrets(monkeypatch, caplog):
+    import logging
+    from urllib.error import HTTPError
+
+    provider, calls = make_provider(monkeypatch)
+
+    def reject(*_args, **_kwargs):
+        raise HTTPError("https://relay.example/v1/toolsets", 401, "denied", {}, None)
+
+    monkeypatch.setattr(module, "urlopen", reject)
+    with caplog.at_level(logging.WARNING, logger="ai_secretary.analysis"):
+        with pytest.raises(module.ProviderError, match="hermes_toolset_check_failed"):
+            provider.complete_text([{"role": "user", "content": "test"}])
+
+    assert "HTTPError status=401" in caplog.text
+    assert "relay.example" not in caplog.text
+    assert calls == []
