@@ -21,7 +21,6 @@
 | 중요한 자료를 놓치기 쉽다 | 사용자 시작 AI 분석, 중요도·대응 필요 여부 제안, 오늘 화면 우선순위 표시 |
 | 저장한 자료를 다시 찾기 어렵다 | 보관함 검색·필터, 관련 자료 제안·연결, 휴지통 복원·영구 삭제 |
 | 개인 활동 숫자를 관리하고 싶다 | 날짜·지표·값·메모 CRUD, 합계·평균·최대·최소·추세 요약 |
-| AI 소식을 따로 찾아보기 번거롭다 | AI 동향의 '새 소식': 고른 공식 블로그·커뮤니티 RSS를 모아 관심 분야 우선으로 보여주고, 고른 글만 받은 자료로 저장 |
 | 내 자료를 근거로 질문하고 싶다 | 승인 자료 검색 + 숫자 요약 주입 + 근거 검증 + 대화 자동 저장 |
 | 모바일에서도 간단히 쓰고 싶다 | Vercel 웹 UI, 반응형 메뉴, Telegram Bot 선택 연동 |
 
@@ -79,37 +78,6 @@ flowchart LR
 ```
 
 AI에는 자료 ID나 비밀값을 보내지 않습니다. 답변이 인용한 출처는 서버가 다시 검증합니다. 삭제·휴지통·분석 제외 자료는 새 답변 문맥에서 빠집니다.
-
-### 4.3 시스템 구성과 요청 경로
-
-Render의 API 서버가 중심입니다. 웹과 Telegram 모두 Render로 요청을 보내고, AI가 필요할 때만 Render가 Tailscale Funnel을 거쳐 이 PC의 Hermes를 부릅니다.
-
-```text
-웹에서 AI 사용
-브라우저 → Vercel 웹 → Render API → Tailscale Funnel → 이 PC의 중계 서버(:8766) → Hermes(:8642)
-                           ↕
-                       Firestore
-
-Telegram에서 AI 사용
-Telegram → Render 웹훅 → 같은 채팅·자료 처리 → Tailscale Funnel → 중계 서버 → Hermes
-                Render → Telegram Bot API(sendMessage) → Telegram 답장
-```
-
-| 요소 | 역할 |
-|---|---|
-| Vercel | 화면(HTML·CSS·JS) 제공. 공개 설정만 담은 `config.js`, 보안 헤더 |
-| Firebase Auth | Google 로그인과 ID 토큰 발급. 서버가 토큰과 `OWNER_UID`를 확인 |
-| Render API | 모든 판단과 처리, 비밀값 보관, Firestore 읽기·쓰기 |
-| Firestore | 자료·숫자 기록·대화·새 소식 저장. 브라우저 직접 접근 차단 |
-| Tailscale Funnel + 중계 서버 | Render가 이 PC의 Hermes에 닿는 통로. 전용 토큰과 두 경로만 허용 |
-| Hermes | OpenAI 호환 AI 게이트웨이. 현재 `gpt-5.5` / `openai-codex` |
-| Telegram Bot | 휴대폰 입구. 웹훅은 Funnel을 거치지 않고 Render로 바로 들어옴 |
-
-- Telegram이 Render에 닿는 것과 Render가 Hermes에 닿는 것은 별개 연결입니다. Telegram AI 답변은 두 연결이 모두 정상이어야 합니다.
-- `/health`의 `ready`는 설정이 있다는 뜻이며 Hermes 왕복 성공을 뜻하지 않습니다. 웹 질문 1건과 Telegram 일반 질문 1건으로 따로 확인합니다.
-- 이 PC가 꺼지면 AI 분석·채팅·Telegram 답변만 멈추고, 자료 저장·숫자 기록·대화 기록·새 소식은 계속 동작합니다.
-
-요소별 상세 역할, 처리 순서, 운영 도구(CLI), 장애 영향, 검증 상태는 [docs/system-architecture.html](docs/system-architecture.html)에 정리했습니다.
 
 ## 5. 기술 스택
 
@@ -243,8 +211,8 @@ node web/scripts/build-config.mjs
 | Vercel `js/config.js` | 200, 공개 웹 설정 생성 확인 |
 | Vercel 보안 헤더 | CSP, frame deny, nosniff 확인 |
 | Google 로그인 | `auth/unauthorized-domain` 오류 없이 Google 계정 선택 화면 진입 |
-| 서버 테스트 | `python -m pytest server/tests -q` → 678 passed |
-| 웹 테스트 | `node --test web/scripts/*.test.mjs` → 48 passed |
+| 서버 테스트 | `python -m pytest server/tests -q` → 635 passed |
+| 웹 테스트 | `node --test web/scripts/*.test.mjs` → 45 passed |
 
 실행 명령:
 
@@ -258,7 +226,7 @@ node --test web/scripts/*.test.mjs
 **완료** (2026-10-04 확인)
 
 - MVP(Phase 01~07) 기능을 구현했습니다. 자료 접수·보관 승인·AI 분석·보관함·휴지통·숫자 기록·요약·자료 기반 채팅·대화 기록까지 연결했습니다.
-- 서버 테스트 678개와 웹 테스트 48개를 통과했습니다. 최신 검증 명령은 9장과 `docs/verification.md`에 기록합니다.
+- 서버 테스트 635개와 웹 테스트 45개를 통과했습니다. 최신 검증 명령은 9장과 `docs/verification.md`에 기록합니다.
 - Render API는 최신 코드로 배포되어 있습니다. `ENABLE_API_DOCS=true`를 설정했고 `/health` 200, `/docs` 200을 확인했습니다.
 - Vercel 웹은 `ia-codyssey-web`에 운영 배포했습니다. 공개 설정 환경변수 4개를 등록했고, 응답에 CSP·`X-Frame-Options`·`nosniff` 헤더가 붙는 것을 확인했습니다.
 - Google 로그인은 `auth/unauthorized-domain` 오류 없이 Google 계정 선택 화면까지 진입하는 것을 확인했습니다.
