@@ -81,7 +81,9 @@ AI에는 자료 ID나 비밀값을 보내지 않습니다. 답변이 인용한 �
 
 ### 4.3 시스템 구성
 
-Render의 API 서버가 중심입니다. 웹과 Telegram 모두 Render로 요청을 보내고, Render가 Firestore에 기록하며, AI가 필요할 때만 Tailscale Funnel을 통해 이 PC의 Hermes를 부릅니다. 같은 내용을 [docs/system-architecture.html](docs/system-architecture.html) 페이지로도 정리했습니다.
+Render의 API 서버가 중심입니다. 웹과 Telegram 모두 Render로 요청을 보내고, Render가 Firestore에 기록하며, AI가 필요할 때만 Tailscale Funnel을 통해 이 PC의 Hermes를 부릅니다. 같은 내용을 웹페이지(HTML)로도 만들어 두었습니다.
+
+> **[웹페이지로 열기 (GitHub Pages)](https://art-ruby.github.io/ia-codyssey/assignments/M1-2/docs/system-architecture.html)** · HTML 원본: [docs/system-architecture.html](docs/system-architecture.html)
 
 **전체 연결도** (화살표는 요청이 가는 방향, "이 PC" 상자 안은 이 컴퓨터가 켜져 있어야 동작)
 
