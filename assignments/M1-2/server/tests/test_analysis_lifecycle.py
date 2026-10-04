@@ -29,7 +29,7 @@ def result(title="AI 제목") -> AnalysisResult:
         ai_primary_project_id=None, ai_kind="note", ai_keywords=["k"], ai_uncertainties=[],
         ai_recommended_action=None, ai_needs_action=False, ai_evidence=["인용문 여덟 글자 이상"],
         ai_checked_scope={"fields": ["title"], "chars": 1, "url_fetched": False},
-        ai_grounding={"fact_checked": False}, model="gpt-6-luna", total_tokens=100,
+        ai_grounding={"fact_checked": False}, model="gpt-5.5", total_tokens=100,
     )
 
 

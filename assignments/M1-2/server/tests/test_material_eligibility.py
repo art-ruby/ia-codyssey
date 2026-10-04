@@ -109,7 +109,7 @@ class CapturingCompleter:
 
     def complete_text(self, messages):
         self.sent.append(messages)
-        return TextResult(text="답변", model="gpt-6-luna", total_tokens=10)
+        return TextResult(text="답변", model="gpt-5.5", total_tokens=10)
 
 
 def test_provider_request_never_contains_forbidden_materials():

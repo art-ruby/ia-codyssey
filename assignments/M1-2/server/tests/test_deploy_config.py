@@ -131,7 +131,7 @@ def test_render_env_names_are_known_to_the_server_and_documented():
 
 def test_render_ai_values_match_verified_hermes_route():
     blocks = render_env_blocks()
-    assert re.search(r"value:\s*gpt-6-luna", blocks["AI_PROVIDER_MODEL"])
+    assert re.search(r"value:\s*gpt-5.5", blocks["AI_PROVIDER_MODEL"])
     assert re.search(r"value:\s*openai-codex", blocks["AI_PROVIDER_ROUTE"])
 
 

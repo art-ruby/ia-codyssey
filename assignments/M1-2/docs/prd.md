@@ -345,7 +345,7 @@ Web → FastAPI → AI Provider Adapter → **Hermes API** → 모델 → 분석
 
 [검증 결과] 로컬 Hermes의 OpenAI 호환 API에서 Python `openai` SDK로 `provider=openai-codex`, `model=gpt-6-luna` 텍스트 응답이 정상 종료됐다(T01.04). 같은 날 Hermes의 Claude 구독 경로는 upstream 429로 실패했다. Codyssey `gpt-5-mini`는 과거 T01.03의 별도 검증 결과이며 현재 기본 경로가 아니다. 이미지 입력은 확장 단계 A27에서 확인한다.
 
-[권장 구현안] Python `openai` SDK의 `OpenAI(base_url=<Hermes 주소>, api_key=<Hermes API 서버 키>)`와 요청별 `provider=openai-codex`, `model=gpt-6-luna`를 사용한다. 환경변수는 `OPENAI_API_KEY`(Hermes API 서버 키), `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_MODEL`, `AI_PROVIDER_ROUTE`다. Hermes가 내부 구독 경로를 선택하므로 이 키를 모델 제공사의 직접 API 키라고 설명하지 않는다. 과제의 API 사용 조건 충족 여부는 제출 전에 별도로 확인한다.
+[권장 구현안] Python `openai` SDK의 `OpenAI(base_url=<Hermes 주소>, api_key=<Hermes API 서버 키>)`와 요청별 `provider=openai-codex`, `model=gpt-5.5`를 사용한다. 환경변수는 `OPENAI_API_KEY`(Hermes API 서버 키), `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_MODEL`, `AI_PROVIDER_ROUTE`다. Hermes가 내부 구독 경로를 선택하므로 이 키를 모델 제공사의 직접 API 키라고 설명하지 않는다. 과제의 API 사용 조건 충족 여부는 제출 전에 별도로 확인한다.
 
 Hermes의 `/v1/models`는 에이전트 이름을 반환하므로 내부 모델 목록으로 해석하지 않는다. 사용 가능한 구독 경로와 모델은 `/api/model/options`에서 확인하고 요청에 둘 다 명시한다. T01.03의 Codyssey 기록은 과거 검증 증거로 보존한다.
 

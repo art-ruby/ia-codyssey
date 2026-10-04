@@ -57,7 +57,7 @@ class FakeCompleter:
 
     def complete_text(self, messages):
         self.calls.append(messages)
-        return TextResult(text=self.text, model="gpt-6-luna", total_tokens=321)
+        return TextResult(text=self.text, model="gpt-5.5", total_tokens=321)
 
 
 def run(raw, doc=None, projects=PROJECTS):
@@ -278,7 +278,7 @@ def test_length_finish_is_reported_as_truncated(monkeypatch):
     def create(**_kwargs):
         return SimpleNamespace(choices=[SimpleNamespace(finish_reason="length",
                                                         message=SimpleNamespace(content="{"))],
-                               model="gpt-6-luna", usage=None)
+                               model="gpt-5.5", usage=None)
 
     monkeypatch.setattr(module, "OpenAI", lambda **_kwargs: SimpleNamespace(
         chat=SimpleNamespace(completions=SimpleNamespace(create=create))
@@ -286,7 +286,7 @@ def test_length_finish_is_reported_as_truncated(monkeypatch):
     monkeypatch.setattr(module.HermesProvider, "_require_tool_free_profile", lambda self: None)
     provider = module.HermesProvider(load_settings({
         "OPENAI_API_KEY": "k", "AI_PROVIDER_BASE_URL": "http://127.0.0.1:8642/v1",
-        "AI_PROVIDER_MODEL": "gpt-6-luna", "AI_PROVIDER_ROUTE": "openai-codex",
+        "AI_PROVIDER_MODEL": "gpt-5.5", "AI_PROVIDER_ROUTE": "openai-codex",
     }))
     with pytest.raises(ProviderError, match="output_truncated"):
         provider.complete_text([{"role": "user", "content": "x"}])
@@ -380,7 +380,7 @@ def _provider_raising(monkeypatch, exc):
     monkeypatch.setattr(module.HermesProvider, "_require_tool_free_profile", lambda self: None)
     return module.HermesProvider(load_settings({
         "OPENAI_API_KEY": "k", "AI_PROVIDER_BASE_URL": "http://127.0.0.1:8642/v1",
-        "AI_PROVIDER_MODEL": "gpt-6-luna", "AI_PROVIDER_ROUTE": "openai-codex",
+        "AI_PROVIDER_MODEL": "gpt-5.5", "AI_PROVIDER_ROUTE": "openai-codex",
     }))
 
 

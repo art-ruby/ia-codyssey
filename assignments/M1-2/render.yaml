@@ -17,7 +17,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: AI_PROVIDER_MODEL
-        value: gpt-6-luna
+        value: gpt-5.5
       - key: AI_PROVIDER_ROUTE
         value: openai-codex
       - key: AI_TIMEOUT_SECONDS

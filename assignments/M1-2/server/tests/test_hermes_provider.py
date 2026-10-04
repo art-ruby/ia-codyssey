@@ -31,7 +31,7 @@ def make_provider(monkeypatch, *, finish_reason="stop"):
                     finish_reason=finish_reason,
                     message=SimpleNamespace(content="연결됨"),
                 )],
-                model="gpt-6-luna",
+                model="gpt-5.5",
                 usage=SimpleNamespace(total_tokens=12),
             )
 
@@ -41,7 +41,7 @@ def make_provider(monkeypatch, *, finish_reason="stop"):
     settings = load_settings({
         "OPENAI_API_KEY": "test-key",
         "AI_PROVIDER_BASE_URL": "http://127.0.0.1:8642/v1",
-        "AI_PROVIDER_MODEL": "gpt-6-luna",
+        "AI_PROVIDER_MODEL": "gpt-5.5",
         "AI_PROVIDER_ROUTE": "openai-codex",
     })
     return module.HermesProvider(settings), calls
@@ -55,7 +55,7 @@ def test_hermes_requires_disabled_tools_and_explicit_route(monkeypatch):
     result = provider.complete_text([{"role": "user", "content": "test"}])
     assert result.text == "연결됨"
     assert calls[0]["extra_body"] == {"provider": "openai-codex"}
-    assert calls[0]["model"] == "gpt-6-luna"
+    assert calls[0]["model"] == "gpt-5.5"
 
 
 def test_hermes_rejects_enabled_tools_before_sending_text(monkeypatch):

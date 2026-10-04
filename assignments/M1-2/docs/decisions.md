@@ -48,7 +48,7 @@
 
 ## MVP AI 실행 경로 — Hermes 로컬 우선 (2026-10-01 변경)
 
-- 사용자가 Hermes를 AI Secretary의 엔진으로 선택했다. 서버 AI 설정은 Hermes 로컬 API를 가리키며, 현재 정상 응답 경로는 `openai-codex` / `gpt-6-luna`다.
+- 사용자가 Hermes를 AI Secretary의 엔진으로 선택했다. 서버 AI 설정은 Hermes 로컬 API를 가리킨다. T01.04의 실제 검증 모델은 `gpt-6-luna`였고, 현재 배포 설정 모델은 `gpt-5.5`다.
 - 이전 Codyssey 텍스트 호출 결과와 설정 파일은 검증 이력으로 보존한다. 현재 실행 경로로 혼용하거나 자동 대체하지 않는다.
 - Hermes API 서버에서 도구 세트가 활성화되면 사용자 자료를 보내기 전에 호출을 중단한다. 브라우저는 Hermes 키를 받지 않는다.
 - Render 배포는 이 PC의 loopback 주소에 닿지 않는다. 원격 Hermes 연결·인증·구독 경로를 실제로 검증하기 전까지 배포 완료와 MVP 완료를 주장하지 않는다.

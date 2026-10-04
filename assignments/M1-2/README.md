@@ -145,7 +145,7 @@ node web/scripts/build-config.mjs
 |---|---|
 | `OPENAI_API_KEY` | AI Provider 인증값. Render에서는 중계 토큰으로 사용 |
 | `AI_PROVIDER_BASE_URL` | OpenAI 호환 API 주소 |
-| `AI_PROVIDER_MODEL` | 예: `gpt-6-luna` |
+| `AI_PROVIDER_MODEL` | 예: `gpt-5.5` |
 | `AI_PROVIDER_ROUTE` | Hermes 구독 경로 |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase 서비스 계정 JSON 한 줄 문자열 |
 | `OWNER_UID` | 허용할 Firebase 사용자 UID |
