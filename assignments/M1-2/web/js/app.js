@@ -31,6 +31,7 @@ const SCREENS = [
 ];
 const BY_KEY = Object.fromEntries(SCREENS.map((s) => [s.key, s]));
 const MODE_KEY = "ai-secretary.mode";
+const THEME_KEY = "ai-secretary.theme";
 
 const $ = (id) => document.getElementById(id);
 const state = { mode: loadMode(), user: null, loginMessage: "" };
@@ -66,6 +67,34 @@ function setMode(mode) {
   syncModeUi();
   renderScreen();
   checkServer();
+}
+
+function loadTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function applyTheme(theme) {
+  const dark = theme === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const button = $("theme-toggle");
+  if (button) {
+    button.textContent = dark ? "라이트 모드" : "다크 모드";
+    button.setAttribute("aria-pressed", String(dark));
+  }
+}
+
+function setTheme(theme) {
+  const next = theme === "dark" ? "dark" : "light";
+  try {
+    localStorage.setItem(THEME_KEY, next);
+  } catch {
+    /* 저장할 수 없어도 현재 화면에는 적용한다 */
+  }
+  applyTheme(next);
 }
 
 function syncModeUi() {
@@ -231,6 +260,7 @@ function showApp(user) {
 
 // ── 시작 ─────────────────────────────────────────────────────────
 buildNav();
+applyTheme(loadTheme());
 syncModeUi();
 
 $("login-btn").addEventListener("click", () => {
@@ -240,6 +270,9 @@ $("login-btn").addEventListener("click", () => {
   });
 });
 $("logout-btn").addEventListener("click", () => signOut());
+$("theme-toggle").addEventListener("click", () => {
+  setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
 $("mode-select").addEventListener("change", (event) => setMode(event.target.value));
 $("menu-toggle").addEventListener("click", toggleMenu);
 $("scrim").addEventListener("click", closeMenu);

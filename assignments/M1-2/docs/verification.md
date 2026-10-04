@@ -339,3 +339,11 @@ Phase 01 연결 검증을 보충하면서 서버가 읽는 `.env`를 같은 Cody
 - 실제 수집(로컬, 서버 코드 직접 호출, 메모리 저장소): 기본 출처 6곳 모두 성공·각 20건, 4.5초. 관심어 일치 글이 위로 정렬됨을 확인.
 - 화면 확인(가짜 API 시험 페이지): 첫 화면 "새 소식을 확인하는 중…" → 5초 뒤 목록, 키워드 칩·출처·상대 시각, `javascript:` 링크는 링크로 만들지 않음, 외부 링크 `target=_blank`·`rel=noopener noreferrer`, 실패 출처 한 줄 안내, 자료로 저장 → "저장됨·받은 자료에서 보기", 숨기기·되돌리기와 건수 변화, 5분 안 새로고침 안내, 표본 모드 안내, 설정의 출처 끄기·잘못된 주소 안내·추가·삭제. 콘솔 오류 없음.
 - 미검증: Render 운영 서버에서의 외부 접속·수집, 실제 로그인 화면, Firestore 색인 배포(`news_sources`·`news_items` 색인 추가).
+
+## 보너스: 시계열 그래프·CSV 내보내기·다크 모드 — 2026-10-04
+
+- 반영 내용: 활동 기록 화면의 최근 14일 막대 그래프에 값·날짜 라벨을 추가하고, 현재 요약을 CSV로 내려받는 버튼을 붙였다. 상단에는 다크 모드/라이트 모드 전환 버튼을 추가했고 선택은 브라우저 `localStorage`에만 저장한다.
+- CSV 범위: 서버가 계산한 `/api/data/summary` 응답을 그대로 사용한다. 메타 정보(label, mode, source, metric, period, total, average, min, max, trend)와 일별 `date,value`를 포함하고, 쉼표·따옴표는 CSV 규칙대로 이스케이프한다.
+- 자동 시험: `node --test web/scripts/activity-format.test.mjs` **6 passed**(CSV 파일명, 메타·일별 값, 쉼표·따옴표 이스케이프 포함). `node --test web/scripts/*.test.mjs` **50 passed**. `node --check web/js/app.js web/js/views/activity.js web/js/activity-format.js` 통과. `git diff --check` 통과.
+- 정적 보안 확인: `rg -n "innerHTML|insertAdjacentHTML|outerHTML|document\\.write" web/js web/index.html`에서 결과 없음. 새 그래프와 CSV 버튼도 DOM API와 `textContent`만 쓴다.
+- 미검증: 배포 URL에서 실제 CSV 다운로드 파일 생성, 모바일 다크 모드 시각 확인.

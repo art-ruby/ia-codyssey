@@ -2,7 +2,9 @@
 // 기록을 바꾸면 같은 조건으로 요약과 목록을 서버에서 다시 받는다(화면에 이전 값을 남기지 않음).
 // 실제 값은 자료에서 계산하며 숫자 기록과 합산하지 않는다(PRD §11). 모든 문자열은 textContent·value로만 넣는다.
 import { request } from "../api.js";
-import { METRIC_OPTIONS, editableOrigin, periodText, sourceOptions, statsText, trendText } from "../activity-format.js";
+import {
+  METRIC_OPTIONS, editableOrigin, periodText, sourceOptions, statsText, summaryCsv, summaryFilename, trendText,
+} from "../activity-format.js";
 import { el } from "../priority.js";
 
 const METRIC_LABEL = Object.fromEntries(METRIC_OPTIONS);
@@ -21,8 +23,10 @@ export function renderActivityTab(root, ctx) {
   const from = el("input", { type: "date", "aria-label": "시작 날짜" });
   const to = el("input", { type: "date", "aria-label": "끝 날짜" });
   const go = el("button", { class: "button primary small", type: "button", text: "요약 보기" });
+  const csv = el("button", { class: "button secondary small", type: "button", text: "CSV 내보내기", disabled: "disabled" });
   const summaryBox = el("div", { class: "activity-summary", "aria-live": "polite" });
   const status = el("p", { class: "form-status", role: "status" });
+  let currentSummary = null;
 
   const addDate = el("input", { type: "date", "aria-label": "기록 날짜" });
   const addMetric = select("기록 지표", METRIC_OPTIONS);
@@ -38,7 +42,7 @@ export function renderActivityTab(root, ctx) {
         el("label", {}, el("span", { text: "출처" }), source),
         el("label", {}, el("span", { text: "지표" }), metric),
         el("label", {}, el("span", { text: "기간(비우면 관측 시작~기준일)" }), el("div", { class: "date-range" }, from, el("span", { text: "~" }), to))),
-      el("div", { class: "form-actions" }, go), summaryBox),
+      el("div", { class: "form-actions" }, go, csv), summaryBox),
     el("section", { class: "panel form" },
       el("h2", { class: "section-title", text: "숫자 기록" }), recordNote,
       el("div", { class: "search-filters" },
@@ -55,16 +59,37 @@ export function renderActivityTab(root, ctx) {
   }
 
   function renderSummary(s) {
+    currentSummary = s;
+    csv.disabled = !s.daily.length;
     const recent = s.daily.slice(-14);
     const peak = Math.max(1, ...recent.map((d) => d.value));
+    const totalHeight = 100;
     summaryBox.replaceChildren(...[
       el("p", { class: "activity-label", text: `${s.label} · ${periodText(s)}` }),
       el("p", { class: "activity-stats", text: statsText(s) }),
       el("p", { class: "activity-trend", text: trendText(s.trend) }),
       recent.length ? el("div", { class: "activity-bars", "aria-label": "최근 14일 일별 값" },
-        ...recent.map((d) => el("span", { class: "activity-bar", title: `${d.date}: ${d.value}건`,
-          style: `height:${Math.round((d.value / peak) * 100)}%` }))) : null,
+        ...recent.map((d) => el("span", { class: "activity-bar-wrap" },
+          el("span", { class: "activity-bar-value", text: String(d.value) }),
+          el("span", { class: "activity-bar", title: `${d.date}: ${d.value}건`,
+            style: `height:${Math.max(2, Math.round((d.value / peak) * totalHeight))}%` }),
+          el("span", { class: "activity-bar-date", text: d.date.slice(5) })))) : null,
     ].filter(Boolean));
+  }
+
+  function downloadCsv() {
+    if (!currentSummary?.daily.length) {
+      status.textContent = "내보낼 요약 데이터가 없습니다.";
+      return;
+    }
+    const blob = new Blob([summaryCsv(currentSummary)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = el("a", { href: url, download: summaryFilename(currentSummary) });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    status.textContent = "현재 요약을 CSV로 내보냈습니다.";
   }
 
   async function load(message = "") {
@@ -155,6 +180,7 @@ export function renderActivityTab(root, ctx) {
     addMemo.value = "";
   });
   go.addEventListener("click", () => load());
+  csv.addEventListener("click", downloadCsv);
   source.addEventListener("change", () => load());
   metric.addEventListener("change", () => { addMetric.value = metric.value; load(); });
 

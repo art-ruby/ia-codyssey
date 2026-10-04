@@ -39,3 +39,42 @@ export function statsText(summary) {
 export function periodText(summary) {
   return summary.period ? `${summary.period.start} ~ ${summary.period.end}` : "기간 없음";
 }
+
+function csvCell(value) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+// 활동 기록 보너스: 화면에 보이는 요약을 그대로 내려받을 수 있게 CSV 문자열을 만든다.
+// 서버에서 이미 출처·모드·기간을 나눠 계산한 결과만 받으므로, 여기서는 값을 다시 계산하지 않는다.
+export function summaryCsv(summary) {
+  const rows = [
+    ["label", summary.label || ""],
+    ["mode", summary.mode || ""],
+    ["source", summary.source || ""],
+    ["metric_type", summary.metric_type || ""],
+    ["period_start", summary.period?.start || ""],
+    ["period_end", summary.period?.end || ""],
+    ["days", summary.days ?? ""],
+    ["total", summary.total ?? ""],
+    ["average", summary.average ?? ""],
+    ["min", summary.min ?? ""],
+    ["max", summary.max ?? ""],
+    ["trend_status", summary.trend?.status || ""],
+    ["trend_recent_average", summary.trend?.recent_average ?? ""],
+    ["trend_previous_average", summary.trend?.previous_average ?? ""],
+    ["trend_change_rate", summary.trend?.change_rate ?? ""],
+    [],
+    ["date", "value"],
+    ...(summary.daily || []).map((day) => [day.date, day.value]),
+  ];
+  return rows.map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
+}
+
+export function summaryFilename(summary) {
+  const source = summary.source || "source";
+  const metric = summary.metric_type || "metric";
+  const start = summary.period?.start || "no-start";
+  const end = summary.period?.end || "no-end";
+  return `ai-secretary-${summary.mode || "mode"}-${source}-${metric}-${start}-${end}.csv`;
+}
