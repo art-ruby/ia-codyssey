@@ -80,6 +80,37 @@ flowchart LR
 
 AI에는 자료 ID나 비밀값을 보내지 않습니다. 답변이 인용한 출처는 서버가 다시 검증합니다. 삭제·휴지통·분석 제외 자료는 새 답변 문맥에서 빠집니다.
 
+### 4.3 시스템 구성과 요청 경로
+
+Render의 API 서버가 중심입니다. 웹과 Telegram 모두 Render로 요청을 보내고, AI가 필요할 때만 Render가 Tailscale Funnel을 거쳐 이 PC의 Hermes를 부릅니다.
+
+```text
+웹에서 AI 사용
+브라우저 → Vercel 웹 → Render API → Tailscale Funnel → 이 PC의 중계 서버(:8766) → Hermes(:8642)
+                           ↕
+                       Firestore
+
+Telegram에서 AI 사용
+Telegram → Render 웹훅 → 같은 채팅·자료 처리 → Tailscale Funnel → 중계 서버 → Hermes
+                Render → Telegram Bot API(sendMessage) → Telegram 답장
+```
+
+| 요소 | 역할 |
+|---|---|
+| Vercel | 화면(HTML·CSS·JS) 제공. 공개 설정만 담은 `config.js`, 보안 헤더 |
+| Firebase Auth | Google 로그인과 ID 토큰 발급. 서버가 토큰과 `OWNER_UID`를 확인 |
+| Render API | 모든 판단과 처리, 비밀값 보관, Firestore 읽기·쓰기 |
+| Firestore | 자료·숫자 기록·대화·새 소식 저장. 브라우저 직접 접근 차단 |
+| Tailscale Funnel + 중계 서버 | Render가 이 PC의 Hermes에 닿는 통로. 전용 토큰과 두 경로만 허용 |
+| Hermes | OpenAI 호환 AI 게이트웨이. 현재 `gpt-5.5` / `openai-codex` |
+| Telegram Bot | 휴대폰 입구. 웹훅은 Funnel을 거치지 않고 Render로 바로 들어옴 |
+
+- Telegram이 Render에 닿는 것과 Render가 Hermes에 닿는 것은 별개 연결입니다. Telegram AI 답변은 두 연결이 모두 정상이어야 합니다.
+- `/health`의 `ready`는 설정이 있다는 뜻이며 Hermes 왕복 성공을 뜻하지 않습니다. 웹 질문 1건과 Telegram 일반 질문 1건으로 따로 확인합니다.
+- 이 PC가 꺼지면 AI 분석·채팅·Telegram 답변만 멈추고, 자료 저장·숫자 기록·대화 기록·새 소식은 계속 동작합니다.
+
+요소별 상세 역할, 처리 순서, 운영 도구(CLI), 장애 영향, 검증 상태는 [docs/system-architecture.html](docs/system-architecture.html)에 정리했습니다.
+
 ## 5. 기술 스택
 
 | 영역 | 기술 |
