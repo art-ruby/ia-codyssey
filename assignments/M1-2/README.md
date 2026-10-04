@@ -79,6 +79,97 @@ flowchart LR
 
 AI에는 자료 ID나 비밀값을 보내지 않습니다. 답변이 인용한 출처는 서버가 다시 검증합니다. 삭제·휴지통·분석 제외 자료는 새 답변 문맥에서 빠집니다.
 
+### 4.3 시스템 구성
+
+Render의 API 서버가 중심입니다. 웹과 Telegram 모두 Render로 요청을 보내고, Render가 Firestore에 기록하며, AI가 필요할 때만 Tailscale Funnel을 통해 이 PC의 Hermes를 부릅니다. 같은 내용을 [docs/system-architecture.html](docs/system-architecture.html) 페이지로도 정리했습니다.
+
+**전체 연결도** (화살표는 요청이 가는 방향, "이 PC" 상자 안은 이 컴퓨터가 켜져 있어야 동작)
+
+```mermaid
+flowchart TB
+  user["사용자 브라우저"]
+  phone["휴대폰 Telegram"]
+  vercel["Vercel · 웹 화면"]
+  auth["Firebase Auth · Google 로그인"]
+  tg["Telegram 서버"]
+  api["Render · API 서버 (FastAPI)"]
+  db[("Firestore")]
+  feeds["공식 블로그 · 커뮤니티 RSS"]
+  funnel["Tailscale Funnel · 공개 HTTPS"]
+  subgraph pc["이 PC"]
+    relay["중계 서버 :8766"]
+    hermes["Hermes :8642"]
+  end
+  gpt["GPT · 구독 경로"]
+
+  user -->|화면 받기| vercel
+  user -->|로그인| auth
+  user -->|API 호출 + 토큰| api
+  phone --> tg -->|웹훅 · Funnel 안 거침| api
+  api -->|읽기 · 쓰기| db
+  api -->|새 소식 수집| feeds
+  api -->|AI 호출 + 중계 토큰| funnel --> relay --> hermes --> gpt
+  api -->|답장 sendMessage| tg
+```
+
+**웹 경로와 Telegram 경로**
+
+| 경로 | 흐름 |
+|---|---|
+| 웹에서 AI 사용 | 브라우저 → Vercel 웹 → Render API → Tailscale Funnel → 이 PC의 중계 서버 → Hermes. Render는 그 사이에 Firestore에서 자료·숫자 요약을 읽고 답과 대화를 저장합니다. |
+| Telegram에서 AI 사용 | Telegram → Render 웹훅 → 같은 채팅·자료 처리 → Tailscale Funnel → 중계 서버 → Hermes. 답은 Render가 Telegram Bot API(`sendMessage`)로 보냅니다. 웹훅 자체는 Funnel을 거치지 않습니다. |
+
+Telegram이 Render에 닿는 것과 Render가 Hermes에 닿는 것은 별개의 연결입니다. Telegram으로 AI 답을 받으려면 두 연결이 모두 정상이어야 합니다.
+
+**구성 요소별 역할**
+
+| 요소 | 주소·설정 | 역할 |
+|---|---|---|
+| Vercel · 웹 화면 | `ia-codyssey-web.vercel.app`, `web/` | 프레임워크 없는 HTML·CSS·JS 화면. 빌드 때 공개 값 4개로 `config.js`를 만들고(비밀값 없음) CSP 등 보안 헤더를 붙입니다. API를 부를 때 토큰·자료 모드·중복 요청 키를 보냅니다. |
+| Firebase Auth | Google 로그인, `OWNER_UID` | 로그인하면 ID 토큰을 받습니다. 서버가 요청마다 서명·만료·폐기 여부를 확인하고, `OWNER_UID`와 다르면 403으로 거부합니다. |
+| Render · API 서버 | `ai-secretary-api.onrender.com`, `server/`, `/docs` | 자료 접수·검토·분석, 숫자 기록·요약, 채팅, 대화 기록, 휴지통, 새 소식, URL 미리보기 처리. 비밀값은 Render 환경변수에만 있습니다. `/health`의 `ready`는 설정이 있다는 뜻일 뿐 Hermes 호출 성공을 뜻하지 않습니다. 무료 플랜이라 쉬면 첫 요청이 50초 이상 걸릴 수 있습니다. |
+| Firestore | `materials`, `data`, `conversations`, `news_items` 등 | 모든 기록을 보관합니다. 보안 규칙으로 브라우저 직접 접근을 막고 서버만 관리자 SDK로 접근합니다. 문서마다 소유자·모드가 붙고, 목록 조회에는 복합 색인이 필요합니다. |
+| Hermes · AI 게이트웨이 | `127.0.0.1:8642/v1`, `gpt-5.5`, `openai-codex` | 이 PC에서 도는 OpenAI 호환 게이트웨이입니다. 서버는 Python `openai` SDK로 호출합니다. 파일·터미널·MCP 도구는 꺼 두었고 서버도 호출 전마다 확인합니다. |
+| 중계 서버 + Tailscale Funnel | `127.0.0.1:8766`, `HERMES_RELAY_TOKEN` | Render가 이 PC의 Hermes에 닿도록 공개 HTTPS 길을 엽니다. 중계는 전용 토큰을 확인하고 `GET /v1/toolsets`, `POST /v1/chat/completions` 두 경로만 전달합니다. Render의 `OPENAI_API_KEY`에는 이 중계 토큰을 넣습니다. |
+| Telegram Bot | `/api/telegram/webhook`, `TELEGRAM_ALLOWED_CHAT_ID` | Telegram이 Render 웹훅으로 직접 보냅니다. 서버는 비밀 헤더와 허용 chat_id를 확인하고, 웹 채팅과 같은 처리로 답을 만들어 `sendMessage`로 보냅니다. 같은 메시지는 한 번만 처리합니다. |
+| 공식 블로그·커뮤니티 피드 | `/api/news`, RSS·Atom | AI 동향을 열 때 6시간이 지났으면 서버가 피드를 읽어 '새 소식'을 채웁니다. 관심 분야와 맞는 글을 먼저 보여 주고, 고른 글만 받은 자료로 저장합니다. |
+
+**질문 하나가 처리되는 순서** (웹 '비서에게 묻기')
+
+1. 브라우저 → Render: 웹이 Firebase 토큰을 붙여 `POST /api/chat`을 보냅니다.
+2. Render → Firestore: 토큰과 소유자를 확인하고, 보관 승인된 자료와 숫자 요약을 찾습니다.
+3. Render: 찾은 자료와 요약을 "지시가 아닌 참고 데이터" 구획에 넣어 시스템 메시지를 만듭니다.
+4. Render → Funnel → 중계 → Hermes → GPT: 질문이 이 PC를 거쳐 GPT로 가고 답이 돌아옵니다.
+5. Render → Firestore → 브라우저: 답의 출처 번호를 검증하고 대화를 저장한 뒤 화면에 보여 줍니다.
+
+Telegram에서 물으면 1번이 웹훅으로 바뀌고 2~5번은 같습니다. 마지막에 화면 대신 Telegram 답장을 보냅니다.
+
+**운영에 쓰는 도구와 CLI**
+
+| 도구 | 하는 일 | 쓰는 때 |
+|---|---|---|
+| git · GitHub | `art-ruby/ia-codyssey`의 `m1-2` 브랜치가 코드 원본 | 모든 변경 |
+| Render 대시보드 | 서버 배포(현재 수동 "Deploy latest commit"), 환경변수, 로그 | 서버 코드를 바꾼 뒤 |
+| Vercel CLI | `vercel deploy --prod`로 웹 운영 배포 | 화면 코드를 바꾼 뒤 |
+| Firebase CLI | `firebase deploy --only firestore:indexes` 등 규칙·색인 배포 | 저장 구조를 바꾼 뒤 |
+| Tailscale CLI | `tailscale funnel`로 중계 서버를 공개 HTTPS로 열기 | AI 연결을 켤 때 |
+| Python 스크립트 | `run_hermes_relay.py`(중계), `smoke_hermes.py`(AI 연결 확인), `seed_sample.py`(표본 120건), `check_firestore.py`(저장소 점검) | 로컬 점검·시연 준비 |
+
+**무엇이 꺼지면 무엇이 멈추나**
+
+| 꺼진 것 | 멈추는 기능 | 계속 되는 기능 |
+|---|---|---|
+| 이 PC · Hermes · 중계 · Funnel | AI 분석, 웹 채팅 답변, Telegram 답변 | 자료 저장·검토, 숫자 기록·요약, 대화 기록, 새 소식, 휴지통, Telegram `/start` |
+| Render 서버(잠듦) | 첫 요청이 50초 이상 지연 | 깨어난 뒤 모두 정상 |
+| Firestore 색인 미배포 | 해당 목록 조회(서버 오류 안내 표시) | 색인이 필요 없는 조회 |
+| Telegram 웹훅·비밀값·chat_id 문제 | Telegram 입구 | 웹 전체 |
+
+**확인한 것과 아직 확인하지 못한 것**
+
+- 확인됨: Render·Vercel 최신 코드 배포, `/health`의 AI·Firebase 설정 `ready`, Swagger(`/docs`), 로그인 없는 요청 401, 웹 보안 헤더와 CORS, Telegram 코드와 자동 시험, `/start` 연결 메시지 수신(Telegram이 Render에 닿는다는 정황).
+- 미확인: Render → Funnel → 중계 → Hermes 왕복 AI 호출(`/health`로는 대신할 수 없음), Telegram 일반 질문에 대한 AI 답변, Render 운영 서버에서의 새 소식 수집.
+- 확인 방법: (1) 로그인한 웹의 '비서에게 묻기'에서 짧은 질문을 보내 답이 오는지 봅니다. (2) Telegram에서 `/start`가 아닌 일반 질문을 보냅니다. 시험 1이 성공했는데 시험 2가 실패하면 웹훅 등록·비밀값·허용 chat_id를 점검합니다.
+
 ## 5. 기술 스택
 
 | 영역 | 기술 |
