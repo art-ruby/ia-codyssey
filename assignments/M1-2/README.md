@@ -211,8 +211,8 @@ node web/scripts/build-config.mjs
 | Vercel `js/config.js` | 200, 공개 웹 설정 생성 확인 |
 | Vercel 보안 헤더 | CSP, frame deny, nosniff 확인 |
 | Google 로그인 | `auth/unauthorized-domain` 오류 없이 Google 계정 선택 화면 진입 |
-| 서버 테스트 | `python -m pytest server/tests -q` → 635 passed |
-| 웹 테스트 | `node --test web/scripts/*.test.mjs` → 45 passed |
+| 서버 테스트 | `python -m pytest server/tests -q` → 680 passed |
+| 웹 테스트 | `node --test web/scripts/*.test.mjs` → 48 passed |
 
 실행 명령:
 
@@ -226,7 +226,7 @@ node --test web/scripts/*.test.mjs
 **완료** (2026-10-04 확인)
 
 - MVP(Phase 01~07) 기능을 구현했습니다. 자료 접수·보관 승인·AI 분석·보관함·휴지통·숫자 기록·요약·자료 기반 채팅·대화 기록까지 연결했습니다.
-- 서버 테스트 635개와 웹 테스트 45개를 통과했습니다. 최신 검증 명령은 9장과 `docs/verification.md`에 기록합니다.
+- 서버 테스트 680개와 웹 테스트 48개를 통과했습니다. 최신 검증 명령은 9장과 `docs/verification.md`에 기록합니다.
 - Render API는 최신 코드로 배포되어 있습니다. `ENABLE_API_DOCS=true`를 설정했고 `/health` 200, `/docs` 200을 확인했습니다.
 - Vercel 웹은 `ia-codyssey-web`에 운영 배포했습니다. 공개 설정 환경변수 4개를 등록했고, 응답에 CSP·`X-Frame-Options`·`nosniff` 헤더가 붙는 것을 확인했습니다.
 - Google 로그인은 `auth/unauthorized-domain` 오류 없이 Google 계정 선택 화면까지 진입하는 것을 확인했습니다.
